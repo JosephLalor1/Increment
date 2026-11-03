@@ -1,0 +1,179 @@
+@id c_07_arrays
+@track C
+@title Arrays
+
+An array stores several values of the same type in one block of contiguous memory: the elements sit next to each other. You reach an element by its index, and the first index is 0.
+
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+
+    printf("First element: %d\n", numbers[0]);
+    printf("Third element: %d\n", numbers[2]);
+    printf("Fifth element: %d\n", numbers[4]);
+
+    numbers[1] = 25;  // change an element
+    printf("Modified second element: %d\n", numbers[1]);
+
+    // Use a loop to process every element
+    int sum = 0;
+    for (int i = 0; i < 5; i++) {
+        sum += numbers[i];
+    }
+    printf("Sum: %d\n", sum);
+    return 0;
+}
+```
+
+Output:
+
+```
+First element: 10
+Third element: 30
+Fifth element: 50
+Modified second element: 25
+Sum: 155
+```
+
+> An array of 5 elements has indexes 0 to 4. numbers[5] is past the end. C does not check this for you: reading or writing it touches memory that belongs to something else.
+
+# Partial initialisation and sizeof
+
+If you give fewer values than the array holds, the rest are set to 0. If you leave the size out, the compiler counts the values for you. sizeof(array) / sizeof(array[0]) works out how many elements an array has.
+
+```
+#include <stdio.h>
+
+int main() {
+    int scores[10] = {85, 92, 78};  // the rest are 0
+    printf("scores[3] = %d\n", scores[3]);
+
+    // Size determined automatically
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    printf("size = %d\n", size);
+
+    // Find the maximum value
+    int max = values[0];
+    for (int i = 1; i < size; i++) {
+        if (values[i] > max) {
+            max = values[i];
+        }
+    }
+    printf("Maximum value: %d\n", max);
+    return 0;
+}
+```
+
+Output:
+
+```
+scores[3] = 0
+size = 6
+Maximum value: 89
+```
+
+sizeof(values) is the size of the whole array in bytes (6 ints of 4 bytes = 24) and sizeof(values[0]) is the size of one element (4), so 24 / 4 = 6.
+
+# Multi-dimensional arrays
+
+A 2D array is an array of rows. matrix[3][4] has 3 rows of 4 columns, and matrix[row][col] picks one element. Nested loops walk through it.
+
+```
+#include <stdio.h>
+
+int main() {
+    int grades[4][3] = {
+        {85, 90, 78},  // Student 1
+        {88, 92, 84},  // Student 2
+        {95, 87, 91},  // Student 3
+        {76, 82, 79}   // Student 4
+    };
+
+    printf("Student\tExam1\tExam2\tExam3\tAverage\n");
+    for (int student = 0; student < 4; student++) {
+        int total = 0;
+        printf("%d\t", student + 1);
+        for (int exam = 0; exam < 3; exam++) {
+            printf("%d\t", grades[student][exam]);
+            total += grades[student][exam];
+        }
+        printf("%.1f\n", total / 3.0);
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+Student Exam1   Exam2   Exam3   Average
+1       85      90      78      84.3
+2       88      92      84      88.0
+3       95      87      91      91.0
+4       76      82      79      79.0
+```
+
+> total / 3.0 divides by a double, so the average keeps its decimal part. total / 3 would be integer division.
+
+@quiz
+? What does numbers[2] hold?
+```
+int numbers[5] = {10, 20, 30, 40, 50};
+```
+- 20
+* 30
+- 2
+- 40
+! Indexes start at 0, so numbers[2] is the third element.
+
+? What is the last valid index of int a[8]?
+- 8
+* 7
+- 9
+- 0
+! An array of 8 elements has indexes 0 to 7.
+
+? What is scores[5] here?
+```
+int scores[10] = {85, 92, 78};
+```
+- 78
+- Undefined
+* 0
+- 85
+! Elements without an initial value are set to 0 when you give a partial list.
+
+? What does count hold?
+```
+double d[] = {1.5, 2.5, 3.5, 4.5};
+int count = sizeof(d) / sizeof(d[0]);
+```
+- 32
+- 8
+* 4
+- 1
+! The total size divided by the size of one element is the number of elements.
+
+? What is m[1][2]?
+```
+int m[3][4] = {
+    {1, 2, 3, 4},
+    {5, 6, 7, 8},
+    {9, 10, 11, 12}
+};
+```
+- 6
+* 7
+- 10
+- 2
+! Row 1 is {5, 6, 7, 8}, and index 2 of that row is 7.
+
+? What happens if you write to a[5] when a has 5 elements?
+- C reports an error and stops the program
+- The array grows to 6 elements
+* It writes past the end of the array into memory used by something else
+- The write is ignored
+! C does no bounds checking. Writing past the end is undefined behaviour and corrupts other data.

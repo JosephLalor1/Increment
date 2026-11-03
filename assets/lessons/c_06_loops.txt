@@ -1,0 +1,213 @@
+@id c_06_loops
+@track C
+@title Loops: while, do-while and for
+
+Loops repeat a block of code. C has three: while, do-while and for.
+
+# while and do-while
+
+A while loop checks its condition first, so its body may run zero times. A do-while loop checks the condition at the end, so its body always runs at least once.
+
+```
+#include <stdio.h>
+
+int main() {
+    // While loop - checks condition first
+    int count = 1;
+    printf("While loop:\n");
+    while (count <= 5) {
+        printf("Count: %d\n", count);
+        count++;
+    }
+
+    // Do-while loop - executes at least once
+    int number = 3;
+    printf("\nDo-while loop\n");
+    do {
+        printf("number: %d\n", number);
+        number--;
+    } while (number != 0);
+
+    // Infinite loop with break
+    printf("\nLoop with break:\n");
+    int i = 1;
+    while (1) {        // 1 is always true
+        printf("%d ", i);
+        if (i == 5) {
+            break;     // exit the loop
+        }
+        i++;
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+Output:
+
+```
+While loop:
+Count: 1
+Count: 2
+Count: 3
+Count: 4
+Count: 5
+
+Do-while loop
+number: 3
+number: 2
+number: 1
+
+Loop with break:
+1 2 3 4 5
+```
+
+> Note the semicolon after while (number != 0); at the end of a do-while. It is required.
+
+# The for loop
+
+A for loop puts the three parts of a counting loop on one line: the starting step, the condition checked before each pass, and the update run after each pass.
+
+```
+#include <stdio.h>
+
+int main() {
+    printf("Counting 1 to 10:\n");
+    for (int i = 1; i <= 10; i++) {
+        printf("%d ", i);
+    }
+    printf("\n");
+
+    printf("\nCounting down:\n");
+    for (int i = 10; i >= 1; i--) {
+        printf("%d ", i);
+    }
+    printf("\n");
+
+    // Skip even numbers with continue
+    printf("\nOdd numbers only:\n");
+    for (int i = 1; i <= 10; i++) {
+        if (i % 2 == 0) {
+            continue;  // skip the rest of this pass
+        }
+        printf("%d ", i);
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+Output:
+
+```
+Counting 1 to 10:
+1 2 3 4 5 6 7 8 9 10
+
+Counting down:
+10 9 8 7 6 5 4 3 2 1
+
+Odd numbers only:
+1 3 5 7 9
+```
+
+- break leaves the loop completely
+- continue skips the rest of the current pass and moves on to the next one
+
+# Nested loops
+
+A loop inside a loop runs the inner loop completely for every pass of the outer one. That makes nested loops perfect for rows and columns. %3d prints a number padded to 3 characters wide, which lines the columns up.
+
+```
+#include <stdio.h>
+
+int main() {
+    printf("Multiplication Table (5x5):\n");
+    for (int row = 1; row <= 5; row++) {
+        for (int col = 1; col <= 5; col++) {
+            printf("%3d ", row * col);
+        }
+        printf("\n");  // new line after each row
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+Multiplication Table (5x5):
+  1   2   3   4   5
+  2   4   6   8  10
+  3   6   9  12  15
+  4   8  12  16  20
+  5  10  15  20  25
+```
+
+@quiz
+? How many times does the body of this loop run?
+```
+int n = 0;
+while (n > 0) {
+    n--;
+}
+```
+* 0
+- 1
+- Forever
+! The condition is false before the first pass, so a while loop never runs its body.
+
+? How many times does the body of this loop run?
+```
+int n = 0;
+do {
+    n--;
+} while (n > 0);
+```
+- 0
+* 1
+- Forever
+! A do-while runs its body once before checking the condition.
+
+? What does this print?
+```
+for (int i = 1; i <= 6; i++) {
+    if (i % 3 == 0) continue;
+    printf("%d ", i);
+}
+```
+- 3 6
+* 1 2 4 5
+- 1 2
+- 1 2 3 4 5 6
+! continue skips the printf whenever i is divisible by 3.
+
+? What is the difference between break and continue?
+- They do the same thing
+* break leaves the loop; continue skips to the next pass
+- continue leaves the loop; break skips to the next pass
+- break only works in switch statements
+! break exits the loop entirely. continue only abandons the current pass.
+
+? How many times does the inner printf run?
+```
+for (int r = 0; r < 4; r++)
+    for (int c = 0; c < 3; c++)
+        printf("*");
+```
+- 7
+* 12
+- 3
+- 4
+! The inner loop runs 3 times for each of the 4 outer passes: 4 * 3 = 12.
+
+? What is the last value printed?
+```
+for (int i = 10; i >= 1; i -= 3) {
+    printf("%d ", i);
+}
+```
+- 0
+* 1
+- 3
+- 4
+! i takes 10, 7, 4, 1. The next value, -2, fails the condition.

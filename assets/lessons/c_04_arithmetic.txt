@@ -1,0 +1,177 @@
+@id c_04_arithmetic
+@track C
+@title Arithmetic and Type Conversion
+
+C has the usual arithmetic operators: + - * / and % (remainder). The type of the values matters a great deal, especially for division.
+
+```
+#include <stdio.h>
+
+int main() {
+    int a = 10, b = 3;
+
+    printf("a = %d, b = %d\n", a, b);
+    printf("Addition: %d\n", a + b);
+    printf("Subtraction: %d\n", a - b);
+    printf("Multiplication: %d\n", a * b);
+    printf("Division: %d\n", a / b);   // integer division
+    printf("Remainder: %d\n", a % b);  // modulo
+
+    // Using floats for precise division
+    float x = 10.0, y = 3.0;
+    printf("Float division: %.2f\n", x / y);
+    return 0;
+}
+```
+
+Output:
+
+```
+a = 10, b = 3
+Addition: 13
+Subtraction: 7
+Multiplication: 30
+Division: 3
+Remainder: 1
+Float division: 3.33
+```
+
+# Integer division truncates
+
+When both values are integers, / gives an integer result and throws away the fractional part. 10 / 3 is 3, not 3.33. The % operator gives what is left over: 10 % 3 is 1.
+
+> % is very useful for checking divisibility: n % 2 == 0 means n is even.
+
+# Increment, decrement and compound assignment
+
+```
+#include <stdio.h>
+
+int main() {
+    int count = 5;
+    count++;   // count becomes 6
+    printf("Count after increment: %d\n", count);
+    count--;   // count becomes 5
+    printf("Count after decrement: %d\n", count);
+
+    int num = 10;
+    num += 5;  // num = num + 5
+    printf("num after += 5: %d\n", num);
+    num *= 2;  // num = num * 2
+    printf("num after *= 2: %d\n", num);
+    return 0;
+}
+```
+
+Output:
+
+```
+Count after increment: 6
+Count after decrement: 5
+num after += 5: 15
+num after *= 2: 30
+```
+
+# Type conversion
+
+C converts between types automatically in mixed expressions: an int combined with a float becomes a float. You can also convert explicitly with a cast, which is the type in brackets.
+
+```
+#include <stdio.h>
+
+int main() {
+    int integer = 5;
+    float floating = 2.5;
+
+    // Automatic conversion (int becomes float)
+    float result1 = integer + floating;
+    printf("5 + 2.5 = %.2f\n", result1);
+
+    // Integer division (truncates decimal)
+    int result2 = 7 / 2;
+    printf("7 / 2 = %d (truncated)\n", result2);
+
+    // Explicit casting
+    float result3 = (float)7 / 2;
+    printf("(float)7 / 2 = %.2f\n", result3);
+
+    // Converting float to int (truncates)
+    int result4 = (int)3.9;
+    printf("(int)3.9 = %d\n", result4);
+    return 0;
+}
+```
+
+Output:
+
+```
+5 + 2.5 = 7.50
+7 / 2 = 3 (truncated)
+(float)7 / 2 = 3.50
+(int)3.9 = 3
+```
+
+> (float)7 / 2 casts 7 to a float before dividing, so the division is done in floating point. (float)(7 / 2) would divide first and give 3.00.
+
+@quiz
+? What is 17 / 5 when both are ints?
+- 3.4
+* 3
+- 4
+- 2
+! Integer division drops the fractional part, so 3.4 becomes 3.
+
+? What is 17 % 5?
+- 3
+- 3.4
+* 2
+- 5
+! 17 = 3 * 5 + 2, so the remainder is 2.
+
+? What does this print?
+```
+float r = (float)7 / 2;
+printf("%.2f", r);
+```
+- 3.00
+* 3.50
+- 3
+- 4.00
+! The cast makes 7 a float before the division, so the result is 3.5.
+
+? What is the value of (int)3.9?
+- 4
+* 3
+- 3.9
+- 0
+! Casting a floating-point value to int truncates; it does not round.
+
+? What is num after this code?
+```
+int num = 10;
+num += 5;
+num *= 2;
+```
+- 20
+- 25
+* 30
+- 15
+! num becomes 15, then 15 * 2 = 30.
+
+? What does this print?
+```
+float f = 7 / 2;
+printf("%.1f", f);
+```
+* 3.0
+- 3.5
+- 4.0
+- 7.0
+! 7 / 2 is integer division and gives 3 before the value is stored in f.
+
+? Which expression is true exactly when n is even?
+- n / 2 == 0
+* n % 2 == 0
+- n % 2 == 1
+- n * 2 == 0
+! An even number divides by 2 with no remainder.

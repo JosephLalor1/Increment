@@ -1,0 +1,185 @@
+@id cpp_05_dynamic_arrays
+@track C++
+@title Dynamic Arrays
+
+# Arrays on the stack
+
+When you allocate an array on the stack with int arr[SIZE], the size must be a constant known when the program is compiled. This is not allowed in standard C++:
+
+```
+int numItems;
+cout << "how many items?";
+cin >> numItems;
+int arr[numItems];  // not allowed: size is not a constant
+```
+
+> g++ accepts this as an extension, but Visual Studio rejects it, and it is not standard C++. Don't rely on it.
+
+# Allocating arrays with new[]
+
+If you use new[] to allocate an array, its size can be a variable:
+
+```
+int *arr = new int[numItems];
+```
+
+- int is the type of the items in the array
+- numItems is the number of items to allocate
+
+The result is used exactly like an array: arr[0], arr[1] and so on.
+
+# De-allocate arrays with delete[]
+
+An array from new[] must be freed with delete[], with the square brackets:
+
+```
+int *arr = new int[numItems];
+// ... use arr ...
+delete[] arr;
+```
+
+> Memory from new is freed with delete. Memory from new[] is freed with delete[]. Mixing them up is undefined behaviour.
+
+# Exercise: storing values input by the user
+
+Prompt the user for how many integers they want to enter, allocate enough memory for them, read each one into the array, then write the array out.
+
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems;
+    // stdin: 3 7 4 9
+    cout << "how many items? ";
+    cin >> numItems;
+    int *arr = new int[numItems];
+
+    for (int i = 0; i < numItems; ++i) {
+        cout << "enter item " << i << ": ";
+        cin >> arr[i];
+    }
+    for (int i = 0; i < numItems; ++i) {
+        cout << arr[i] << endl;
+    }
+    delete[] arr;
+    return 0;
+}
+```
+
+A run where the user types 3, 7, 4 and 9 looks like this:
+
+```
+how many items? 3
+enter item 0: 7
+enter item 1: 4
+enter item 2: 9
+7
+4
+9
+```
+
+# 2D arrays
+
+A dynamic 2D array is an array of pointers, where each pointer points to one row. First allocate the array of row pointers, then allocate each row.
+
+```
+#include <iostream>
+
+int main() {
+    int rows = 3;
+    int cols = 4;
+
+    // Allocate a 2D array
+    int **arr2D = new int*[rows];
+    for (int row = 0; row < rows; row++) {
+        arr2D[row] = new int[cols];
+    }
+
+    // Initialize with values
+    int counter = 1;
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            arr2D[row][col] = counter++;
+        }
+    }
+
+    // Print the array
+    std::cout << "2D Array:\n";
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            std::cout << arr2D[row][col] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // Deallocate memory: rows first, then the row array
+    for (int row = 0; row < rows; row++) {
+        delete[] arr2D[row];
+    }
+    delete[] arr2D;
+    return 0;
+}
+```
+
+Output:
+
+```
+2D Array:
+1 2 3 4
+5 6 7 8
+9 10 11 12
+```
+
+- int **arr2D = new int*[rows]; creates the array of row pointers. Each one starts out pointing nowhere.
+- The first loop gives each row pointer its own array of cols ints.
+- Freeing happens in reverse: delete each row, then the array of row pointers. Deleting arr2D first would lose the only pointers to the rows, leaking them.
+
+@quiz
+? Why is int arr[numItems]; not allowed in standard C++ when numItems is read from the user?
+- numItems might be negative
+* Stack array sizes must be constants known at compile time
+- Arrays cannot hold ints
+- cin cannot read array sizes
+! Use new int[numItems] for a size only known at run time.
+
+? Which statement frees int *arr = new int[10]; correctly?
+- delete arr;
+* delete[] arr;
+- free(arr);
+- delete arr[10];
+! Arrays from new[] are freed with delete[].
+
+? What type does new int*[rows] return?
+- int *
+* int **
+- int
+- int [rows]
+! It is an array of int pointers, so a pointer to it is int **.
+
+? To free a dynamic 2D array, what must you delete first?
+* Each row
+- The array of row pointers
+- It does not matter
+- Only the first row
+! Deleting the row-pointer array first would lose the pointers to the rows.
+
+? How many separate new[] allocations does a 3 x 4 dynamic 2D array need, as in this lesson?
+- 1
+- 3
+* 4
+- 12
+! One for the array of row pointers, plus one for each of the 3 rows.
+
+? What does this print?
+```
+int *a = new int[3];
+for (int i = 0; i < 3; i++) a[i] = i * i;
+cout << a[2];
+delete[] a;
+```
+- 2
+* 4
+- 9
+- 0
+! a[2] holds 2 * 2.

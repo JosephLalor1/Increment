@@ -1,0 +1,281 @@
+@id cpp_07_objects_methods
+@track C++
+@title Objects, Functions and Methods
+
+# Passing objects to functions
+
+Objects follow the same rules as ordinary variables. Passing by value passes a copy of the class instance to the function, so changes are not preserved:
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point p, double x, double y) {  // does nothing
+    p.x += x;
+    p.y += y;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(p, 1.0, 2.0);  // changes a copy
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+(3,4)
+```
+
+When a class instance is passed by reference, changes are reflected in the original:
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point &p, double x, double y) {  // works
+    p.x += x;
+    p.y += y;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(p, 1.0, 2.0);
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+(4,6)
+```
+
+# Passing by pointer, and the -> operator
+
+You can also pass a pointer to the object. To reach a field through a pointer, use ->. v->start means the same as (*v).start.
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+void offsetVector(Vector *v, double offX, double offY) {
+    v->start.x += offX;
+    v->end.x += offX;
+    v->start.y += offY;
+    v->end.y += offY;
+}
+
+void printVector(Vector v) {  // by value: only reads it
+    cout << "(" << v.start.x << "," << v.start.y << ") -> ("
+         << v.end.x << "," << v.end.y << ")" << endl;
+}
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2; vec.end.x = 2.0;
+    vec.start.y = 0.4; vec.end.y = 1.6;
+    offsetVector(&vec, 1.0, 1.5);
+    printVector(vec);
+    return 0;
+}
+```
+
+Output:
+
+```
+(2.2,1.9) -> (3,3.1)
+```
+
+- Pass objects by value if the function doesn't need to modify them
+- Pass objects by reference, or by pointer, if they need to be modified
+
+# Methods
+
+printVector and offsetVector are closely tied to the Vector class. C++ lets you put such functions inside the class. A function that is part of a class is called a method.
+
+```
+vec.print();
+vec.offset(1.0, 1.5);
+```
+
+A method is called on an object instance, and it implicitly receives that instance: vec.print() prints vec. Arguments can be passed to methods like any function. Inside a method, the instance's fields are available directly by name.
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offX, double offY) {
+        x += offX;
+        y += offY;
+    }
+    void print() {
+        cout << "(" << x << "," << y << ")";
+    }
+};
+
+class Vector {
+public:
+    Point start, end;
+    void offset(double offX, double offY) {
+        start.offset(offX, offY);  // methods of fields
+        end.offset(offX, offY);
+    }
+    void print() {
+        start.print();
+        cout << " -> ";
+        end.print();
+        cout << endl;
+    }
+};
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2; vec.end.x = 2.0;
+    vec.start.y = 0.4; vec.end.y = 1.6;
+    vec.print();
+    vec.offset(1.0, 1.5);
+    vec.print();
+    return 0;
+}
+```
+
+Output:
+
+```
+(1.2,0.4) -> (2,1.6)
+(2.2,1.9) -> (3,3.1)
+```
+
+Vector's methods call the methods of its fields: offset moves each point, and print prints each point.
+
+# Implementing methods separately
+
+Function prototypes let you declare a function and implement it later. The same works for methods. The class definition with the method prototypes usually goes in a header file:
+
+```
+// vector.h - header file
+class Point {
+public:
+    double x, y;
+    void offset(double offX, double offY);
+    void print();
+};
+
+class Vector {
+public:
+    Point start, end;
+    void offset(double offX, double offY);
+    void print();
+};
+```
+
+and the implementations go in a .cpp file. ClassName:: in front of the method name says which class's method is being implemented:
+
+```
+// vector.cpp - method implementations
+#include <iostream>
+#include "vector.h"
+using namespace std;
+
+void Point::offset(double offX, double offY) {
+    x += offX; y += offY;
+}
+void Point::print() {
+    cout << "(" << x << "," << y << ")";
+}
+void Vector::offset(double offX, double offY) {
+    start.offset(offX, offY);
+    end.offset(offX, offY);
+}
+void Vector::print() {
+    start.print(); cout << " -> "; end.print(); cout << endl;
+}
+```
+
+@quiz
+? An object is passed by value and the function changes a field. What happens to the original?
+- It changes too
+* It is unchanged: the function worked on a copy
+- The program does not compile
+- The field is reset to 0
+! Passing by value copies the whole instance.
+
+? Which line sets the x field through Point *pp?
+- pp.x = 1;
+* pp->x = 1;
+- *pp->x = 1;
+- pp::x = 1;
+! -> reaches a member through a pointer. (*pp).x = 1; also works.
+
+? What is a method?
+- A variable inside a class
+* A function that is part of a class
+- A way of passing parameters
+- Another name for an instance
+! Methods are called on an instance, like vec.print().
+
+? In vec1.print(), which object does print work on?
+* vec1
+- Every Vector instance
+- The first Vector ever created
+- None; print is a normal function
+! A method implicitly receives the instance it was called on.
+
+? What does :: mean in void Vector::print() { ... } ?
+- print is a static variable
+* This is the implementation of the print method of the Vector class
+- print is private
+- Vector inherits from print
+! ClassName:: says which class the method belongs to.
+
+? What does this print?
+```
+class Counter {
+public:
+    int n;
+    void add(int k) { n += k; }
+};
+int main() {
+    Counter c;
+    c.n = 1;
+    c.add(4);
+    c.add(5);
+    cout << c.n;
+}
+```
+- 1
+- 5
+* 10
+- 9
+! Each call adds to the same instance's n: 1 + 4 + 5.

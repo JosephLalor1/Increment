@@ -1,0 +1,174 @@
+@id cpp_04_memory_mistakes
+@track C++
+@title Memory Leaks and Other Mistakes
+
+new and delete give you control over memory, and with it a set of classic mistakes. Each one compiles without complaint.
+
+# Delete memory when done using it
+
+If you don't de-allocate memory using delete, your application will waste memory. Look at this loop:
+
+```
+#include <iostream>
+using namespace std;
+
+int *getPtrToFive() {
+    int *x = new int;
+    *x = 5;
+    return x;
+}
+
+int main() {
+    int *p;
+    for (int i = 0; i < 3; ++i) {
+        p = getPtrToFive();  // leaks on every pass
+        cout << *p << endl;
+    }
+}
+```
+
+Each pass allocates a new int on the heap and points p at it. On the second pass, p moves to the new int, and nothing points to the first one any more. After three passes there are three 5s on the heap, and two of them can never be reached.
+
+When your program allocates memory but is unable to de-allocate it, this is a memory leak.
+
+# Does a delete after the loop fix it?
+
+```
+for (int i = 0; i < 3; ++i) {
+    p = getPtrToFive();
+    cout << *p << endl;
+}
+delete p;
+```
+
+No. Only the memory allocated on the last pass gets de-allocated. The first two ints are still leaked.
+
+# The fix
+
+De-allocate the memory inside the loop, as soon as you are done with it:
+
+```
+#include <iostream>
+using namespace std;
+
+int *getPtrToFive() {
+    int *x = new int;
+    *x = 5;
+    return x;
+}
+
+int main() {
+    int *p;
+    for (int i = 0; i < 3; ++i) {
+        p = getPtrToFive();
+        cout << *p << endl;
+        delete p;  // free this pass's int before the next
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+5
+5
+5
+```
+
+# Don't use memory after deletion
+
+```
+int *x = getPtrToFive();
+delete x;
+cout << *x << endl;  // incorrect: x points to freed memory
+```
+
+After delete, the memory is no longer yours. Read it first, then delete it:
+
+```
+int *x = getPtrToFive();
+cout << *x << endl;  // correct: use it...
+delete x;            // ...then free it
+```
+
+# Don't delete memory twice
+
+```
+int *x = getPtrToFive();
+cout << *x << endl;
+delete x;
+delete x;  // incorrect: already freed
+```
+
+Deleting the same memory twice is undefined behaviour and often crashes the program. A good habit is to set the pointer to nullptr after deleting it, because delete on a nullptr is safe and does nothing.
+
+```
+delete x;
+x = nullptr;
+delete x;  // safe: deleting nullptr does nothing
+```
+
+# Only delete memory that was allocated by new
+
+```
+int x = 5;
+int *xPtr = &x;
+cout << *xPtr << endl;
+delete xPtr;  // incorrect: x is on the stack
+```
+
+x lives on the stack and is freed automatically. Only memory that came from new may be passed to delete. The correct version simply leaves out the delete.
+
+@quiz
+? What is a memory leak?
+* Allocated memory that can no longer be reached or freed
+- Reading past the end of an array
+- Using a variable after it goes out of scope
+- Memory on the stack
+! The memory stays allocated but nothing points to it.
+
+? A loop calls new three times, storing each result in the same pointer p, and deletes p once after the loop. How many allocations leak?
+- 0
+- 1
+* 2
+- 3
+! The single delete only frees the last allocation.
+
+? Where should the delete go to fix the leak in the loop?
+- Before the loop
+* Inside the loop, after the value has been used
+- After the loop
+- In getPtrToFive
+! Each allocation must be freed before p is pointed somewhere else.
+
+? What is wrong with this code?
+```
+int *x = new int(5);
+delete x;
+cout << *x;
+```
+- Nothing
+* It uses memory after it has been deleted
+- It deletes memory twice
+- new int(5) creates an array
+! Once deleted, the memory may be reused for something else.
+
+? Which of these is safe?
+- Deleting the same pointer twice
+- Deleting a pointer to a stack variable
+* Deleting a pointer that is nullptr
+- Using a pointer after deleting it
+! delete nullptr does nothing, which is why setting pointers to nullptr after delete is a good habit.
+
+? What is wrong with this code?
+```
+int x = 5;
+int *p = &x;
+delete p;
+```
+- Nothing
+- p should be deleted twice
+* x was not allocated with new, so it must not be deleted
+- delete needs square brackets
+! Only memory from new can be deleted. x is freed automatically when it goes out of scope.

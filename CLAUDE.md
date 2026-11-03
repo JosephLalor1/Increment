@@ -33,6 +33,12 @@ Python's `hashlib.pbkdf2_hmac('sha256', pw, salt, iterations)` produces hashes t
 - `src/progress.c`: best score per lesson id, saved to `<data>/users/<lowercase name>.txt`. 70% passes. The first account created takes over a pre-accounts `progress.txt`.
 - `assets/lessons/*.txt`: lesson content, loaded in filename order (`c_NN_*`, `cpp_NN_*`).
 
+## Lessons
+
+Lessons must follow the professor's notes in `Class Material/` (git-ignored: it's copyrighted course material). Keep his topic order, examples and terms; fix bugs in his code and say so. The C track is `c_NN_*` (Intro to C, Lab1, Pointers.ppt, pointer lab, C memory management); the C++ track is `cpp_NN_*` (references, memory management deck, Classes deck, linked-list lecture and lab). `Pointers.ppt` is legacy format: convert it with PowerPoint COM (`Presentations.Open(..., ReadOnly)` then `SaveAs(..., 24)`) into the scratchpad to read it.
+
+After any lesson change, run `python -I tools/check_lessons.py` and get it to 0 problems. It compiles and runs every code block containing `main()` (gcc for C, g++ for C++), compares stdout with a following `Output:` paragraph plus code block, runs every "What does this print?" quiz snippet against the marked answer, and checks structure, ASCII-only text and code width (66 columns, the most that fits at Large text size). Markers inside code: `// does not compile`, `// undefined behaviour` (compile only, warnings allowed), `// stdin: 3 7 4`. Write expected output with tabs expanded to 8-column stops.
+
 ## Lesson format
 
 ```
@@ -43,6 +49,7 @@ Python's `hashlib.pbkdf2_hmac('sha256', pw, salt, iterations)` produces hashes t
 Plain lines form paragraphs; a blank line ends one.
 # Heading
 > Note callout
+- Bullet item             (one block per bullet; an indented next line continues it)
 (three backticks on their own line open/close a code block)
 
 @quiz                     (everything after this is quiz)
@@ -54,7 +61,7 @@ Plain lines form paragraphs; a blank line ends one.
 ```
 
 - Keep lesson text ASCII where possible. Fonts include Latin-1 and common typographic punctuation, nothing else.
-- Limits: 128 blocks, 16 questions, 6 choices per question, 1023 chars per line.
+- Limits: 256 blocks, 16 questions, 6 choices per question, 1023 chars per line.
 - Code samples must be correct and compile. Quiz answers must be unambiguous.
 
 ## Gotchas

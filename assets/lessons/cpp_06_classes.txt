@@ -1,0 +1,195 @@
+@id cpp_06_classes
+@track C++
+@title Classes: Grouping Related Data
+
+# Representing a geometric vector
+
+In geometry, a vector consists of 2 points: a start and an end. Each point has an x and a y coordinate, for example start = (1.2, 0.4) and end = (2.0, 1.6).
+
+With what we know so far, we would represent it with 4 doubles:
+
+```
+double xStart = 1.2;
+double xEnd = 2.0;
+double yStart = 0.4;
+double yEnd = 1.6;
+```
+
+and we need to pass all 4 doubles to every function that works with the vector:
+
+```
+void printVector(double x0, double x1, double y0, double y1) {
+    cout << "(" << x0 << "," << y0 << ") -> ("
+         << x1 << "," << y1 << ")" << endl;
+}
+```
+
+A function that moves the vector needs 4 references plus the offsets. That is a lot of variables being passed around, and nothing in the code says they belong together.
+
+# What a class is
+
+A class is a user-defined datatype that groups together related pieces of information.
+
+```
+class Vector {
+public:
+    double xStart;
+    double xEnd;
+    double yStart;
+    double yEnd;
+};
+```
+
+- class Vector says the new datatype we are defining is called Vector
+- xStart, xEnd, yStart and yEnd are its fields: the pieces of information a Vector consists of. Another word for fields is members.
+- public: means code outside the class can use the fields. You will meet private later.
+
+> Don't forget the semicolon after the closing brace! Leaving it out can cause cryptic errors on a completely different line.
+
+Fields can have different types:
+
+```
+class Vector {
+public:
+    double xStart, xEnd, yStart, yEnd;
+    int color;
+};
+```
+
+# Instances
+
+An instance is an occurrence of a class. Different instances have their own set of values in their fields. To represent 2 different vectors, you use 2 instances of Vector:
+
+```
+Vector vector1;  // one instance
+Vector vector2;  // another, with its own fields
+```
+
+To access the fields of an instance, use variable.fieldName:
+
+```
+vector2.xStart = 10;
+vector1.xEnd = 12;
+```
+
+This changes vector2's xStart and vector1's xEnd. The other fields of each instance are untouched.
+
+# Fields can be classes
+
+Our Vector doesn't show that the coordinates group into points. A point consists of an x and y coordinate, and a vector consists of 2 points, so make Point a class and give Vector two Point fields:
+
+```
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+```
+
+Now a field of a field is reached with two dots: vec1.start.x is the x of vec1's start point.
+
+# Assigning instances
+
+Assigning one instance to another copies all the fields. The two instances stay independent afterwards.
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+int main() {
+    Vector vec1;
+    vec1.start.x = 3.0;
+    vec1.start.y = 4.0;
+    vec1.end.x = 5.0;
+    vec1.end.y = 6.0;
+
+    Vector vec2;
+    vec2.start = vec1.start;  // copies x and y
+    vec2.start.x = 7.0;       // changes vec2 only
+
+    cout << "vec1.start = (" << vec1.start.x << ","
+         << vec1.start.y << ")" << endl;
+    cout << "vec2.start = (" << vec2.start.x << ","
+         << vec2.start.y << ")" << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+vec1.start = (3,4)
+vec2.start = (7,4)
+```
+
+vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left vec1 alone.
+
+@quiz
+? What is a class?
+- A function that groups statements
+* A user-defined datatype that groups related pieces of information
+- A kind of loop
+- A header file
+! A class bundles fields (and later, methods) into a new type.
+
+? What is another word for a class's fields?
+- Methods
+- Instances
+* Members
+- Parameters
+! Fields are also called member variables, or members.
+
+? What is the most likely cause of a cryptic error just after a class definition?
+- Using public:
+* A missing semicolon after the class's closing brace
+- Fields of different types
+- Too many fields
+! class Name { ... }; needs the final semicolon.
+
+? What is an instance?
+- The class definition itself
+* An occurrence of a class, with its own field values
+- A field of a class
+- A copy of a function
+! Vector vector1; creates an instance called vector1.
+
+? With the Point and Vector classes in this lesson, how do you set the y coordinate of vec's end point?
+- vec.y.end = 2.0;
+- vec->end->y = 2.0;
+* vec.end.y = 2.0;
+- end.y = 2.0;
+! Use one dot per level: the instance, then the field, then the field's field.
+
+? What does this print?
+```
+class Point {
+public:
+    double x, y;
+};
+int main() {
+    Point a;
+    a.x = 1; a.y = 2;
+    Point b = a;
+    b.x = 9;
+    cout << a.x << " " << b.x;
+}
+```
+* 1 9
+- 9 9
+- 1 1
+- 9 1
+! Assignment copies the fields; afterwards a and b are separate.

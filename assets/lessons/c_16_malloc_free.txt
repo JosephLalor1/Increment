@@ -1,0 +1,149 @@
+@id c_16_malloc_free
+@track C
+@title Dynamic Memory: malloc and free
+
+Ordinary variables live on the stack and disappear when they go out of scope. Sometimes you need memory that lasts longer, or whose size you only know while the program runs. C gives you that memory from the heap with malloc, and you hand it back with free. Both are declared in <stdlib.h>.
+
+# Allocating a single value
+
+malloc takes a number of bytes and returns a pointer to that much new memory. Use sizeof to get the right number of bytes for a type.
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    // Allocate memory for a single integer
+    int *ptr = (int*)malloc(sizeof(int));
+
+    if (ptr == NULL) {
+        printf("Memory allocation failed!\n");
+        return 1;
+    }
+
+    *ptr = 42;  // use the allocated memory
+    printf("Value: %d\n", *ptr);
+
+    free(ptr);  // free the memory when done
+    return 0;
+}
+```
+
+Output:
+
+```
+Value: 42
+```
+
+# Allocating an array
+
+Multiply the element size by how many elements you need. The result can be used exactly like an array.
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    int size = 5;
+    int *arr = (int*)malloc(size * sizeof(int));
+
+    if (arr == NULL) {
+        printf("Memory allocation failed!\n");
+        return 1;
+    }
+
+    for (int i = 0; i < size; i++) {
+        arr[i] = i * 10;
+    }
+
+    printf("Array elements: ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+
+    free(arr);
+    return 0;
+}
+```
+
+Output:
+
+```
+Array elements: 0 10 20 30 40
+```
+
+> size could come from the user at run time. That is the big advantage over int arr[5], whose size is fixed when you write the program.
+
+# Key points to remember
+
+- Always check whether malloc returned NULL: allocation can fail.
+- Always call free() for every successful malloc() to avoid memory leaks.
+- Use sizeof() to get the correct size of the data type.
+- Don't use memory after freeing it: this causes undefined behaviour.
+- Set a pointer to NULL after freeing it. It is good practice, because a NULL pointer can be checked, while a freed one looks valid but is not.
+
+```
+free(arr);
+arr = NULL;   // arr no longer looks like a valid pointer
+```
+
+# Memory leaks
+
+A leak happens when you lose the only pointer to some allocated memory before freeing it. The memory stays allocated until the program ends, and nothing can use it.
+
+```
+int *p = (int*)malloc(sizeof(int));
+p = (int*)malloc(sizeof(int));  // the first block is now lost
+free(p);                        // only frees the second block
+```
+
+> malloc in C corresponds to new in C++, and free corresponds to delete. The C++ track covers those in detail.
+
+@quiz
+? Which header declares malloc and free?
+- <stdio.h>
+* <stdlib.h>
+- <string.h>
+- <memory.h>
+! malloc, free and friends live in the standard library header stdlib.h.
+
+? How many bytes does malloc(10 * sizeof(int)) request when an int is 4 bytes?
+- 10
+- 14
+* 40
+- 4
+! 10 elements of 4 bytes each.
+
+? What does malloc return if the allocation fails?
+- 0 bytes of memory
+- A random address
+* NULL
+- It stops the program
+! That is why you must check for NULL before using the result.
+
+? What is a memory leak?
+- Reading past the end of an array
+* Allocated memory that is never freed because the program lost its pointer to it
+- Freeing the same memory twice
+- Using the stack instead of the heap
+! Leaked memory stays allocated but can never be used or freed.
+
+? What is wrong with this code?
+```
+int *p = (int*)malloc(sizeof(int));
+free(p);
+*p = 5;
+```
+- Nothing
+- malloc was not checked, so it does not compile
+* It uses memory after freeing it
+- free needs the size as well
+! After free(p) the memory is no longer yours. Writing to it is undefined behaviour.
+
+? Why set a pointer to NULL after freeing it?
+- free requires it
+- It frees the memory a second time
+* A NULL pointer can be checked, while a freed pointer still looks valid
+- It makes the program faster
+! A dangling pointer looks just like a valid one; NULL makes the state clear.

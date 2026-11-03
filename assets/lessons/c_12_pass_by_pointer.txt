@@ -1,0 +1,200 @@
+@id c_12_pass_by_pointer
+@track C
+@title Pass by Pointer
+
+In the Functions lesson you saw that C passes ordinary variables by value: the function gets a copy, so it cannot change the caller's variable. Pointers solve this. If you pass the address of a variable, the function can reach the original through it.
+
+# Value versus pointer
+
+```
+#include <stdio.h>
+
+void f(int j) {
+    j = 5;        // changes the copy only
+}
+
+void g(int *ptr) {
+    *ptr = 5;     // changes the caller's variable
+}
+
+int main() {
+    int i = 3;
+    f(i);
+    printf("after f(i):  i = %d\n", i);
+    g(&i);
+    printf("after g(&i): i = %d\n", i);
+    return 0;
+}
+```
+
+Output:
+
+```
+after f(i):  i = 3
+after g(&i): i = 5
+```
+
+- f(i) passes a copy of the value 3. Changing j has no effect on i.
+- g(&i) passes the address of i. Inside g, ptr holds that address, so *ptr = 5 changes i itself.
+
+# Incrementing through a pointer
+
+```
+#include <stdio.h>
+
+void increment(int *numPtr) {
+    (*numPtr)++;  // dereference, then increment
+}
+
+int main() {
+    int x = 5;
+    increment(&x);  // pass the address of x
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+
+Output:
+
+```
+x = 6
+```
+
+> The brackets in (*numPtr)++ matter. *numPtr++ would move the pointer itself forward and leave x unchanged.
+
+# Swapping two variables
+
+A swap function is the classic case: it must change both of the caller's variables, which is impossible with pass by value.
+
+```
+#include <stdio.h>
+
+void swap_ints(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int main() {
+    int x = 5, y = 10;
+    swap_ints(&x, &y);
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+
+Output:
+
+```
+x = 10, y = 5
+```
+
+# Returning more than one value
+
+A function can only return one value, but it can fill in as many results as you give it pointers for. scanf works exactly like this, which is why it needs &.
+
+```
+#include <stdio.h>
+
+void minMax(int arr[], int size, int *min, int *max) {
+    *min = arr[0];
+    *max = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] < *min) *min = arr[i];
+        if (arr[i] > *max) *max = arr[i];
+    }
+}
+
+int main() {
+    int data[] = {7, 2, 9, 4};
+    int lo, hi;
+    minMax(data, 4, &lo, &hi);
+    printf("min %d, max %d\n", lo, hi);
+    return 0;
+}
+```
+
+Output:
+
+```
+min 2, max 9
+```
+
+@quiz
+? Which parameter allows a function to modify the original variable?
+- int x
+- float x
+- char x
+* int *x
+! Only a pointer parameter gives the function the caller's address.
+
+? What is x after the call?
+```
+void change(int *p) {
+    *p = 50;
+}
+int main() {
+    int x = 10;
+    change(&x);
+}
+```
+- 10
+* 50
+- The address of x
+- Error
+! p holds the address of x, so *p = 50 sets x to 50.
+
+? What does this print?
+```
+void addTen(int n) {
+    n = n + 10;
+}
+int main() {
+    int a = 1;
+    addTen(a);
+    printf("%d", a);
+}
+```
+* 1
+- 11
+- 10
+- 0
+! addTen gets a copy of a, so a is unchanged.
+
+? What does this print?
+```
+void addTen(int *n) {
+    *n = *n + 10;
+}
+int main() {
+    int a = 1;
+    addTen(&a);
+    printf("%d", a);
+}
+```
+- 1
+* 11
+- 10
+- 0
+! This time the function works through a's address.
+
+? How do you call void swap_ints(int *a, int *b) to swap x and y?
+- swap_ints(x, y);
+* swap_ints(&x, &y);
+- swap_ints(*x, *y);
+- swap_ints(&x, y);
+! Both parameters are pointers, so pass both addresses.
+
+? Why does scanf("%d", &n) need the & ?
+- To tell scanf n is an int
+* Like any function that fills in a variable, scanf needs its address
+- & reads the number faster
+- It does not need it
+! scanf is passed by pointer so it can store the value in n.
+
+? What is the difference between (*p)++ and *p++ ?
+- There is none
+* (*p)++ increments the value p points to; *p++ moves the pointer itself
+- (*p)++ moves the pointer; *p++ increments the value
+- Both are compile errors
+! ++ binds tighter than *, so *p++ increments p, not *p.

@@ -1,0 +1,299 @@
+@id c_10_exam1_practice
+@track C
+@title Exam 1 Practice: Lab 1 Problems
+
+Lab 1 prepares you for the first coding exam. It is a set of small functions that use everything so far: arithmetic, decisions, loops, arrays and functions. This lesson works through the core problems step by step. Try each one yourself before reading the solution.
+
+# Q1: Leap years
+
+A leap year is divisible by 4, but not by 100 unless it is also divisible by 400. So 2016 is a leap year, 1700 is not (divisible by 100), and 1600 is (divisible by 400).
+
+```
+bool isLeapYear(int year) {
+    if (year % 400 == 0) return true;
+    if (year % 100 == 0) return false;
+    return year % 4 == 0;
+}
+```
+
+Checking the special cases first (400, then 100) keeps the logic simple. bool, true and false come from #include <stdbool.h>.
+
+# Q2: Reversing digits and palindromes
+
+To reverse a number, repeatedly take its last digit with % 10, add it to the end of the result, and remove it with / 10:
+
+```
+int Reversed(int testNumber) {
+    int reversed = 0;
+    while (testNumber > 0) {
+        int digit = testNumber % 10;      // last digit
+        reversed = reversed * 10 + digit; // append it
+        testNumber = testNumber / 10;     // drop it
+    }
+    return reversed;
+}
+```
+
+For 123: the digits come off as 3, 2, 1 and reversed grows 3, 32, 321. A palindrome reads the same both ways, so it equals its own reverse:
+
+```
+bool isAPalindrome(int testNumber) {
+    return testNumber == Reversed(testNumber);
+}
+```
+
+# Q3: Prime numbers
+
+A prime is only divisible by itself and 1. You only need to try divisors up to the square root: if n had a larger factor, it would also have a matching smaller one.
+
+```
+bool isAPrimeNumber(int n) {
+    if (n < 2) return false;
+    for (int i = 2; i <= n / i; i++) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+```
+
+> The condition is i <= n / i rather than i * i <= n. For a large n such as 2147483647, i * i would overflow an int before the loop ends.
+
+# Q4: Binary to decimal
+
+The number 110 is written in decimal digits but means binary. Each digit from the right is worth 1, 2, 4, 8 and so on. Take digits off the right with % 10, and double the place value each time, without using the shift operator:
+
+```
+int convertBinarytoDecimal(int binaryNumber) {
+    int decimal = 0;
+    int placeValue = 1;
+    while (binaryNumber > 0) {
+        int digit = binaryNumber % 10;
+        decimal += digit * placeValue;
+        placeValue *= 2;
+        binaryNumber /= 10;
+    }
+    return decimal;
+}
+```
+
+110 becomes 0*1 + 1*2 + 1*4 = 6.
+
+# Putting it together
+
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isLeapYear(int year) {
+    if (year % 400 == 0) return true;
+    if (year % 100 == 0) return false;
+    return year % 4 == 0;
+}
+
+int Reversed(int n) {
+    int reversed = 0;
+    while (n > 0) {
+        reversed = reversed * 10 + n % 10;
+        n /= 10;
+    }
+    return reversed;
+}
+
+bool isAPalindrome(int n) {
+    return n == Reversed(n);
+}
+
+bool isAPrimeNumber(int n) {
+    if (n < 2) return false;
+    for (int i = 2; i <= n / i; i++) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+
+int convertBinarytoDecimal(int b) {
+    int decimal = 0, placeValue = 1;
+    while (b > 0) {
+        decimal += (b % 10) * placeValue;
+        placeValue *= 2;
+        b /= 10;
+    }
+    return decimal;
+}
+
+int main() {
+    printf("1700 leap? %d\n", isLeapYear(1700));
+    printf("1600 leap? %d\n", isLeapYear(1600));
+    printf("Reversed(123) = %d\n", Reversed(123));
+    printf("121 palindrome? %d\n", isAPalindrome(121));
+    printf("1213 palindrome? %d\n", isAPalindrome(1213));
+    printf("2147483647 prime? %d\n", isAPrimeNumber(2147483647));
+    printf("110 in decimal = %d\n", convertBinarytoDecimal(110));
+    return 0;
+}
+```
+
+Output:
+
+```
+1700 leap? 0
+1600 leap? 1
+Reversed(123) = 321
+121 palindrome? 1
+1213 palindrome? 0
+2147483647 prime? 1
+110 in decimal = 6
+```
+
+# Q6: A right-angled triangle
+
+Nested loops: the outer loop picks the row, and the inner loop prints as many A's as the row number.
+
+```
+#include <stdio.h>
+
+void drawRightAngledTriangle() {
+    for (int row = 1; row <= 4; row++) {
+        for (int col = 1; col <= row; col++) {
+            printf("A");
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    drawRightAngledTriangle();
+    return 0;
+}
+```
+
+Output:
+
+```
+A
+AA
+AAA
+AAAA
+```
+
+# Q8 and Q9: Searching arrays
+
+find walks the array and returns the index as soon as it sees the value. find2ndLargest keeps track of the largest and second largest seen so far.
+
+```
+#include <stdio.h>
+
+int find(int size, int arr[], int toFind) {
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == toFind) return i;
+    }
+    return -1;  // not found
+}
+
+int find2ndLargest(int size, int arr[]) {
+    int largest = -1, second = -1;
+    for (int i = 0; i < size; i++) {
+        if (arr[i] > largest) {
+            second = largest;   // old largest moves down
+            largest = arr[i];
+        } else if (arr[i] > second && arr[i] != largest) {
+            second = arr[i];
+        }
+    }
+    return second;
+}
+
+int main() {
+    int arr[] = {4, 9, 2, 9, 7};
+    printf("find 2: %d\n", find(5, arr, 2));
+    printf("find 5: %d\n", find(5, arr, 5));
+    printf("2nd largest: %d\n", find2ndLargest(5, arr));
+    return 0;
+}
+```
+
+Output:
+
+```
+find 2: 2
+find 5: -1
+2nd largest: 7
+```
+
+> The arr[i] != largest check matters: with two 9s in the array, the second largest is 7, not 9.
+
+# Your turn
+
+These Lab 1 problems use the same techniques. Write and test each one:
+
+- Q7: the diamond of A's (1, 2, 3, 4, 3, 2, 1) using 2 for loops and at most 1 if/else
+- Q10: copy every element of arr1 into arr2
+- Q11 and Q12: insert or delete an element at an index, shifting the others along
+- Q13 and Q14: count how often a value appears, and count duplicates
+- Q15 and Q16: reverse an array in place, and rotate it left by one
+- Q17: are there two different movies whose lengths add up to the flight length?
+- Q18: count the words in a char array
+
+@quiz
+? Which of these years is a leap year?
+- 1700
+- 1900
+* 2000
+- 2100
+! 2000 is divisible by 400. The others are divisible by 100 but not 400.
+
+? What does Reversed(4071) return?
+- 4071
+* 1704
+- 1740
+- 7041
+! The digits come off the end one by one: 1, 7, 0, 4.
+
+? What does this print?
+```
+int n = 345, sum = 0;
+while (n > 0) {
+    sum += n % 10;
+    n /= 10;
+}
+printf("%d", sum);
+```
+- 345
+- 543
+* 12
+- 3
+! The loop adds the digits 5, 4 and 3.
+
+? Why does the prime check use i <= n / i instead of i * i <= n?
+- It is faster to divide than multiply
+* i * i can overflow an int when n is very large
+- n / i skips even numbers
+- There is no difference at all
+! For n near the int limit, i * i exceeds the largest int before the loop finishes.
+
+? What is the binary number 1011 in decimal?
+- 9
+* 11
+- 13
+- 1011
+! 1*1 + 1*2 + 0*4 + 1*8 = 11.
+
+? What does find return when the value is not in the array?
+- 0
+- The size of the array
+* -1
+- The last index
+! -1 can never be a valid index, so it clearly signals "not found".
+
+? What does this print?
+```
+for (int r = 1; r <= 3; r++) {
+    for (int c = 1; c <= r; c++) printf("A");
+    printf("|");
+}
+```
+- AAA|AAA|AAA|
+* A|AA|AAA|
+- A|A|A|
+- AAA|AA|A|
+! Row r prints r A's, then a separator.

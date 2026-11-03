@@ -1,6 +1,25 @@
+# Professor's course notes: copyrighted course material, not ours to publish
+Class Material/
+
+# Build output
 build/
+*.exe
+*.o
+*.obj
+*.pdb
+
+# Per-user data the app writes at runtime (accounts, password hashes, progress)
 progress.txt
 accounts.txt
-accounts.txt.tmp
+*.tmp
 users/
-*.png
+
+# Screenshots from --shot runs in the project root
+/*.png
+
+# Editor and local tool settings
+.vscode/
+.vs/
+.claude/settings.local.json
+Thumbs.db
+desktop.ini

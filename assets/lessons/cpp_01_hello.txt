@@ -1,77 +1,136 @@
 @id cpp_01_hello
 @track C++
-@title Hello, C++
+@title From C to C++
 
-C++ grew out of C, so most C code still compiles as C++. C++ adds its own standard library on top, and the first thing most people meet is iostream for input and output.
+C++ grew out of C. Almost everything you learned in the C track still works, but C++ adds its own features: references, classes, new and delete, and a new way of doing input and output.
 
 ```
 #include <iostream>
+using namespace std;
 
-int main()
-{
-    std::cout << "Hello, C++!" << std::endl;
+int main() {
+    cout << "Hello, C++!" << endl;
     return 0;
 }
 ```
 
+Output:
+
+```
+Hello, C++!
+```
+
 # What changed from C?
 
-#include <iostream> replaces stdio.h. It provides std::cout, the standard output stream.
+- #include <iostream> replaces <stdio.h>. It provides cout for output and cin for input.
+- cout << "text" sends text to the screen. The << operator can be chained to print several things in a row.
+- endl ends the line, like "\n".
+- using namespace std; lets you write cout instead of std::cout. Without it, you need the std:: prefix every time.
+- C++ files usually end in .cpp, and you compile them with g++ instead of gcc (or as a C++ project in Visual Studio).
 
-std::cout << "text" sends text to the output. The << operator can be chained to print several things in a row.
+# Printing values
 
-std::endl writes a newline and flushes the output. You can also just write "\n".
-
-> In C++, int main() with empty parentheses already means "takes no arguments". In older C you needed int main(void) to say that.
-
-# Namespaces
-
-The std:: prefix means cout lives in the std namespace, where the standard library keeps its names. Namespaces stop names from different libraries clashing.
+cout works out the type of each value for you, so there are no format specifiers like %d.
 
 ```
 #include <iostream>
+using namespace std;
 
-int main()
-{
+int main() {
     int apples = 3;
-    std::cout << "I have " << apples << " apples\n";
+    double price = 0.5;
+    char grade = 'A';
+    cout << "I have " << apples << " apples" << endl;
+    cout << "Price: " << price << ", grade " << grade << endl;
+    return 0;
 }
 ```
 
-C++ lets main finish without a return statement. Reaching the end of main counts as return 0.
-
-# Compiling
-
-Use g++ instead of gcc for C++ files:
+Output:
 
 ```
-g++ hello.cpp -o hello
+I have 3 apples
+Price: 0.5, grade A
 ```
+
+> cout prints doubles in their shortest form: 3.0 prints as 3 and 0.50 prints as 0.5. You will see this in the lesson outputs from here on.
+
+# Reading input
+
+cin >> reads a value into a variable. There is no & to remember: C++ handles that for you.
+
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int age;
+    // stdin: 25
+    cout << "Enter your age: " << endl;
+    cin >> age;
+    cout << "Next year you will be " << age + 1 << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+Enter your age:
+Next year you will be 26
+```
+
+# Namespaces
+
+The std:: prefix says that cout lives in the std namespace, where the standard library keeps all its names. Namespaces stop names from different libraries clashing. using namespace std; brings all of those names into your program so you can drop the prefix.
 
 @quiz
-? Which header provides std::cout?
+? Which header provides cout and cin?
 - <stdio.h>
 * <iostream>
 - <string>
 - <cout>
+! iostream is the C++ input/output stream header.
 
-? What does std:: in front of cout mean?
-- cout is a standard type
-* cout belongs to the std namespace
-- cout is a pointer
-! The standard library places its names inside the std namespace.
+? What does using namespace std; allow?
+- Using C functions in C++
+* Writing cout instead of std::cout
+- Using the std:: prefix
+- Faster compilation
+! It brings the standard library's names into scope.
 
 ? What does this print?
 ```
 int n = 2;
-std::cout << "n = " << n << "\n";
+cout << "n = " << n << "\n";
 ```
 - n = n
 * n = 2
 - "n = " 2
+- n = 2n
 ! Each << sends the next value to the stream in order.
 
-? What happens if main reaches its closing brace without a return statement in C++?
-- Compile error
-- Undefined behaviour
-* It behaves as if it returned 0
+? How do you read an int into x with cin?
+- cin << x;
+* cin >> x;
+- cin >> &x;
+- cin(x);
+! The arrows point the way the data flows: from cin into x.
+
+? What does this print?
+```
+double d = 4.0;
+cout << d;
+```
+* 4
+- 4.0
+- 4.000000
+- 4.00
+! cout drops trailing zeros, so 4.0 prints as 4.
+
+? Which compiler command is normally used for C++ files?
+- gcc
+* g++
+- cpp
+- c++compile
+! g++ is the GNU C++ compiler.

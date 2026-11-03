@@ -1,0 +1,171 @@
+@id c_05_decisions
+@track C
+@title Decisions: if, else and switch
+
+Programs make decisions with if. The condition in brackets is checked; if it is true, the block runs. else if adds more conditions, checked in order, and else catches everything that did not match.
+
+```
+#include <stdio.h>
+
+int main() {
+    int score = 23;
+
+    if (score >= 90) {
+        printf("Grade: A - Excellent!\n");
+    }
+    else if (score >= 80) {
+        printf("Grade: B - Good!\n");
+    }
+    else if (score >= 70) {
+        printf("Grade: C - Satisfactory\n");
+    }
+    else if (score >= 60) {
+        printf("Grade: D - Needs improvement\n");
+    }
+    else {
+        printf("Grade: F - Failed\n");
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+Grade: F - Failed
+```
+
+Only the first matching branch runs. A score of 95 is also >= 80, but it stops at the A branch.
+
+> In C, 0 counts as false and any other value counts as true.
+
+# Comparison and logical operators
+
+- == equal, != not equal, <, >, <=, >= compare values
+- && means AND: true only if both sides are true
+- || means OR: true if either side is true
+- ! means NOT: flips true and false
+
+```
+#include <stdio.h>
+
+int main() {
+    int age = 10;
+
+    if (age >= 18 && age <= 65) {
+        printf("You are of working age.\n");
+    }
+    else if (age < 18 || age > 65) {
+        printf("You are not of working age.\n");
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+You are not of working age.
+```
+
+> Watch out: = assigns and == compares. if (x = 5) stores 5 in x and is always true.
+
+# The switch statement
+
+switch checks one variable against several specific values. Each case is a possible value. break ends the switch; without it, execution falls through into the next case. default runs if no case matched.
+
+```
+#include <stdio.h>
+
+int main() {
+    char grade;
+    // stdin: b
+    printf("Enter your grade (A, B, C, D, F): \n");
+    scanf(" %c", &grade);
+
+    switch (grade) {
+        case 'A':
+        case 'a':
+            printf("Excellent performance!\n");
+            break;
+        case 'B':
+        case 'b':
+            printf("Good job!\n");
+            break;
+        case 'C':
+        case 'c':
+            printf("Satisfactory\n");
+            break;
+        default:
+            printf("Invalid grade entered\n");
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+Enter your grade (A, B, C, D, F):
+Good job!
+```
+
+Stacking case 'B': and case 'b': with nothing between them uses fall-through on purpose: both values run the same code.
+
+@quiz
+? What does this print?
+```
+int score = 85;
+if (score >= 90) printf("A");
+else if (score >= 80) printf("B");
+else if (score >= 70) printf("C");
+else printf("F");
+```
+- A
+* B
+- BC
+- F
+! 85 is not >= 90 but is >= 80. Once a branch runs, the rest are skipped.
+
+? When is (age >= 18 && age <= 65) true?
+- When age is 18 or more, or 65 or less
+* When age is between 18 and 65 inclusive
+- Only when age is exactly 18 or exactly 65
+- Never
+! && needs both conditions to be true.
+
+? What does this print?
+```
+int x = 2;
+switch (x) {
+    case 1: printf("one ");
+    case 2: printf("two ");
+    case 3: printf("three ");
+}
+```
+- two
+* two three
+- one two three
+- Nothing
+! There are no break statements, so execution falls through from case 2 into case 3.
+
+? In a switch, when does the default case run?
+- Always, after the matching case
+* When none of the cases match
+- Only when the value is 0
+- When the first case matches
+! default is the catch-all, like a final else.
+
+? Which condition is true if n is NOT equal to 10?
+- n == 10
+- n = 10
+* n != 10
+- !n == 10
+! != is the "not equal" operator.
+
+? What is wrong with if (x = 5) ?
+- Nothing, it checks whether x is 5
+* It assigns 5 to x, so the condition is always true
+- It does not compile
+- It checks whether x is greater than 5
+! = is assignment. The value of x = 5 is 5, which is non-zero and so counts as true.

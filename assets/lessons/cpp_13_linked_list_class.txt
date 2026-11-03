@@ -1,0 +1,284 @@
+@id cpp_13_linked_list_class
+@track C++
+@title A LinkedList Class
+
+The linked list from the previous lesson works, but the caller has to manage the head pointer, pass its address around, and remember to free every node. A class can hide all of that. The head becomes a private field, the operations become methods, and the destructor frees the nodes automatically.
+
+# The Node class
+
+```
+class Node {
+public:
+    int data;
+    Node *next;
+    Node(int value) {
+        data = value;
+        next = nullptr;
+    }
+};
+```
+
+The constructor sets up a node in one step, so new Node(10) gives a ready-to-link node.
+
+# The LinkedList class
+
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node *next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node *head;
+
+public:
+    LinkedList() { head = nullptr; }
+
+    // Destructor to clean up memory
+    ~LinkedList() { clear(); }
+
+    // Copy constructor: build our own copy of every node
+    LinkedList(const LinkedList &other) {
+        head = nullptr;
+        for (Node *cur = other.head; cur; cur = cur->next) {
+            insertAtEnd(cur->data);
+        }
+    }
+
+    // Assignment operator
+    LinkedList &operator=(const LinkedList &other) {
+        if (this != &other) {  // guard against list = list
+            clear();
+            for (Node *cur = other.head; cur; cur = cur->next) {
+                insertAtEnd(cur->data);
+            }
+        }
+        return *this;
+    }
+
+    void insertAtEnd(int newData) {
+        Node *newNode = new Node(newData);
+        if (head == nullptr) {
+            head = newNode;
+            return;
+        }
+        Node *current = head;
+        while (current->next != nullptr) {
+            current = current->next;
+        }
+        current->next = newNode;
+    }
+
+    void insertAtBeginning(int newData) {
+        Node *newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+
+    void deleteWithValue(int value) {
+        if (head == nullptr) {
+            cout << "List is empty." << endl;
+            return;
+        }
+        if (head->data == value) {
+            Node *temp = head;
+            head = head->next;
+            delete temp;
+            return;
+        }
+        Node *current = head;
+        Node *prev = nullptr;
+        while (current != nullptr && current->data != value) {
+            prev = current;
+            current = current->next;
+        }
+        if (current == nullptr) {
+            cout << "Value not found in the list." << endl;
+            return;
+        }
+        prev->next = current->next;
+        delete current;
+    }
+
+    void printList() {
+        for (Node *cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+
+    bool isEmpty() { return head == nullptr; }
+
+    void clear() {
+        Node *current = head;
+        while (current != nullptr) {
+            Node *temp = current;
+            current = current->next;
+            delete temp;
+        }
+        head = nullptr;
+    }
+
+    int getSize() {
+        int count = 0;
+        for (Node *cur = head; cur != nullptr; cur = cur->next) {
+            count++;
+        }
+        return count;
+    }
+
+    bool contains(int value) {
+        for (Node *cur = head; cur != nullptr; cur = cur->next) {
+            if (cur->data == value) return true;
+        }
+        return false;
+    }
+};
+
+const char *yesNo(bool b) { return b ? "Yes" : "No"; }
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    cout << "After inserting 10, 20, 30: ";
+    list.printList();
+
+    list.insertAtBeginning(5);
+    cout << "After inserting 5 at beginning: ";
+    list.printList();
+
+    list.deleteWithValue(20);
+    cout << "After deleting 20: ";
+    list.printList();
+
+    cout << "Trying to delete 100: ";
+    list.deleteWithValue(100);
+
+    cout << "Contains 10: " << yesNo(list.contains(10)) << endl;
+    cout << "Contains 25: " << yesNo(list.contains(25)) << endl;
+    cout << "List size: " << list.getSize() << endl;
+
+    LinkedList list2 = list;  // copy constructor
+    cout << "Copied list: ";
+    list2.printList();
+
+    list.clear();
+    cout << "After clearing: ";
+    list.printList();
+    cout << "Is list empty: " << yesNo(list.isEmpty()) << endl;
+
+    LinkedList list3;
+    list3 = list2;            // assignment operator
+    cout << "Assigned list: ";
+    list3.printList();
+    return 0;
+}  // destructors free all remaining nodes
+```
+
+Output:
+
+```
+After inserting 10, 20, 30: 10 20 30
+After inserting 5 at beginning: 5 10 20 30
+After deleting 20: 5 10 30
+Trying to delete 100: Value not found in the list.
+Contains 10: Yes
+Contains 25: No
+List size: 3
+Copied list: 5 10 30
+After clearing:
+Is list empty: Yes
+Assigned list: 5 10 30
+```
+
+# The copy constructor and assignment operator
+
+The list owns its nodes through the head pointer, just like the MITStudent owned its name. The default copy would copy only head, so two lists would share the same nodes, and each destructor would delete them: a double delete.
+
+- The copy constructor runs for LinkedList list2 = list; It starts empty and inserts a copy of every value.
+- The assignment operator runs for list3 = list2; when list3 already exists. It must clear list3's old nodes first, or they would leak.
+- if (this != &other) protects against list = list, which would otherwise clear the list before copying from it.
+- It returns *this so assignments can be chained, as in a = b = c.
+
+> Destructor, copy constructor and assignment operator: a class that owns memory needs all three. This is the rule of three.
+
+# Lab Part 2: a doubly linked list
+
+The lab's Part 2 asks you to implement the lecture's linked list, then create two new classes:
+
+- DoublyLinkedNode, which has both a prevPointer and a nextPointer
+- DoublyLinkedList, with InsertAtBeginning, InsertAtEnd and InsertAtPosition
+
+Here is a starting point for the node:
+
+```
+class DoublyLinkedNode {
+public:
+    int data;
+    DoublyLinkedNode *prevPointer;
+    DoublyLinkedNode *nextPointer;
+    DoublyLinkedNode(int value)
+        : data(value), prevPointer(nullptr),
+          nextPointer(nullptr) {}
+};
+```
+
+Every insert must now update links in both directions. When inserting a node between A and B, four pointers change: the new node's prevPointer and nextPointer, A's nextPointer and B's prevPointer.
+
+@quiz
+? Why make head a private field of LinkedList?
+- Private fields are faster
+* So outside code can only change the list through its methods
+- Because head is a pointer
+- So the destructor can find it
+! The class controls every change to the list's structure.
+
+? What would go wrong if LinkedList used the default copy constructor?
+- Nothing
+- The copy would be empty
+* Both lists would share the same nodes, and both destructors would delete them
+- It would not compile
+! The default copy only copies the head pointer, which is a shallow copy.
+
+? Which runs for list3 = list2; when list3 already exists?
+- The copy constructor
+* The assignment operator
+- The destructor only
+- The default constructor
+! Assignment to an existing object uses operator=.
+
+? Why does operator= call clear() before copying?
+- To make the list faster
+* To free list3's old nodes, which would otherwise leak
+- clear() copies the nodes
+- It is required by the compiler
+! The old contents are being replaced, so their memory must be freed.
+
+? Using this lesson's LinkedList class, what does a.printList() show?
+```
+LinkedList a;
+a.insertAtEnd(1);
+a.insertAtBeginning(2);
+a.insertAtEnd(3);
+a.printList();
+```
+- 1 2 3
+* 2 1 3
+- 3 1 2
+- 2 3 1
+! 1 goes in, 2 goes in front of it, and 3 goes at the end.
+
+? Inserting a new node between A and B in a doubly linked list changes how many pointers?
+- 1
+- 2
+* 4
+- 6
+! The new node's prev and next, A's next and B's prev.

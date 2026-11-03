@@ -1,0 +1,143 @@
+@id c_13_pointer_to_pointer
+@track C
+@title Pointers to Pointers
+
+A pointer is a variable, so it has an address too. A pointer to a pointer stores the address of another pointer. This is called double indirection.
+
+```
+int i = 5;
+int *ptr = &i;     // ptr points to i
+int **pptr = &ptr; // pptr points to ptr
+```
+
+- pptr holds the address of ptr
+- *pptr is the value of ptr, which is the address of i
+- **pptr follows both links and gives i itself
+
+# An illustration
+
+Trace each line. The comments show what changes.
+
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5, j = 10;
+    int *ptr;
+    int **pptr;   // pointer to pointer to int
+    ptr = &i;
+    pptr = &ptr;  // pptr holds the address of ptr
+    *ptr = 3;     // i = 3
+    **pptr = 7;   // i = 7 (through both pointers)
+    ptr = &j;     // ptr now points to j
+    **pptr = 9;   // j = 9: pptr still leads to ptr
+    *pptr = &i;   // changes ptr itself: back to i
+    *ptr = -2;    // i = -2
+    printf("i = %d, j = %d\n", i, j);
+    return 0;
+}
+```
+
+Output:
+
+```
+i = -2, j = 9
+```
+
+The key line is **pptr = 9. pptr never changed, but ptr did, so following the chain now lands on j. And *pptr = &i changes ptr without ever naming it.
+
+# Exercise
+
+Work out the values of i and j after each line, then check the final answer below.
+
+```
+int i = 2, j = 8;
+int *ptr;
+int **pptr;
+ptr = &i;
+pptr = &ptr;
+*ptr = 7;
+**pptr = 12;
+ptr = &j;
+**pptr = 34;
+*pptr = &i;
+*ptr = -25;
+```
+
+> Answer: i = -25 and j = 34. Step by step, i becomes 7 then 12; ptr moves to j, so j becomes 34; *pptr = &i moves ptr back to i, which then becomes -25.
+
+# Why you need them
+
+To let a function change the caller's int, you pass an int *. In the same way, to let a function change the caller's pointer, you pass a pointer to that pointer, an int **. You will use this when building linked lists, where a function has to change the head pointer.
+
+```
+#include <stdio.h>
+
+void pointAt(int **pp, int *target) {
+    *pp = target;   // changes the caller's pointer
+}
+
+int main() {
+    int a = 1, b = 2;
+    int *p = &a;
+    pointAt(&p, &b);
+    printf("*p = %d\n", *p);
+    return 0;
+}
+```
+
+Output:
+
+```
+*p = 2
+```
+
+@quiz
+? What is a pointer to a pointer?
+- A pointer that stores two addresses
+* A pointer that stores the address of another pointer
+- A pointer to an array
+- A pointer storing characters
+! It holds the address of a pointer variable.
+
+? If pp points to p, and p points to x, what does **pp give?
+- The address of x
+- The address of p
+* The value stored in x
+- Error
+! *pp is p, and *p is x.
+
+? Which declaration creates a pointer to a pointer to an integer?
+- int p;
+- int *p;
+* int **p;
+- int ***p;
+! Each * adds one level of indirection.
+
+? What does this print?
+```
+int x = 4;
+int *p = &x;
+int **pp = &p;
+**pp = 8;
+printf("%d", x);
+```
+- 4
+* 8
+- 0
+- 12
+! **pp leads through p to x, so x becomes 8.
+
+? With int **pp = &p;, what does *pp = &y; change?
+- y
+- pp
+* p, which now points to y
+- Nothing
+! *pp is p itself, so this assignment makes p point to y.
+
+? A function needs to change which int the caller's pointer points to. What type should its parameter be?
+- int
+- int *
+* int **
+- int &
+! To change a caller's int * you pass its address, which is an int **.

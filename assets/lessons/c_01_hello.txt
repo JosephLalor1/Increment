@@ -1,61 +1,96 @@
 @id c_01_hello
 @track C
-@title Hello, World
+@title Your First C Program
 
-Every C program starts running at a function called main. Here is the smallest useful C program: it prints one line of text and exits.
+C is a procedural language: a program is a list of instructions that run one after another, and execution always starts at a function called main(). Every statement ends with a semicolon ;, and blocks of code are wrapped in curly braces { }.
+
+C is a compiled language. A compiler turns your source code into machine code before the program runs. Here is the classic first program:
 
 ```
-#include <stdio.h>
+#include <stdio.h>  // gives us input/output functions
 
-int main(void)
-{
+int main() {
     printf("Hello, World!\n");
-    return 0;
+    return 0;  // 0 means "everything worked correctly"
 }
+```
+
+Output:
+
+```
+Hello, World!
 ```
 
 # Line by line
 
-#include <stdio.h> pulls in the standard input/output header. That header declares printf, so the compiler knows how to call it.
+- #include <stdio.h> pulls in the standard input/output header, which declares printf.
+- int main() is where execution starts. The int means main gives back a whole number when it finishes.
+- printf("Hello, World!\n"); prints the text in quotes. \n is the newline character.
+- return 0; ends main and tells the operating system the program succeeded.
 
-int main(void) defines the main function. int is the type of value it returns, and void means it takes no arguments.
+> Forgetting a semicolon is the most common first error. The compiler usually reports it on the line after the one that is missing it.
 
-printf("Hello, World!\n"); prints the text between the quotes. The \n is an escape sequence meaning "newline". Every statement in C ends with a semicolon.
+# Compiling and running
 
-return 0; ends main and reports success to the operating system. Any non-zero value conventionally means something went wrong.
-
-> The curly braces { } group statements into a block. The body of every function lives inside one.
-
-# Compiling
-
-C is a compiled language. A compiler such as gcc turns your source file into an executable you can run:
+With gcc, you compile and run from a terminal like this. In Visual Studio, building the project does the same job.
 
 ```
 gcc hello.c -o hello
 ./hello
 ```
 
+# Reserved words
+
+C has a small set of keywords that are reserved by the language. You cannot use them as variable or function names. They fall into groups:
+
+- Data types (9): int, char, float, double, void, short, long, signed, unsigned
+- Control flow (11): if, else, switch, case, default, for, while, do, break, continue, return
+- Storage class (4): auto, register, static, extern
+- User-defined types (4): struct, union, enum, typedef
+- Qualifiers (4): const, volatile, restrict (added in C99), _Atomic (added in C11)
+- The special operator sizeof, which gives the size of a type or variable in bytes
+
+> You will also see goto listed as a keyword. It exists, but it is almost never used in modern code.
+
 @quiz
-? Which function does every C program start running in?
-- start
-* main
-- printf
-- init
-! The operating system calls main when your program starts.
+? Where does execution start in every C program?
+- At the first line of the file
+* In the main() function
+- In the first function that is defined
+- At #include <stdio.h>
+! The operating system calls main() when the program starts, wherever it is in the file.
 
-? What does the \n in "Hello, World!\n" do?
-- Prints a backslash and the letter n
-* Moves the output to a new line
-- Ends the program
-! \n is an escape sequence for the newline character.
-
-? Why do we write #include <stdio.h>?
+? What does #include <stdio.h> give the program?
 - It makes the program run faster
-- It is required at the top of every C file
-* It declares printf and other standard I/O functions
+* Declarations of the standard input/output functions, such as printf
+- The main() function
+- A connection to the internet
 ! Headers declare functions so the compiler knows they exist and how to call them.
 
-? What does return 0; from main usually mean?
+? What does return 0; at the end of main usually mean?
 * The program finished successfully
 - The program crashed
 - main returns nothing
+- The program should run again
+! By convention 0 means success and any other value signals an error.
+
+? C is described as a compiled language. What does that mean?
+- Each line is translated and run one at a time while the program executes
+* The source code is turned into machine code before the program runs
+- The code only runs inside a web browser
+- The program is compiled every time you press a key
+! A compiler such as gcc translates the whole program into machine code first.
+
+? Which group of keywords does typedef belong to?
+- Data types
+- Control flow
+- Storage class
+* User-defined types
+! struct, union, enum and typedef let you define your own types.
+
+? Which of these can NOT be used as a variable name?
+- total
+- my_int
+* while
+- Main
+! while is a reserved keyword. C is case-sensitive, so Main is a different name from main.

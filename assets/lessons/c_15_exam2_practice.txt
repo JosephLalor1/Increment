@@ -1,0 +1,223 @@
+@id c_15_exam2_practice
+@track C
+@title Exam 2 Practice: Pointer Functions
+
+The Coding Exam 2 preparation lab is ten small functions. The rule that makes them interesting: no array indexing (arr[i]) anywhere. Every function must use pointers and pointer arithmetic. This lesson solves several of them; the rest are for you.
+
+# Two patterns
+
+Almost every function in the lab uses one of these two loops:
+
+- For an array with a known size, loop from a pointer to the start until it reaches start + size.
+- For a string, loop until the pointer reaches the '\0' terminator. No size needed.
+
+```
+for (int *p = arr; p < arr + size; p++) { /* use *p */ }
+
+for (char *p = str; *p != '\0'; p++) { /* use *p */ }
+```
+
+# find_max and sum_array
+
+```
+int find_max(int *arr, int size) {
+    int max = *arr;
+    for (int *p = arr + 1; p < arr + size; p++) {
+        if (*p > max) max = *p;
+    }
+    return max;
+}
+
+int sum_array(int *arr, int size) {
+    int sum = 0;
+    for (int *p = arr; p < arr + size; p++) {
+        sum += *p;
+    }
+    return sum;
+}
+```
+
+# reverse_array
+
+Use two pointers, one at each end. Swap what they point to, then walk them towards each other until they meet.
+
+```
+void reverse_array(int *arr, int size) {
+    int *left = arr;
+    int *right = arr + size - 1;
+    while (left < right) {
+        int temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+        right--;
+    }
+}
+```
+
+# strlen_ptr
+
+Walk a pointer to the terminator. Subtracting two pointers gives the number of elements between them, which is the length.
+
+```
+int strlen_ptr(char *str) {
+    char *p = str;
+    while (*p != '\0') {
+        p++;
+    }
+    return p - str;
+}
+```
+
+# copy_string and compare_strings
+
+copy_string copies characters until it has copied the terminator. compare_strings walks both strings while they match, then returns the difference of the first characters that differ: 0 if the strings are equal, negative if the first string comes first.
+
+```
+void copy_string(char *dest, char *src) {
+    while (*src != '\0') {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    *dest = '\0';  // don't forget the terminator
+}
+
+int compare_strings(char *str1, char *str2) {
+    while (*str1 != '\0' && *str1 == *str2) {
+        str1++;
+        str2++;
+    }
+    return *str1 - *str2;
+}
+```
+
+# Testing them
+
+```
+#include <stdio.h>
+
+int strlen_ptr(char *str) {
+    char *p = str;
+    while (*p != '\0') p++;
+    return p - str;
+}
+
+void reverse_array(int *arr, int size) {
+    int *left = arr, *right = arr + size - 1;
+    while (left < right) {
+        int temp = *left;
+        *left++ = *right;
+        *right-- = temp;
+    }
+}
+
+int compare_strings(char *s1, char *s2) {
+    while (*s1 != '\0' && *s1 == *s2) {
+        s1++;
+        s2++;
+    }
+    return *s1 - *s2;
+}
+
+int main() {
+    char str[] = "Hello, world!";
+    printf("Length: %d\n", strlen_ptr(str));
+
+    int arr[5] = {1, 2, 3, 4, 5};
+    reverse_array(arr, 5);
+    printf("Reversed array: ");
+    for (int *p = arr; p < arr + 5; p++) {
+        printf("%d ", *p);
+    }
+    printf("\n");
+
+    char a[] = "apple", b[] = "banana";
+    printf("apple vs banana: %s\n",
+           compare_strings(a, b) < 0 ? "smaller" : "larger");
+    return 0;
+}
+```
+
+Output:
+
+```
+Length: 13
+Reversed array: 5 4 3 2 1
+apple vs banana: smaller
+```
+
+> *left++ = *right; assigns first and then moves left forward. It is a compact form of the two separate lines used in the earlier version.
+
+# Your turn
+
+Write these without any [ ] indexing:
+
+- swap_chars(char *a, char *b): like swap_ints, but for characters
+- count_vowels(char *str): "OpenAI" has 3 vowels (O, e, A). Check both cases.
+- concat_strings(char *dest, char *src): move a pointer to the end of dest, then copy src from there
+
+The lab's Part 2 moves on to linked lists, covered in the C++ track.
+
+@quiz
+? In the lab, which loop condition walks a string without knowing its length?
+- p < str + size
+* *p != '\0'
+- p != NULL
+- *p < 0
+! Strings end at the null terminator, so stop when the pointer reaches it.
+
+? What does strlen_ptr return when p has walked from str to the terminator of "Hello"?
+- 6
+* 5
+- 4
+- The address of the terminator
+! p - str counts the elements between them: the 5 letters, not the terminator.
+
+? What does this print?
+```
+int a[] = {3, 9, 2, 8, 5};
+int max = *a;
+for (int *p = a + 1; p < a + 5; p++)
+    if (*p > max) max = *p;
+printf("%d", max);
+```
+- 3
+- 5
+* 9
+- 8
+! The loop keeps the largest value it sees.
+
+? Why does copy_string write *dest = '\0'; after the loop?
+- To free the memory
+* The loop stops before copying the terminator, so it must be added
+- To make the string shorter
+- It is not needed
+! Without the terminator, dest is not a valid string.
+
+? What sign does compare_strings("apple", "banana") return?
+* Negative
+- Zero
+- Positive
+- It depends on the string lengths
+! 'a' comes before 'b', and 'a' - 'b' is negative.
+
+? In reverse_array, when does the loop stop?
+- When left reaches the end of the array
+* When left and right meet or cross
+- After size iterations
+- When *left is 0
+! Each swap moves both pointers inward; once they meet, every pair has been swapped.
+
+? What does this print?
+```
+char s[] = "abc";
+char *p = s;
+p++;
+printf("%c%s", *p, p);
+```
+- abc
+* bbc
+- bc
+- ab
+! After p++ it points at 'b', and as a string it is "bc".

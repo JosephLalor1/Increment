@@ -1,0 +1,117 @@
+@id c_03_input
+@track C
+@title Reading Input with scanf
+
+printf writes to the screen. Its partner scanf reads from the keyboard. You give scanf a format string, just like printf, and the address of each variable to fill.
+
+```
+#include <stdio.h>
+
+int main() {
+    int age;
+    float salary;
+    char initial;
+    // stdin: 25 1500.50 J
+
+    printf("Enter your age: ");
+    scanf("%d", &age);      // & means "address of"
+
+    printf("Enter your salary: ");
+    scanf("%f", &salary);
+
+    printf("Enter your initial: ");
+    scanf(" %c", &initial); // space before %c skips whitespace
+
+    printf("\nYou entered:\n");
+    printf("Age: %d\n", age);
+    printf("Salary: %.2f\n", salary);
+    printf("Initial: %c\n", initial);
+    return 0;
+}
+```
+
+Output:
+
+```
+Enter your age: Enter your salary: Enter your initial:
+You entered:
+Age: 25
+Salary: 1500.50
+Initial: J
+```
+
+# Why the & ?
+
+scanf has to store the value into your variable, so it needs to know where that variable lives in memory. &age means "the address of age". Forgetting the & is a very common bug: scanf then writes to a random place in memory. You will see much more of & in the pointers lessons.
+
+# Why the space in " %c" ?
+
+When you press Enter after typing a number, the newline character is left waiting in the input. %d and %f skip leading whitespace automatically, but %c does not: it would read that leftover newline as the character. The space in " %c" tells scanf to skip any whitespace first.
+
+# Prompts that appear late
+
+On some online compilers, such as cpp.sh, the "Enter your..." prompts are not shown until the program ends, because output is held back until a newline is printed. The fix is to end each prompt with \n:
+
+```
+printf("Enter your age: \n");
+```
+
+# scanf in Visual Studio
+
+Visual Studio treats scanf as unsafe and refuses to compile it by default (error C4996). It suggests scanf_s instead. scanf returns the number of values it successfully read, so you can also check that the input was valid:
+
+```
+if (scanf_s("%d", &age) != 1) {
+    printf("Invalid input for age.\n");
+    return 1;
+}
+```
+
+> With scanf_s, %c and %s need an extra argument giving the buffer size: scanf_s(" %c", &initial, 1). Alternatively, put #define _CRT_SECURE_NO_WARNINGS on the very first line of the file and keep using scanf.
+
+@quiz
+? Why does scanf("%d", &age) need the & ?
+- & tells scanf the value is an integer
+* scanf needs the address of age so it can store the value there
+- & converts the input to a number
+- It is optional and only there for readability
+! &age is the address of age. scanf writes the value it reads into that address.
+
+? What does the space before %c in scanf(" %c", &initial) do?
+- It reads a space character into initial
+* It skips whitespace, such as a leftover newline, before reading the character
+- It limits the input to one character
+- Nothing; spaces in format strings are ignored
+! Without the space, %c would read the newline left over from pressing Enter.
+
+? What does scanf return?
+- The value it read
+- Always 0
+* The number of values it successfully read
+- The address of the variable
+! That is why checking scanf(...) != 1 detects invalid input for a single value.
+
+? On cpp.sh the prompts only appear when the program ends. What fixes this?
+- Using scanf_s instead of scanf
+* Ending each prompt with \n
+- Removing return 0;
+- Declaring the variables as const
+! The output is held back until a newline is printed, so adding \n makes each prompt appear straight away.
+
+? The user types abc when this runs. What is the value of n afterwards?
+```
+int n = 7;
+int ok = scanf("%d", &n);
+```
+* n is still 7 and ok is 0
+- n is 0 and ok is 1
+- n is the character code of 'a'
+- The program crashes
+! scanf cannot read a number from "abc", so it stores nothing and returns 0.
+
+? Visual Studio rejects scanf with error C4996. Which of these is a correct fix?
+- Add an extra & to every variable
+- Change %d to %i
+* Use scanf_s, or define _CRT_SECURE_NO_WARNINGS at the top of the file
+- Put the scanf call inside main twice
+! Visual Studio wants the safer scanf_s, or you can turn the warning off with _CRT_SECURE_NO_WARNINGS.

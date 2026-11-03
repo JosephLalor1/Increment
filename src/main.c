@@ -317,6 +317,13 @@ static void ScreenLesson(void)
         case BLOCK_CODE:
             y += UiCodeBlock(b->text, (Vector2){ x, y }, w, 20 * ts, true) + 16;
             break;
+        case BLOCK_BULLET: {
+            float size = 22 * ts;
+            DrawCircleV((Vector2){ x + 9, y + size * 0.62f }, 3.5f * ts, COL_ACCENT);
+            y += UiWrappedText(gFonts.text, b->text, (Vector2){ x + 28, y }, w - 28, size, COL_TEXT, true) + 4;
+            bool lastInList = i + 1 >= L->blockCount || L->blocks[i + 1].type != BLOCK_BULLET;
+            if (lastInList) y += 10;
+        } break;
         }
     }
 

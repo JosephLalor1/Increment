@@ -1,0 +1,245 @@
+@id cpp_12_linked_lists
+@track C++
+@title Linked Lists
+
+Pointers are essential for building data structures like linked lists, trees and graphs. A linked list is a dynamic data structure made of nodes, where each node contains:
+
+- Data: the actual information
+- A pointer to the next node in the list
+
+Linked lists grow one node at a time, so they make insertion and deletion cheap, but they need pointers to link the nodes together.
+
+# The node
+
+```
+struct Node {
+    int data;       // stores data
+    Node *nextPtr;  // pointer to the next node
+};
+```
+
+If nextPtr is nullptr, this node is the end of the list. The list itself is just a pointer to the first node, called the head. An empty list has headPtr == nullptr.
+
+# Inserting a node at the end
+
+To insert at the end, create the new node, then walk the list to find the last node and link the new node to it.
+
+```
+void InsertAtEnd(Node **ptrToHeadPtr, int newData) {
+    Node *newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = nullptr;
+
+    // Empty list: the new node becomes the head
+    if (*ptrToHeadPtr == nullptr) {
+        *ptrToHeadPtr = newNode;
+        return;
+    }
+
+    // Walk to the last node
+    Node *curNodePtr = *ptrToHeadPtr;
+    while (curNodePtr->nextPtr != nullptr) {
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    curNodePtr->nextPtr = newNode;
+}
+```
+
+> Why Node **? Inserting into an empty list must change the caller's head pointer. As in the pointers-to-pointers lesson, to change the caller's pointer you pass the address of that pointer.
+
+# Traversing the list
+
+To print the list, start at the head and follow nextPtr until reaching nullptr.
+
+```
+void PrintList(Node *headPtr) {
+    Node *curNodePtr = headPtr;
+    while (curNodePtr != nullptr) {
+        cout << curNodePtr->data << " ";
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    cout << endl;
+}
+```
+
+PrintList only reads the list, so a plain Node * is enough.
+
+# Deleting a node
+
+To delete the first node holding a value, find it while remembering the node before it, then unlink it by pointing the previous node past it. Deleting the head is a special case, because there is no previous node.
+
+```
+void DeleteWithValue(Node **ptrToHeadPtr, int value) {
+    if (*ptrToHeadPtr == nullptr) {
+        cout << "List is empty." << endl;
+        return;
+    }
+    Node *curNodePtr = *ptrToHeadPtr;
+
+    // The head node itself holds the value
+    if (curNodePtr->data == value) {
+        *ptrToHeadPtr = curNodePtr->nextPtr;
+        delete curNodePtr;
+        return;
+    }
+
+    // Search, keeping track of the previous node
+    Node *prev = nullptr;
+    while (curNodePtr != nullptr && curNodePtr->data != value) {
+        prev = curNodePtr;
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    if (curNodePtr == nullptr) {
+        cout << "Value not found in the list." << endl;
+        return;
+    }
+    prev->nextPtr = curNodePtr->nextPtr;  // unlink
+    delete curNodePtr;                    // free memory
+}
+```
+
+# Putting it all together
+
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node *nextPtr;
+};
+
+void InsertAtEnd(Node **ptrToHeadPtr, int newData) {
+    Node *newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = nullptr;
+    if (*ptrToHeadPtr == nullptr) {
+        *ptrToHeadPtr = newNode;
+        return;
+    }
+    Node *curNodePtr = *ptrToHeadPtr;
+    while (curNodePtr->nextPtr != nullptr) {
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    curNodePtr->nextPtr = newNode;
+}
+
+void PrintList(Node *headPtr) {
+    Node *cur = headPtr;
+    while (cur != nullptr) {
+        cout << cur->data << " ";
+        cur = cur->nextPtr;
+    }
+    cout << endl;
+}
+
+void DeleteWithValue(Node **ptrToHeadPtr, int value) {
+    Node *cur = *ptrToHeadPtr, *prev = nullptr;
+    while (cur != nullptr && cur->data != value) {
+        prev = cur;
+        cur = cur->nextPtr;
+    }
+    if (cur == nullptr) {
+        cout << "Value not found in the list." << endl;
+        return;
+    }
+    if (prev == nullptr) *ptrToHeadPtr = cur->nextPtr;  // head
+    else prev->nextPtr = cur->nextPtr;
+    delete cur;
+}
+
+void FreeList(Node **ptrToHeadPtr) {
+    Node *cur = *ptrToHeadPtr;
+    while (cur != nullptr) {
+        Node *next = cur->nextPtr;  // save before deleting
+        delete cur;
+        cur = next;
+    }
+    *ptrToHeadPtr = nullptr;
+}
+
+int main() {
+    Node *headPtr = nullptr;  // start with an empty list
+    InsertAtEnd(&headPtr, 10);
+    InsertAtEnd(&headPtr, 20);
+    InsertAtEnd(&headPtr, 30);
+    cout << "Linked List: ";
+    PrintList(headPtr);
+
+    DeleteWithValue(&headPtr, 20);
+    cout << "After deleting 20: ";
+    PrintList(headPtr);
+
+    DeleteWithValue(&headPtr, 10);
+    cout << "After deleting 10: ";
+    PrintList(headPtr);
+
+    DeleteWithValue(&headPtr, 99);
+    FreeList(&headPtr);
+    return 0;
+}
+```
+
+Output:
+
+```
+Linked List: 10 20 30
+After deleting 20: 10 30
+After deleting 10: 30
+Value not found in the list.
+```
+
+This version of DeleteWithValue handles the head case by checking whether prev is still nullptr. It does the same job as the longer version above.
+
+> FreeList saves cur->nextPtr before deleting cur. After delete cur, reading cur->nextPtr would be using freed memory.
+
+@quiz
+? What does each node in a singly linked list contain?
+- Only data
+* Data and a pointer to the next node
+- Data and the index of the node
+- A pointer to the previous node only
+! The nextPtr links each node to the one after it.
+
+? How do you know you have reached the end of the list?
+- The data is 0
+* The node's nextPtr is nullptr
+- The node is the head
+- You have visited 10 nodes
+! The last node points to nothing.
+
+? Why does InsertAtEnd take Node ** instead of Node * ?
+- Node ** is faster
+* Inserting into an empty list has to change the caller's head pointer
+- Node * cannot point to a struct
+- So it can insert two nodes at once
+! To change the caller's pointer, the function needs the address of that pointer.
+
+? To delete a node in the middle, which pointer must change?
+- The head pointer
+* The previous node's nextPtr
+- The next node's data
+- The deleted node's data
+! prev->nextPtr = cur->nextPtr; skips over the node being removed.
+
+? What does this list contain after the code runs?
+```
+Node *head = nullptr;
+InsertAtEnd(&head, 1);
+InsertAtEnd(&head, 2);
+InsertAtEnd(&head, 3);
+DeleteWithValue(&head, 1);
+InsertAtEnd(&head, 4);
+```
+- 1 2 3 4
+* 2 3 4
+- 4 2 3
+- 2 3
+! 1 is removed from the front, then 4 is added at the end.
+
+? Why does FreeList save cur->nextPtr before calling delete cur?
+- delete needs the next node
+* After delete, cur's memory is freed, so reading cur->nextPtr would be invalid
+- To print it later
+- It doesn't need to
+! Reading a deleted node is use-after-free.

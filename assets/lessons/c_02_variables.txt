@@ -1,72 +1,142 @@
 @id c_02_variables
 @track C
-@title Variables and Types
+@title Variables and Data Types
 
-A variable is a named piece of memory that holds a value. In C every variable has a type, and the type decides what kind of value it can hold and how much memory it uses.
+A variable is a named piece of memory that holds a value. Unlike some languages, C makes you declare the type of every variable before you use it. The type decides what values it can hold and how much memory it takes.
 
 ```
 #include <stdio.h>
 
-int main(void)
-{
-    int age = 30;          // whole numbers
-    double height = 1.75;  // numbers with a fractional part
-    char initial = 'J';    // a single character
+int main() {
+    // Integer types
+    int age = 25;           // whole numbers (typically 4 bytes)
+    short small = 100;      // smaller integer
+    long big = 1000000L;    // larger integer
+
+    // Decimal numbers
+    float price = 19.99f;   // single precision (4 bytes)
+    double pi = 3.14159;    // double precision (8 bytes)
+
+    // Character
+    char grade = 'A';       // a single character in single quotes
 
     printf("Age: %d\n", age);
-    printf("Height: %.2f\n", height);
-    printf("Initial: %c\n", initial);
+    printf("Price: %.2f\n", price);  // .2 shows 2 decimal places
+    printf("Grade: %c\n", grade);
+    printf("Pi: %f\n", pi);
     return 0;
 }
 ```
 
-# Common types
+Output:
 
-int holds whole numbers like 42 or -7. double holds floating-point numbers like 3.14. char holds a single character, written in single quotes like 'A'.
-
-> Single quotes make a char ('A'). Double quotes make a string ("A"). They are not interchangeable.
+```
+Age: 25
+Price: 19.99
+Grade: A
+Pi: 3.141590
+```
 
 # Format specifiers
 
-printf uses placeholders to print values: %d for int, %f for double, and %c for char. %.2f prints a double with exactly two digits after the decimal point.
+printf uses placeholders that are replaced by the values that follow:
 
-# Assignment
+- %d prints an int
+- %f prints a float or double (6 decimal places by default)
+- %c prints a single char
+- %s prints a string
+- %.2f prints a float or double with exactly 2 decimal places
 
-You can change a variable after it is declared. The = sign means "store this value", not "is equal to".
+# Uninitialised variables
+
+If you declare a variable without giving it a value, it is not set to zero. It holds whatever value happened to be in that memory already.
 
 ```
-int score = 10;
-score = score + 5;   // score is now 15
-score += 5;          // shorthand: score is now 20
+int var;   // not initialised: holds a leftover value
+```
+
+> Always give a variable a value before you read it. Reading an uninitialised variable is a classic source of bugs that only appear sometimes.
+
+# Literal suffixes
+
+19.99f has an f on the end to mark it as a float. Without it, 19.99 is a double. 1000000L uses L to mark a long.
+
+# Constants
+
+Put const in front of a declaration to make the variable unchangeable. Trying to assign to it later is a compile error.
+
+```
+#include <stdio.h>
+
+int main() {
+    const double TAX_RATE = 0.08;
+    const int MAX_SCORE = 100;
+
+    // TAX_RATE = 0.10;  // this would cause an error!
+
+    printf("Tax rate: %.2f\n", TAX_RATE);
+    printf("Max score: %d\n", MAX_SCORE);
+    return 0;
+}
+```
+
+Output:
+
+```
+Tax rate: 0.08
+Max score: 100
 ```
 
 @quiz
-? Which type would you use to store the value 3.14?
+? Which type would you use to store 3.14159 with the most precision?
 - int
-- char
+- float
 * double
-! int only holds whole numbers; double holds floating-point values.
+- char
+! double is double precision (typically 8 bytes) and float is single precision (4 bytes).
 
-? Which printf format specifier prints an int?
-* %d
+? Which format specifier prints a char?
+- %d
 - %f
-- %c
+* %c
 - %s
+! %c prints a single character. %s is for whole strings.
 
-? What is the value of x after this code runs?
+? What does this print?
 ```
-int x = 4;
-x = x * 2;
-x += 1;
+double pi = 3.14159;
+printf("%.2f", pi);
 ```
-- 4
-- 8
-* 9
-- 10
-! x starts at 4, doubles to 8, then += 1 makes it 9.
+- 3.14159
+* 3.14
+- 3.141590
+- 3
+! %.2f rounds to exactly 2 decimal places.
+
+? What value does x hold after int x; with no initialiser?
+- Always 0
+- Always -1
+* Whatever value was already in that memory
+- It causes a compile error
+! An uninitialised local variable holds leftover, unpredictable data.
+
+? What happens if your code assigns a new value to a const variable?
+- The value changes as normal
+- The program crashes when it runs
+* The compiler reports an error
+- The assignment is silently ignored
+! const tells the compiler the value must never change, so it refuses to compile the assignment.
 
 ? Which of these is a valid char literal?
 - "A"
 * 'A'
 - A
-! Single quotes make a char. "A" is a string.
+- `A`
+! Single quotes make a char. Double quotes make a string.
+
+? Why is there an f at the end of 19.99f?
+- It stands for "fixed" and stops the value changing
+* It marks the literal as a float instead of a double
+- It formats the value with 2 decimal places
+- It is a typo; it has no meaning
+! A decimal literal is a double by default. The f suffix makes it a float.

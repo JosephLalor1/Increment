@@ -1,0 +1,203 @@
+@id cpp_09_access_static
+@track C++
+@title Static Members, Access Modifiers and Structs
+
+# Static members
+
+A normal field belongs to each instance: every Point has its own x and y. A static member belongs to the class itself, and there is only one of it, shared by everything. You reach it with ClassName:: and no instance is needed.
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {}
+};
+
+class Maths {
+public:
+    static float PI;
+    static float Mul(Point a, Point b) {
+        // cannot access any non-static member of Maths
+        return a.x * b.x + a.y * b.y;
+    }
+};
+
+float Maths::PI = 3.14f;  // a static field must be defined once
+
+int main() {
+    Maths::PI = 3.14159f;  // use 2 colons to access statics
+    Point q(1.0, 2.0);
+    float result = Maths::Mul(q, q);
+    cout << result << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+5
+```
+
+> The line float Maths::PI = 3.14f; outside the class is required. Inside the class, static float PI; only declares the variable. Without the definition the program compiles but fails to link with an "undefined reference" error.
+
+# Static and non-static members
+
+A static method is not called on an instance, so there is no this pointer, and it cannot touch non-static fields:
+
+```
+class Maths {
+public:
+    int temp;          // non-static
+    static float PI;
+    static void Reset() {
+        temp = 10;     // compile error: no instance
+    }
+};
+
+int main() {
+    Maths::Reset();
+} // does not compile
+```
+
+# Access modifiers
+
+Access modifiers define where your fields and methods can be accessed from.
+
+- public: can be accessed from anywhere
+- private: can only be accessed within the class itself
+
+```
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) { x = nx; y = ny; }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    p.x = 5.0;  // allowed: x is public
+}
+```
+
+```
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) { x = nx; y = ny; }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    p.x = 5.0;  // not allowed: x is private
+} // does not compile
+```
+
+# Getters and setters
+
+Use getters to allow read-only access to private fields. A setter allows controlled changes, and can check the new value before accepting it.
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) { x = nx; y = ny; }
+    double getX() { return x; }
+    double getY() { return y; }
+    bool setX(double px) {
+        if (px < 0) return false;  // reject bad values
+        x = px;
+        return true;
+    }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    cout << p.getX() << endl;  // allowed
+    p.setX(-1.0);              // rejected
+    p.setX(7.5);
+    cout << p.getX() << ", " << p.getY() << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+2
+7.5, 3
+```
+
+# Default access and structs
+
+In a class, members are private by default. These two are equivalent:
+
+```
+class Point {
+    double x, y;
+};
+
+class Point {
+private:
+    double x, y;
+};
+```
+
+Structs are a carry-over from C. In C++, a struct is essentially the same as a class, except that a struct's default access modifier is public. Classes are generally used in C++, while struct is common for plain bundles of data.
+
+```
+struct Point {
+    double x, y;   // public by default
+};
+```
+
+@quiz
+? How many copies of a static field are there?
+- One per instance
+* One, shared by the whole class
+- Two
+- None until an instance is created
+! A static member belongs to the class, not to any instance.
+
+? How do you call a static method Mul of class Maths?
+- Maths.Mul(a, b)
+* Maths::Mul(a, b)
+- Maths->Mul(a, b)
+- Mul::Maths(a, b)
+! Statics are reached through the class name with ::.
+
+? Why can a static method not use this?
+- this only works in constructors
+* It is not called on an instance, so there is no current object
+- this is private
+- It can; static methods can use this
+! Without an instance, there is no object for this to point to.
+
+? What can access a private field?
+- Any code in the same file
+* Only code inside the class itself, such as its methods
+- Only main
+- Nothing at all
+! Outside code must go through public methods such as getters.
+
+? What is the default access in a class, and in a struct?
+* class: private; struct: public
+- class: public; struct: private
+- Both public
+- Both private
+! That default is the only real difference between them.
+
+? Why use a getter instead of making a field public?
+- Getters are faster
+* It gives read-only access while keeping the field private
+- Public fields are not allowed in C++
+- Getters create a copy of the class
+! Code outside can read the value but cannot change it directly.

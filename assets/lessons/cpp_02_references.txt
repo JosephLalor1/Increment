@@ -1,74 +1,180 @@
 @id cpp_02_references
 @track C++
-@title References
+@title Pass by Reference
 
-A reference is another name for an existing variable. Anything you do through the reference happens to the original. References are one of the first features C++ adds that C does not have.
+In C, a function gets a copy of each ordinary argument (pass by value), and the only way to change the caller's variable is to pass a pointer. C++ adds a third option: pass by reference.
 
-```
-int score = 10;
-int& alias = score;   // alias refers to score
-
-alias = 25;
-std::cout << score << "\n";   // prints 25
-```
-
-# Rules for references
-
-A reference must be initialised when it is declared, because it has to refer to something.
-
-Once bound, a reference cannot be reseated to refer to a different variable. Assigning to it changes the value of the original instead.
-
-> Think of a reference as a nickname: two names, one person.
-
-# Passing by reference
-
-The most common use is function parameters. Passing by value copies the argument. Passing by reference lets the function change the caller's variable.
+With pass by reference, the function does not get a copy. The parameter is the caller's actual variable under a different name, so any change the function makes is a change to the original. You write it with & in the parameter list.
 
 ```
-void addBonus(int& points)
-{
-    points += 100;
-}
-
-int main()
-{
-    int total = 50;
-    addBonus(total);
-    std::cout << total << "\n";   // prints 150
+void tryToChange(int &x) {  // note the & : pass by reference
+    x = 999;                // changes the caller's variable
 }
 ```
 
-# const references
+Now if you call tryToChange(value), value really does become 999.
 
-A const reference avoids the copy but promises not to change the value. It is the usual way to pass large objects that a function only reads.
+# Value versus reference, side by side
 
 ```
-void printName(const std::string& name)
-{
-    std::cout << name << "\n";
+#include <iostream>
+using namespace std;
+
+// Pass by value: works on a copy
+void addOneByValue(int x) {
+    x = x + 1;
+    cout << "Inside addOneByValue: x = " << x << endl;
+}
+
+// Pass by reference: works on the original
+void addOneByReference(int &x) {
+    x = x + 1;
+    cout << "Inside addOneByReference: x = " << x << endl;
+}
+
+int main() {
+    int a = 5;
+    cout << "a before: a = " << a << endl;
+    addOneByValue(a);
+    cout << "After addOneByValue: a = " << a << endl;
+    addOneByReference(a);
+    cout << "After addOneByReference: a = " << a << endl;
+    return 0;
 }
 ```
+
+Output:
+
+```
+a before: a = 5
+Inside addOneByValue: x = 6
+After addOneByValue: a = 5
+Inside addOneByReference: x = 6
+After addOneByReference: a = 6
+```
+
+# Why use pass by reference?
+
+- To modify the caller's variable. A swap(int &a, int &b) can exchange two variables, which is impossible with pass by value.
+- To avoid copying large data. Passing a big object by value copies the whole thing; passing by reference avoids that cost.
+- To return more than one value. A function returns one value, but it can change several reference parameters.
+
+# Comparison
+
+- What is passed: by value, a copy of the value; by reference, a reference to the original variable.
+- Syntax: void f(int x) for value; void f(int &x) for reference.
+- Can the function change the caller's variable? By value: no. By reference: yes.
+- Typical use: by value when the function only reads the value; by reference to modify the caller's variable or avoid copying large data.
+
+# Reference versus pointer
+
+Pass by reference and pass by pointer do very similar jobs. Here are both versions of swap in one program. C++ allows two functions with the same name as long as their parameters differ, so the call decides which one runs.
+
+```
+#include <iostream>
+using namespace std;
+
+void swap(int *x, int *y) {   // pass by pointer
+    int z = *x; *x = *y; *y = z;
+}
+
+void swap(int &x, int &y) {   // pass by reference
+    int z = x; x = y; y = z;
+}
+
+int main() {
+    int a = 45, b = 35;
+    cout << "Before Swap a=" << a << " b=" << b << "\n";
+    swap(&a, &b);
+    cout << "After pointer swap a=" << a << " b=" << b << "\n";
+    swap(a, b);
+    cout << "After reference swap a=" << a << " b=" << b << "\n";
+    return 0;
+}
+```
+
+Output:
+
+```
+Before Swap a=45 b=35
+After pointer swap a=35 b=45
+After reference swap a=45 b=35
+```
+
+Both swaps worked: the second one swapped the values back.
+
+- Pass by reference is seen as neater code: no & at the call and no * inside the function.
+- Pass by pointer can pass a null pointer (nullptr); a reference must always refer to a real variable.
+- Use pass by reference when you don't need "nothing" as an option.
+- When a function only reads a reference parameter, make it const, for example void print(const string &s).
+
+> A reference must be initialised when it is created, and it can never be changed to refer to a different variable. Assigning to it changes the original instead.
 
 @quiz
 ? What does this print?
 ```
+void setTo10(int &n) {
+    n = 10;
+}
+int main() {
+    int a = 3;
+    setTo10(a);
+    cout << a;
+}
+```
+- 3
+* 10
+- 0
+- 13
+! n is a reference to a, so the assignment changes a.
+
+? What does this print?
+```
+void setTo10(int n) {
+    n = 10;
+}
+int main() {
+    int a = 3;
+    setTo10(a);
+    cout << a;
+}
+```
+* 3
+- 10
+- 0
+- 13
+! Without the &, n is a copy.
+
+? Which can be passed "nothing" (a null value)?
+- A reference parameter
+* A pointer parameter
+- Both
+- Neither
+! A pointer can be nullptr. A reference must always refer to a real variable.
+
+? What does this print?
+```
 int a = 5;
-int& r = a;
+int &r = a;
 r = 8;
-std::cout << a;
+cout << a;
 ```
 - 5
 * 8
 - 13
-! r is another name for a, so assigning to r changes a.
+- Error
+! r is another name for a.
 
-? Which declaration does not compile?
-* int& r;
-- int x = 1; int& r = x;
-- const int& r = 42;
-! A reference must be initialised to refer to something.
-
-? Why pass a large object as const std::string& instead of std::string?
+? Why pass a large object as const Type & rather than by value?
 - So the function can modify it
 * To avoid copying it while promising not to change it
-- Because strings cannot be passed by value
+- Because large objects cannot be passed by value
+- It makes the object smaller
+! The reference avoids the copy; const prevents accidental changes.
+
+? Which declaration does not compile?
+* int &r;
+- int x = 1; int &r = x;
+- const int &r = 42;
+- int y = 2; int &r = y;
+! A reference must be initialised to refer to something.

@@ -184,6 +184,23 @@ static void ParseLine(Parser *ps, char *line)
         return;
     }
     if (StartsWith(line, "> ")) { AppendParaLine(ps, BLOCK_NOTE, line + 2); return; }
+    if (StartsWith(line, "- ")) {
+        // Each bullet is its own block; an indented line continues the previous bullet.
+        FlushPara(ps);
+        AddBlock(ps, BLOCK_BULLET, CopyStr(line + 2));
+        return;
+    }
+    if (StartsWith(line, "  ") && L->blockCount && L->blocks[L->blockCount - 1].type == BLOCK_BULLET
+        && ps->para.len == 0) {
+        Block *b = &L->blocks[L->blockCount - 1];
+        const char *more = line;
+        while (*more == ' ') more++;
+        size_t a = strlen(b->text), m = strlen(more);
+        b->text = realloc(b->text, a + m + 2);
+        b->text[a] = ' ';
+        memcpy(b->text + a + 1, more, m + 1);
+        return;
+    }
     AppendParaLine(ps, BLOCK_TEXT, line);
 }
 

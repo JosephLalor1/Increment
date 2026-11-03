@@ -3,13 +3,13 @@
 
 #include <stdbool.h>
 
-#define MAX_BLOCKS    128
+#define MAX_BLOCKS    256
 #define MAX_QUESTIONS 16
 #define MAX_CHOICES   6
 
 typedef enum { TRACK_C, TRACK_CPP, TRACK_COUNT } Track;
 
-typedef enum { BLOCK_HEADING, BLOCK_TEXT, BLOCK_CODE, BLOCK_NOTE } BlockType;
+typedef enum { BLOCK_HEADING, BLOCK_TEXT, BLOCK_CODE, BLOCK_NOTE, BLOCK_BULLET } BlockType;
 
 typedef struct {
     BlockType type;

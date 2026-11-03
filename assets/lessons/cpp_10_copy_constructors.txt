@@ -1,0 +1,190 @@
+@id cpp_10_copy_constructors
+@track C++
+@title Copy Constructors
+
+When you write Point r = q;, a new Point is created as a copy of q. The constructor that does this is the copy constructor. If you don't write one, C++ provides a default copy constructor that copies every field.
+
+# Defining your own
+
+A copy constructor takes a reference to another instance of the same class:
+
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) {
+        x = nx; y = ny;
+        cout << "2-parameter constructor" << endl;
+    }
+    // custom copy constructor
+    Point(const Point &o) {
+        x = o.x; y = o.y;
+        cout << "custom copy constructor" << endl;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);  // 2-parameter constructor
+    Point r = q;        // custom copy constructor
+    cout << r.x << " " << r.y << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+2-parameter constructor
+custom copy constructor
+1 2
+```
+
+> The parameter must be a reference. If it were passed by value, making that copy would need the copy constructor itself, forever. Making it const also lets you copy const objects.
+
+# Why make a copy constructor?
+
+Copying all the fields may not be what you want. Look at what happens when a field is a pointer:
+
+```
+#include <iostream>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char *name;
+    MITStudent() {
+        studentID = 0;
+        name = NULL;
+    }
+};
+
+int main() {
+    MITStudent student1;
+    student1.studentID = 98;
+    char n[] = "foo";
+    student1.name = n;
+
+    MITStudent student2 = student1;  // default copy
+    student2.name[0] = 'b';
+    cout << student1.name << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+boo
+```
+
+By changing student2's name, we changed student1's name as well. The default copy copied the pointer, not the characters it points to, so both students share one name. This is called a shallow copy.
+
+# A deep copy
+
+The fix is a copy constructor that gives the new student its own copy of the characters. That is called a deep copy.
+
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char *name;
+    MITStudent(int id, const char *n) {
+        studentID = id;
+        name = new char[strlen(n) + 1];  // +1 for '\0'
+        strcpy(name, n);
+    }
+    MITStudent(const MITStudent &o) {  // deep copy
+        studentID = o.studentID;
+        name = new char[strlen(o.name) + 1];
+        strcpy(name, o.name);
+    }
+    ~MITStudent() {  // destructor: frees the name
+        delete[] name;
+    }
+};
+
+int main() {
+    MITStudent student1(98, "foo");
+    MITStudent student2 = student1;
+    student2.name[0] = 'b';
+    cout << student1.name << " " << student2.name << endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+foo boo
+```
+
+Changing student2's name no longer affects student1's name.
+
+- ~MITStudent() is a destructor. It runs when the object is destroyed and frees the memory the object owns. Destructors are covered in the next lesson.
+- The lecture version uses _strdup(o.name), Visual Studio's name for the C function strdup, which duplicates a string. It allocates with malloc, so that memory must be freed with free(), not delete.
+
+> A class that needs a custom copy constructor usually also needs a destructor and an assignment operator (operator=). Together these are called the rule of three. The LinkedList class lesson shows all three.
+
+@quiz
+? When does the copy constructor run?
+- Every time a field is assigned
+* When a new object is created as a copy of an existing one, as in Point r = q;
+- When an object is deleted
+- Only when you call it by name
+! It initialises a brand new object from an existing one.
+
+? What does the default copy constructor do?
+- Nothing
+* Copies every field
+- Copies only public fields
+- Deep copies everything pointers point to
+! For a pointer field, that copies the address, not the data.
+
+? Why did changing student2.name[0] also change student1.name?
+- Both objects were the same object
+* The default copy copied the pointer, so both names pointed to the same characters
+- strcpy was used
+- The names were const
+! A shallow copy shares the pointed-to data.
+
+? Why is the copy constructor's parameter a reference?
+- References are faster to type
+* Passing by value would need a copy, which needs the copy constructor itself, endlessly
+- Copy constructors cannot take parameters
+- To make it private
+! Pass by value would recurse forever, so C++ requires a reference.
+
+? Why new char[strlen(n) + 1] rather than strlen(n)?
+- strlen counts one character too many
+* The extra byte holds the '\0' terminator
+- new needs an extra byte for itself
+- To leave room for a second name
+! strlen does not count the terminator, but the copy needs room for it.
+
+? What does this print?
+```
+class Box {
+public:
+    int v;
+    Box(int x) : v(x) {}
+    Box(const Box &o) : v(o.v * 2) {}
+};
+int main() {
+    Box a(5);
+    Box b = a;
+    cout << a.v << " " << b.v;
+}
+```
+- 5 5
+* 5 10
+- 10 10
+- 10 5
+! The custom copy constructor doubles the value as it copies.

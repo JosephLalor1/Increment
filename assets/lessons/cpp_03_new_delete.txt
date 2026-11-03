@@ -1,0 +1,170 @@
+@id cpp_03_new_delete
+@track C++
+@title Memory Management: new and delete
+
+# Scoping and memory
+
+Whenever you declare a new variable, such as int x, memory is allocated for it. That memory can be freed up for other variables once the variable goes out of scope. After that, it is no longer guaranteed to store the variable's value.
+
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int *p;
+    if (true) {
+        int x = 5;
+        p = &x;
+    }
+    cout << *p << endl;  // ??? undefined behaviour
+}
+```
+
+When the if block ends, x goes out of scope. p still holds its address, so p has become a dangling pointer: it points to memory whose contents are undefined. The program might print 5, or anything else.
+
+# A problematic task
+
+Implement a function that returns a pointer to some memory containing the integer 5. Incorrect implementation:
+
+```
+int *getPtrToFive() {
+    int x = 5;
+    return &x;
+}
+```
+
+x is declared in the function's scope. As getPtrToFive() returns, x goes out of scope, so a dangling pointer is returned.
+
+# The new operator
+
+new is another way to allocate memory. Memory from new stays allocated until you manually de-allocate it. new returns a pointer to the newly allocated memory, and the type tells it how much memory to allocate.
+
+```
+int *x = new int;
+```
+
+There are several forms, and the brackets matter:
+
+```
+int *a = new int;      // one int, value not set
+int *b = new int(5);   // one int, initialised to 5
+int *c = new int{5};   // one int, initialised to 5
+int *d = new int[5];   // an array of 5 ints
+```
+
+> new int(5) is one int holding 5. new int[5] is an array of five ints. Mixing them up is a common bug.
+
+# The stack and the heap
+
+- If you use int x; the memory is allocated on a region of memory called the stack. It is freed automatically when x goes out of scope.
+- If you use new int; the memory is allocated on a region called the heap. It stays until you free it with delete.
+
+# The delete operator
+
+delete de-allocates memory that was previously allocated with new. It takes a pointer to that memory.
+
+```
+int *x = new int;
+// use memory allocated by new
+delete x;
+```
+
+# The correct version
+
+Allocate the memory with new so it remains allocated after the function returns. When the caller is done with it, the caller deletes it.
+
+```
+#include <iostream>
+using namespace std;
+
+int *getPtrToFive() {
+    int *x = new int;
+    *x = 5;
+    return x;
+}
+
+int main() {
+    int *p = getPtrToFive();
+    cout << *p << endl;
+    delete p;
+    return 0;
+}
+```
+
+Output:
+
+```
+5
+```
+
+Here is another short example of the same idea:
+
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int *ptr = new int;  // allocate an int on the heap
+    *ptr = 42;           // assign a value to it
+    cout << *ptr << endl;
+    delete ptr;          // free it
+    return 0;
+}
+```
+
+Output:
+
+```
+42
+```
+
+> new and delete are the C++ versions of C's malloc and free. Unlike malloc, new knows the type, so there is no sizeof and no cast.
+
+@quiz
+? What is a dangling pointer?
+- A pointer set to nullptr
+* A pointer to memory whose contents are no longer valid
+- A pointer created with new
+- A pointer to a pointer
+! For example, a pointer to a local variable that has gone out of scope.
+
+? Why is this function wrong?
+```
+int *getPtrToFive() {
+    int x = 5;
+    return &x;
+}
+```
+- It should return x, not &x
+* x goes out of scope when the function returns, so the pointer dangles
+- You cannot return pointers from functions
+- Nothing is wrong
+! x lives on the stack inside the function and is gone after it returns.
+
+? Where does new int allocate memory?
+- On the stack
+* On the heap
+- In a register
+- In the program file
+! Heap memory stays allocated until you delete it.
+
+? What does int *p = new int(5); create?
+* One int holding the value 5
+- An array of 5 ints
+- An int pointer holding address 5
+- Five pointers
+! Round brackets initialise one int. Square brackets would create an array.
+
+? How long does memory from new stay allocated?
+- Until the function that called new returns
+- Until the end of the current block
+* Until it is freed with delete (or the program ends)
+- For one second
+! That is what makes it safe to return from a function, and why you must delete it.
+
+? Which operator frees memory allocated with new?
+- free
+* delete
+- remove
+- new
+! Memory from new is returned with delete.

@@ -1,0 +1,235 @@
+@id cpp_11_arrays_destructors
+@track C++
+@title Arrays of Objects and Destructors
+
+# Arrays of objects
+
+An array can hold objects just like ints. Every element is constructed when the array is created, so the class needs a default constructor (one that takes no arguments).
+
+```
+#include <iostream>
+
+class Point {
+public:
+    int x;
+    Point() {}
+    Point(int val) : x(val) {}
+    void Print() {
+        std::cout << x;
+    }
+};
+
+int main() {
+    Point points[20];  // 20 default-constructed Points
+    for (int i = 0; i < 20; i++) {
+        points[i].x = i;
+    }
+    for (int i = 0; i < 20; i++) {
+        points[i].Print();
+    }
+    std::cout << std::endl;
+    return 0;
+}
+```
+
+Output:
+
+```
+012345678910111213141516171819
+```
+
+# Using new to create the array
+
+new Point[30] creates an array of 30 Points on the heap. Free it with delete[].
+
+```
+Point *points = new Point[30];
+for (int i = 0; i < 30; i++) {
+    points[i].x = i;
+}
+delete[] points;
+```
+
+# Arrays of pointers
+
+Instead of an array of objects, you can have an array of pointers, where each pointer points to an object created with new. Use -> on each element, and delete every object you created.
+
+```
+#include <iostream>
+
+class Point {
+public:
+    int x;
+    Point(int val) : x(val) {}
+    void Print() { std::cout << x << " "; }
+};
+
+int main() {
+    Point *pointPointers[5];
+    for (int i = 0; i < 5; i++) {
+        pointPointers[i] = new Point(i * 10);
+    }
+    for (int i = 0; i < 5; i++) {
+        pointPointers[i]->Print();
+    }
+    std::cout << std::endl;
+    for (int i = 0; i < 5; i++) {
+        delete pointPointers[i];
+    }
+    return 0;
+}
+```
+
+Output:
+
+```
+0 10 20 30 40
+```
+
+Each Point here can be built with its own constructor arguments, so no default constructor is needed.
+
+The array of pointers can itself be allocated with new. Its type is then Point **, a pointer to the first of many Point pointers:
+
+```
+Point **pointPointers = new Point*[30];
+for (int i = 0; i < 30; i++) {
+    pointPointers[i] = new Point(i);
+}
+// ... use them ...
+for (int i = 0; i < 30; i++) {
+    delete pointPointers[i];  // each Point
+}
+delete[] pointPointers;       // then the array
+```
+
+# Destructors
+
+A destructor is a method that is called when an object is destroyed: when it goes out of scope, or when it is deleted. It is written ~ClassName(), with no return type and no parameters. Its job is to clean up, usually by freeing memory the object allocated.
+
+```
+#include <iostream>
+using namespace std;
+
+class Noisy {
+public:
+    int id;
+    Noisy(int i) : id(i) { cout << "construct " << id << endl; }
+    ~Noisy() { cout << "destruct " << id << endl; }
+};
+
+int main() {
+    Noisy a(1);
+    {
+        Noisy b(2);
+    }  // b goes out of scope here
+    cout << "inner block done" << endl;
+    Noisy *c = new Noisy(3);
+    delete c;  // the destructor runs on delete
+    return 0;
+}  // a goes out of scope here
+```
+
+Output:
+
+```
+construct 1
+construct 2
+destruct 2
+inner block done
+construct 3
+destruct 3
+destruct 1
+```
+
+# Why destructors matter
+
+This class allocates 20,000 Points in its constructor and frees them in its destructor:
+
+```
+class Point {
+public:
+    int x, y;
+};
+
+class TwentyThousandPoints {
+public:
+    Point *points;
+    TwentyThousandPoints() {
+        points = new Point[20000];
+    }
+    ~TwentyThousandPoints() {
+        delete[] points;
+    }
+};
+```
+
+The lecture creates 10,000 of these inside a block, then keeps the program running:
+
+```
+{
+    TwentyThousandPoints points[10000];
+}
+// the block has ended: do the destructors run?
+```
+
+That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the process memory in Visual Studio's diagnostic tools shows the difference:
+
+- Without the destructor, memory climbs to about 1.7 GB and stays there after the block ends: every array has leaked.
+- With the destructor, memory spikes and then drops back down as each object is destroyed at the end of the block.
+
+@quiz
+? What does Point points[20]; require of the Point class?
+- A copy constructor
+* A default constructor
+- A destructor
+- A static member
+! Each of the 20 elements is created with no arguments.
+
+? How do you free Point *points = new Point[30]; ?
+- delete points;
+* delete[] points;
+- delete points[30];
+- free(points);
+! Arrays from new[] are freed with delete[].
+
+? When is a destructor called?
+- When the object is created
+* When the object goes out of scope or is deleted
+- Only when you call it by name
+- When the program starts
+! It is the counterpart of the constructor.
+
+? How is the destructor of class Point written?
+- Point~()
+* ~Point()
+- delete Point()
+- Point(-1)
+! A tilde followed by the class name, with no parameters.
+
+? What does this print?
+```
+class T {
+public:
+    T() { cout << "A"; }
+    ~T() { cout << "B"; }
+};
+int main() {
+    T x;
+    {
+        T y;
+    }
+    cout << "C";
+}
+```
+- AABBC
+* AABCB
+- ABABC
+- AACBB
+! y is destroyed at the end of the inner block, before C; x is destroyed at the end of main.
+
+? With Point **pp = new Point*[30]; and new Point for each element, what must be deleted?
+- Only pp, with delete[]
+- Only each element, with delete
+* Each element with delete, then pp with delete[]
+- Nothing; it is freed automatically
+! Every new needs a delete and every new[] a delete[].
