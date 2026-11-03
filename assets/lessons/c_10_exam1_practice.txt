@@ -1,5 +1,6 @@
 @id c_10_exam1_practice
 @track C
+@kind practice
 @title Exam 1 Practice: Lab 1 Problems
 
 Lab 1 prepares you for the first coding exam. It is a set of small functions that use everything so far: arithmetic, decisions, loops, arrays and functions. This lesson works through the core problems step by step. Try each one yourself before reading the solution.

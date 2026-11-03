@@ -29,6 +29,7 @@ typedef struct {
     char id[32];
     char title[96];
     Track track;
+    bool practice;   // "@kind practice": exam/lab practice rather than new material
     Block blocks[MAX_BLOCKS];
     int blockCount;
     Question questions[MAX_QUESTIONS];

@@ -49,8 +49,10 @@ static bool StartsWith(const char *s, const char *prefix)
 static void CopyField(char *dst, size_t size, const char *src)
 {
     while (*src == ' ') src++;
-    strncpy(dst, src, size - 1);
-    dst[size - 1] = '\0';
+    size_t n = strlen(src);
+    if (n > size - 1) n = size - 1;  // truncate over-long fields
+    memcpy(dst, src, n);
+    dst[n] = '\0';
 }
 
 typedef struct {
@@ -167,6 +169,10 @@ static void ParseLine(Parser *ps, char *line)
         const char *t = line + 7;
         while (*t == ' ') t++;
         L->track = (strcmp(t, "C++") == 0 || strcmp(t, "cpp") == 0) ? TRACK_CPP : TRACK_C;
+        return;
+    }
+    if (StartsWith(line, "@kind ")) {
+        L->practice = strstr(line + 6, "practice") != NULL;
         return;
     }
     if (StartsWith(line, "@quiz")) {

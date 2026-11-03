@@ -174,11 +174,11 @@ AccountAction LoginScreen(void)
     cardH = fixedH + count * (labelGap + fieldH + fieldGap);
     float top = compact ? 16 : (GetScreenHeight() - full) / 2.0f;
     if (compact) {
-        UiTextCentered(gFonts.text, "Increment", cx, top, 48, COL_TEXT);
+        DrawLogoLockup(cx, top, 48);
         top += 72;
     } else {
-        UiTextCentered(gFonts.text, "Increment", cx, top, 72, COL_TEXT);
-        UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, top + 86, 24, COL_DIM);
+        DrawLogoLockup(cx, top, 70);
+        UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, top + 94, 24, COL_DIM);
         top += 146;
     }
     Rectangle card = { cx - cardW / 2, top, cardW, cardH };
@@ -249,8 +249,8 @@ AccountAction LoginScreen(void)
         UiTextCentered(gFonts.text, footer[login.mode], cx, y + 18, 16, COL_DIM);
     }
 
-    bool quit = !compact && UiButtonEx((Rectangle){ cx - 70, card.y + cardH + 28, 140, 46 }, "Quit", 20,
-                                       COL_PANEL, COL_PANEL_HI, COL_TEXT, true);
+    bool quit = !compact && UiButtonIconEx((Rectangle){ cx - 70, card.y + cardH + 28, 140, 46 }, ICON_POWER, "Quit",
+                                           20, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true);
     if (submit && SubmitLogin()) return ACCOUNT_SIGNED_IN;
     return quit ? ACCOUNT_QUIT : ACCOUNT_STAY;
 }
@@ -265,9 +265,11 @@ AccountAction RecoveryScreen(void)
     float cx = GetScreenWidth() / 2.0f;
     float w = 640;
     float x = cx - w / 2;
-    float y = GetScreenHeight() / 2.0f - 230;
+    float y = GetScreenHeight() / 2.0f - 190;  // leaves room for the key badge above the title
 
-    UiTextCentered(gFonts.text, "Save your recovery code", cx, y, 40, COL_TEXT);
+    DrawCircleV((Vector2){ cx, y - 66 }, 42, COL_NOTE_BG);
+    IconDraw(ICON_KEY, (Vector2){ cx, y - 66 }, 48, COL_ACCENT);
+    UiTextCentered(gFonts.bold, "Save your recovery code", cx, y, 40, COL_TEXT);
     y += 70;
     y += UiWrappedText(gFonts.text,
                        "If you forget your password, this code is the only way back into your account. "
@@ -281,12 +283,13 @@ AccountAction RecoveryScreen(void)
     y += 96 + 32;
 
     float bw = 220, gap = 20;
-    if (UiButtonEx((Rectangle){ cx - bw - gap / 2, y, bw, 52 }, recovery.copied ? "Copied" : "Copy code", 22,
+    if (UiButtonIconEx((Rectangle){ cx - bw - gap / 2, y, bw, 52 }, recovery.copied ? ICON_CHECK : ICON_COPY,
+                       recovery.copied ? "Copied" : "Copy code", 22,
                    COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         SetClipboardText(recovery.code);
         recovery.copied = true;
     }
-    if (UiButton((Rectangle){ cx + gap / 2, y, bw, 52 }, "I've saved it", true)) {
+    if (UiButtonIcon((Rectangle){ cx + gap / 2, y, bw, 52 }, ICON_CHECK, "I've saved it", true)) {
         WIPE(recovery.code);
         recovery.pending = false;
         return ACCOUNT_BACK;
@@ -323,9 +326,9 @@ static int Segmented(float x, float y, float segW, const char **labels, int n, i
     return selected;
 }
 
-static void Heading(const char *title, float x, float *y)
+static void Heading(Icon icon, const char *title, float x, float *y)
 {
-    UiText(gFonts.text, title, x, *y, 28, COL_TEXT);
+    UiIconText(icon, gFonts.bold, title, x, *y, 28, COL_TEXT);
     *y += 48;
 }
 
@@ -348,7 +351,7 @@ static void Message(const char *msg, bool ok, float x, float *y)
 
 static bool DangerButton(Rectangle r, const char *label)
 {
-    return UiButtonEx(r, label, 20, COL_BAD, ColorBrightness(COL_BAD, 0.15f), COL_ON_ACCENT, true);
+    return UiButtonIconEx(r, ICON_TRASH, label, 20, COL_BAD, ColorBrightness(COL_BAD, 0.15f), COL_ON_ACCENT, true);
 }
 
 static float AppearanceSection(float x, float y, float w)
@@ -358,7 +361,7 @@ static float AppearanceSection(float x, float y, float w)
     AccountSettings s = AccountGetSettings(), before = s;
     float cx = x + 220; // control column
 
-    Heading("Appearance", x, &y);
+    Heading(ICON_THEME, "Appearance", x, &y);
 
     UiText(gFonts.text, "Theme", x, y + 9, 20, COL_TEXT);
     s.theme = (ThemeMode)Segmented(cx, y, 120, themes, 2, s.theme);
@@ -400,13 +403,13 @@ static float AppearanceSection(float x, float y, float w)
 
 static float PasswordSection(float x, float y, float fieldW)
 {
-    Heading("Change password", x, &y);
+    Heading(ICON_LOCK, "Change password", x, &y);
     bool go = false;
     if (PasswordField("Current password", settings.current, x, &y, fieldW)) UiFocus(settings.next);
     if (PasswordField("New password", settings.next, x, &y, fieldW)) UiFocus(settings.confirm);
     if (PasswordField("Confirm new password", settings.confirm, x, &y, fieldW)) go = true;
     Message(settings.passwordMsg, settings.passwordOk, x, &y);
-    if (UiButton((Rectangle){ x, y, 240, 48 }, "Change password", true)) go = true;
+    if (UiButtonIcon((Rectangle){ x, y, 260, 48 }, ICON_LOCK, "Change password", true)) go = true;
     y += 48;
 
     if (go) {
@@ -431,7 +434,7 @@ static float PasswordSection(float x, float y, float fieldW)
 
 static float RecoverySection(float x, float y, float w, float fieldW, AccountAction *action)
 {
-    Heading("Recovery code", x, &y);
+    Heading(ICON_KEY, "Recovery code", x, &y);
     bool has = AccountHasRecovery();
     y += UiWrappedText(gFonts.text,
                        has ? "You have a recovery code. If you've lost it, make a new one and the old code will stop working."
@@ -440,7 +443,7 @@ static float RecoverySection(float x, float y, float w, float fieldW, AccountAct
 
     bool go = PasswordField("Password", settings.codePass, x, &y, fieldW);
     Message(settings.codeMsg, false, x, &y);
-    if (UiButton((Rectangle){ x, y, 240, 48 }, "Make a new code", true)) go = true;
+    if (UiButtonIcon((Rectangle){ x, y, 260, 48 }, ICON_KEY, "Make a new code", true)) go = true;
     y += 48;
 
     if (go) {
@@ -461,14 +464,14 @@ static float RecoverySection(float x, float y, float w, float fieldW, AccountAct
 
 static float DeleteSection(float x, float y, float w, float fieldW, AccountAction *action)
 {
-    Heading("Delete account", x, &y);
+    Heading(ICON_TRASH, "Delete account", x, &y);
     y += UiWrappedText(gFonts.text, "This permanently deletes your account, progress and settings from this computer.",
                        (Vector2){ x, y }, w, 20, COL_DIM, true) + 14;
 
     if (!settings.confirmDelete) {
         bool go = PasswordField("Password", settings.deletePass, x, &y, fieldW);
         Message(settings.deleteMsg, false, x, &y);
-        if (DangerButton((Rectangle){ x, y, 240, 48 }, "Delete account")) go = true;
+        if (DangerButton((Rectangle){ x, y, 260, 48 }, "Delete account")) go = true;
         y += 48;
         if (go) {
             if (settings.deletePass[0] == '\0') {

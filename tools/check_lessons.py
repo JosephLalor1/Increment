@@ -56,7 +56,7 @@ def parse(path):
             flush()
             in_code = True
             continue
-        m = re.match(r'@(title|id|track) (.*)', line)
+        m = re.match(r'@(title|id|track|kind) (.*)', line)
         if m:
             meta[m.group(1)] = m.group(2).strip()
             continue

@@ -24,4 +24,7 @@ bool TopBar(const char *title);
 
 void ProgressBar(Rectangle r, float t, Color track, Color fill);
 
+// The logo tile with the "Increment" wordmark beside it, centred on cx. Height is logoSize.
+void DrawLogoLockup(float cx, float top, float logoSize);
+
 #endif

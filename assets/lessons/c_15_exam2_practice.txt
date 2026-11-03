@@ -1,5 +1,6 @@
 @id c_15_exam2_practice
 @track C
+@kind practice
 @title Exam 2 Practice: Pointer Functions
 
 The Coding Exam 2 preparation lab is ten small functions. The rule that makes them interesting: no array indexing (arr[i]) anywhere. Every function must use pointers and pointer arithmetic. This lesson solves several of them; the rest are for you.

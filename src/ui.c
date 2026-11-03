@@ -57,6 +57,7 @@ void UiSetTheme(bool light, int accent)
     gTheme.accent = light ? accents[accent].light : accents[accent].dark;
     gTheme.accentHi = light ? accents[accent].lightHi : accents[accent].darkHi;
     gTheme.secondaryHover = ColorLerp(gTheme.panelHi, gTheme.accent, light ? 0.18f : 0.3f);
+    gTheme.brand = accents[accent].light;  // white pluses need the deeper shade for contrast
 }
 
 Color UiAccentSwatch(int accent, bool light)
@@ -123,13 +124,21 @@ void UiLoadFonts(const char *assetDir)
     const char *monoPaths[] = { bundledMono, "C:/Windows/Fonts/consola.ttf", "C:/Windows/Fonts/cour.ttf" };
     gFonts.text = LoadFirstFont(textPaths, 3, &gFonts.ownsText);
     gFonts.mono = LoadFirstFont(monoPaths, 3, &gFonts.ownsMono);
+
+    char bundledBold[1024];
+    strncpy(bundledBold, TextFormat("%s/fonts/bold.ttf", assetDir), sizeof bundledBold - 1);
+    bundledBold[sizeof bundledBold - 1] = '\0';
+    const char *boldPaths[] = { bundledBold, "C:/Windows/Fonts/seguisb.ttf", "C:/Windows/Fonts/segoeuib.ttf" };
+    gFonts.bold = LoadFirstFont(boldPaths, 3, &gFonts.ownsBold);
+    if (!gFonts.ownsBold) gFonts.bold = gFonts.text;  // no bold available: reuse the text font
 }
 
 void UiUnloadFonts(void)
 {
     if (gFonts.ownsText) UnloadFont(gFonts.text);
     if (gFonts.ownsMono) UnloadFont(gFonts.mono);
-    gFonts.ownsText = gFonts.ownsMono = false;
+    if (gFonts.ownsBold) UnloadFont(gFonts.bold);
+    gFonts.ownsText = gFonts.ownsMono = gFonts.ownsBold = false;
 }
 
 static int wantedCursor = MOUSE_CURSOR_DEFAULT;
@@ -206,6 +215,38 @@ bool UiButtonEx(Rectangle r, const char *label, float size, Color base, Color ho
 bool UiButton(Rectangle r, const char *label, bool enabled)
 {
     return UiButtonEx(r, label, 22, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, enabled);
+}
+
+bool UiButtonIconEx(Rectangle r, Icon icon, const char *label, float size, Color base, Color hover, Color fg,
+                    bool enabled)
+{
+    bool over = enabled && UiMouseOver(r);
+    if (over) UiWantHand();
+    UiRoundRect(r, 8, enabled ? (over ? hover : base) : Fade(base, 0.4f));
+    Color c = enabled ? fg : Fade(fg, 0.4f);
+
+    // Centre icon + gap + label as one group.
+    float iconSize = size * 0.95f, gap = label ? size * 0.45f : 0;
+    float textW = label ? MeasureTextEx(gFonts.text, label, size, UiSpacing(gFonts.text, size)).x : 0;
+    float x = r.x + (r.width - (iconSize + gap + textW)) / 2.0f;
+    float cy = r.y + r.height / 2.0f;
+    IconDraw(icon, (Vector2){ x + iconSize / 2, cy }, iconSize, c);
+    if (label) UiText(gFonts.text, label, x + iconSize + gap, cy - size / 2.0f, size, c);
+    return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+}
+
+bool UiButtonIcon(Rectangle r, Icon icon, const char *label, bool enabled)
+{
+    return UiButtonIconEx(r, icon, label, 22, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, enabled);
+}
+
+float UiIconText(Icon icon, Font f, const char *text, float x, float y, float size, Color c)
+{
+    float iconSize = size * 0.95f, gap = size * 0.45f;
+    // Centre the icon on the visual middle of the text line.
+    IconDraw(icon, (Vector2){ x + iconSize / 2, y + size * 0.56f }, iconSize, c);
+    UiText(f, text, x + iconSize + gap, y, size, c);
+    return iconSize + gap + MeasureTextEx(f, text, size, UiSpacing(f, size)).x;
 }
 
 bool UiLink(float x, float y, const char *text, float size)

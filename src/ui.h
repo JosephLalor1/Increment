@@ -1,6 +1,7 @@
 #ifndef UI_H
 #define UI_H
 
+#include "icons.h"
 #include "raylib.h"
 #include <stdbool.h>
 
@@ -9,6 +10,7 @@ typedef struct {
     Color bg, panel, panelHi, text, dim;
     Color accent, accentHi, onAccent; // onAccent: text drawn on an accent fill
     Color secondaryHover;             // hover fill for neutral buttons, tinted by the accent
+    Color brand;                      // logo tile: the deep variant of the accent in both themes
     Color good, goodBg, bad, badBg, codeBg, noteBg;
     Color synDefault, synKeyword, synType, synString, synNumber, synComment, synPreproc;
 } UiTheme;
@@ -24,6 +26,7 @@ extern UiTheme gTheme;
 #define COL_ACCENT_HI (gTheme.accentHi)
 #define COL_ON_ACCENT (gTheme.onAccent)
 #define COL_SECONDARY_HOVER (gTheme.secondaryHover)
+#define COL_BRAND     (gTheme.brand)
 #define COL_GOOD      (gTheme.good)
 #define COL_GOOD_BG   (gTheme.goodBg)
 #define COL_BAD       (gTheme.bad)
@@ -40,8 +43,10 @@ const char *UiAccentName(int accent);
 typedef struct {
     Font text;
     Font mono;
+    Font bold;  // semibold, for the wordmark and big headings
     bool ownsText;
     bool ownsMono;
+    bool ownsBold;
 } UiFonts;
 
 extern UiFonts gFonts;
@@ -68,6 +73,14 @@ void UiRoundRect(Rectangle r, float radius, Color c);
 bool UiButton(Rectangle r, const char *label, bool enabled);
 bool UiButtonEx(Rectangle r, const char *label, float size, Color base, Color hover, Color fg, bool enabled);
 bool UiLink(float x, float y, const char *text, float size); // accent-coloured clickable text
+
+// Buttons with an icon before the label (label may be NULL for an icon-only button).
+bool UiButtonIcon(Rectangle r, Icon icon, const char *label, bool enabled);
+bool UiButtonIconEx(Rectangle r, Icon icon, const char *label, float size, Color base, Color hover, Color fg,
+                    bool enabled);
+
+// Draws an icon followed by text, vertically centred on the text line. Returns the total width.
+float UiIconText(Icon icon, Font f, const char *text, float x, float y, float size, Color c);
 
 // Single-line text input. buf is also the focus identity, so it must outlive the frame.
 // Accepts printable ASCII up to size-1 bytes. Returns true when Enter is pressed while focused.

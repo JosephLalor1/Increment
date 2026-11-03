@@ -1,4 +1,5 @@
 #include "layout.h"
+#include "brand.h"
 #include "ui.h"
 
 #include <stddef.h>
@@ -50,7 +51,8 @@ bool TopBar(const char *title)
 {
     DrawRectangle(0, 0, GetScreenWidth(), (int)TOPBAR_H, COL_PANEL);
     DrawRectangle(0, (int)TOPBAR_H - 1, GetScreenWidth(), 1, COL_PANEL_HI);
-    bool back = UiButtonEx((Rectangle){ 16, 12, 96, 40 }, "< Back", 20, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
+    bool back = UiButtonIconEx((Rectangle){ 16, 12, 96, 40 }, ICON_BACK, "Back", 20, COL_PANEL_HI,
+                               COL_SECONDARY_HOVER, COL_TEXT, true);
     UiText(gFonts.text, title, 132, 17, 26, COL_TEXT);
 
     if (UiAnyFocus()) {
@@ -64,4 +66,14 @@ void ProgressBar(Rectangle r, float t, Color track, Color fill)
 {
     UiRoundRect(r, r.height / 2, track);
     if (t > 0) UiRoundRect((Rectangle){ r.x, r.y, r.width * t, r.height }, r.height / 2, fill);
+}
+
+void DrawLogoLockup(float cx, float top, float logoSize)
+{
+    float textSize = logoSize * 0.84f;
+    float textW = MeasureTextEx(gFonts.bold, "Increment", textSize, 0).x;
+    float gap = logoSize * 0.28f;
+    float x = cx - (logoSize + gap + textW) / 2;
+    BrandDrawLogo((Vector2){ x, top }, logoSize, COL_BRAND, WHITE, LOGO_STATIC, true);
+    UiText(gFonts.bold, "Increment", x + logoSize + gap, top + logoSize / 2 - textSize * 0.62f, textSize, COL_TEXT);
 }

@@ -3,9 +3,11 @@
 
 #include "account.h"
 #include "account_screens.h"
+#include "brand.h"
 #include "layout.h"
 #include "lesson.h"
 #include "progress.h"
+#include "splash.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -15,7 +17,7 @@
 #define PASS_PERCENT 70
 
 typedef enum {
-    SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS,
+    SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS,
     SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT,
 } Screen;
 
@@ -34,6 +36,8 @@ static struct {
     int correctCount;
     int lastPercent;
     Screen afterRecovery; // where to go once a new recovery code has been saved
+    double splashStart;   // GetTime() when the splash began
+    float shotTime;       // --shot splash: fixed animation time, or < 0 to run live
     bool quit;
 } app;
 
@@ -88,12 +92,6 @@ static void StartQuiz(void)
     }
 }
 
-
-static void DrawCheck(float cx, float cy, float s, Color c)
-{
-    DrawLineEx((Vector2){ cx - s, cy }, (Vector2){ cx - s * 0.3f, cy + s * 0.7f }, 3, c);
-    DrawLineEx((Vector2){ cx - s * 0.3f, cy + s * 0.7f }, (Vector2){ cx + s, cy - s * 0.7f }, 3, c);
-}
 
 // ---------------------------------------------------------------------------
 // Screens
@@ -178,18 +176,18 @@ static bool AccountCorner(void)
     float right = GetScreenWidth() - 20.0f;
     Rectangle logout = { right - 110, 20, 110, 40 };
     Rectangle gear = { logout.x - 12 - 110, 20, 110, 40 };
-    if (UiButtonEx(logout, "Log out", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+    if (UiButtonIconEx(logout, ICON_LOGOUT, "Log out", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         LogOut();
         return false;
     }
-    if (UiButtonEx(gear, "Settings", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+    if (UiButtonIconEx(gear, ICON_GEAR, "Settings", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         SettingsOpen();
         Go(SCREEN_SETTINGS);
         return false;
     }
     const char *label = TextFormat("Signed in as %s", who);
-    Vector2 m = MeasureTextEx(gFonts.text, label, 18, 0);
-    UiText(gFonts.text, label, gear.x - 16 - m.x, 30, 18, COL_DIM);
+    float w = 18 * 1.4f + MeasureTextEx(gFonts.text, label, 18, 0).x;  // icon + gap + text
+    UiIconText(ICON_USER, gFonts.text, label, gear.x - 16 - w, 30, 18, COL_DIM);
     return true;
 }
 
@@ -198,7 +196,7 @@ static void ScreenMenu(void)
     if (!AccountCorner()) return;
 
     float cx = GetScreenWidth() / 2.0f;
-    UiTextCentered(gFonts.text, "Increment", cx, 90, 80, COL_TEXT);
+    DrawLogoLockup(cx, 84, 76);
     UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, 185, 26, COL_DIM);
 
     float cardW = 340, cardH = 220, gap = 40;
@@ -219,15 +217,17 @@ static void ScreenMenu(void)
         // Accounts made before recovery codes existed have none.
         const char *msg = "You don't have a recovery code yet.";
         const char *link = "Make one in Settings";
-        float mw = MeasureTextEx(gFonts.text, msg, 18, 0).x, lw = MeasureTextEx(gFonts.text, link, 18, 0).x;
+        float mw = 18 * 1.4f + MeasureTextEx(gFonts.text, msg, 18, 0).x;
+        float lw = MeasureTextEx(gFonts.text, link, 18, 0).x;
         float x = cx - (mw + 8 + lw) / 2;
-        UiText(gFonts.text, msg, x, y + cardH + 30, 18, COL_DIM);
+        UiIconText(ICON_KEY, gFonts.text, msg, x, y + cardH + 30, 18, COL_DIM);
         if (UiLink(x + mw + 8, y + cardH + 30, link, 18)) {
             SettingsOpen();
             Go(SCREEN_SETTINGS);
         }
     }
-    if (UiButtonEx((Rectangle){ cx - 70, y + cardH + 80, 140, 46 }, "Quit", 20, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+    if (UiButtonIconEx((Rectangle){ cx - 70, y + cardH + 80, 140, 46 }, ICON_POWER, "Quit", 20, COL_PANEL,
+                       COL_SECONDARY_HOVER, COL_TEXT, true)) {
         app.quit = true;
     }
 }
@@ -258,8 +258,10 @@ static void ScreenList(void)
         UiRoundRect(row, 10, over ? COL_PANEL_HI : COL_PANEL);
 
         bool passed = Passed(L);
-        DrawCircle((int)(x + 40), (int)(y + 36), 20, passed ? COL_GOOD_BG : COL_BG);
-        if (passed) DrawCheck(x + 40, y + 36, 9, COL_GOOD);
+        Vector2 badge = { x + 40, y + 36 };
+        DrawCircleV(badge, 20, passed ? COL_GOOD_BG : COL_BG);
+        if (passed) IconDraw(ICON_CHECK, badge, 22, COL_GOOD);
+        else if (L->practice) IconDraw(ICON_TARGET, badge, 22, COL_ACCENT);
         else UiTextCentered(gFonts.mono, TextFormat("%d", number), x + 40, y + 25, 22, COL_DIM);
 
         UiText(gFonts.text, L->title, x + 80, y + 22, 24, COL_TEXT);
@@ -308,10 +310,11 @@ static void ScreenLesson(void)
             y += UiWrappedText(gFonts.text, b->text, (Vector2){ x, y }, w, 22 * ts, COL_TEXT, true) + 14;
             break;
         case BLOCK_NOTE: {
-            float h = UiWrappedText(gFonts.text, b->text, (Vector2){ 0, 0 }, w - 48, 21 * ts, COL_TEXT, false);
+            float iconSize = 22 * ts, textX = 30 + iconSize;  // icon column, then the text
+            float h = UiWrappedText(gFonts.text, b->text, (Vector2){ 0, 0 }, w - textX - 24, 21 * ts, COL_TEXT, false);
             UiRoundRect((Rectangle){ x, y, w, h + 28 }, 8, COL_NOTE_BG);
-            DrawRectangle((int)x, (int)y + 6, 4, (int)h + 16, COL_ACCENT);
-            UiWrappedText(gFonts.text, b->text, (Vector2){ x + 24, y + 14 }, w - 48, 21 * ts, COL_TEXT, true);
+            IconDraw(ICON_INFO, (Vector2){ x + 18 + iconSize / 2, y + 14 + 21 * ts * 0.6f }, iconSize, COL_ACCENT);
+            UiWrappedText(gFonts.text, b->text, (Vector2){ x + textX, y + 14 }, w - textX - 24, 21 * ts, COL_TEXT, true);
             y += h + 28 + 16;
         } break;
         case BLOCK_CODE:
@@ -331,7 +334,8 @@ static void ScreenLesson(void)
     const char *label = L->questionCount
         ? TextFormat("Start quiz (%d question%s)", L->questionCount, L->questionCount == 1 ? "" : "s")
         : "Mark as complete";
-    if (UiButton((Rectangle){ x, y, 320, 52 }, label, true) || IsKeyPressed(KEY_ENTER)) StartQuiz();
+    Icon startIcon = L->questionCount ? ICON_PLAY : ICON_CHECK;
+    if (UiButtonIcon((Rectangle){ x, y, 340, 52 }, startIcon, label, true) || IsKeyPressed(KEY_ENTER)) StartQuiz();
     y += 52 + 48;
 
     app.contentH = y - top + 32;
@@ -402,12 +406,14 @@ static void ScreenQuiz(void)
     if (answered) {
         y += 8;
         bool right = app.picked == q->correct;
-        UiText(gFonts.text, right ? "Correct!" : "Not quite.", x, y, 26, right ? COL_GOOD : COL_BAD);
+        UiIconText(right ? ICON_CHECK : ICON_CROSS, gFonts.bold, right ? "Correct!" : "Not quite.", x, y, 26,
+                   right ? COL_GOOD : COL_BAD);
         y += 40;
         if (q->explain) y += UiWrappedText(gFonts.text, q->explain, (Vector2){ x, y }, w, 21 * ts, COL_TEXT, true) + 16;
 
         bool last = app.question + 1 >= L->questionCount;
-        if (UiButton((Rectangle){ x, y, 220, 50 }, last ? "See results" : "Next question", true)
+        if (UiButtonIcon((Rectangle){ x, y, 240, 50 }, last ? ICON_TROPHY : ICON_NEXT,
+                         last ? "See results" : "Next question", true)
             || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) {
             if (last) {
                 FinishQuiz();
@@ -433,8 +439,13 @@ static void ScreenResult(void)
     }
 
     float cx = GetScreenWidth() / 2.0f;
-    float y = 140;
+    float y = 100;
     bool passed = app.lastPercent >= PASS_PERCENT;
+
+    // Trophy for a pass, an open book (go back and review) otherwise.
+    DrawCircleV((Vector2){ cx, y + 50 }, 50, passed ? COL_GOOD_BG : COL_BAD_BG);
+    IconDraw(passed ? ICON_TROPHY : ICON_BOOK, (Vector2){ cx, y + 50 }, 56, passed ? COL_GOOD : COL_BAD);
+    y += 124;
 
     if (L->questionCount == 0) {
         UiTextCentered(gFonts.text, "Lesson complete", cx, y, 56, COL_GOOD);
@@ -455,22 +466,77 @@ static void ScreenResult(void)
     float bw = 220, bh = 52, gap = 20;
     float x0 = cx - (bw * 3 + gap * 2) / 2.0f;
 
-    if (UiButtonEx((Rectangle){ x0, y, bw, bh }, "Review lesson", 22, COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+    if (UiButtonIconEx((Rectangle){ x0, y, bw, bh }, ICON_BOOK, "Review lesson", 22, COL_PANEL, COL_SECONDARY_HOVER,
+                       COL_TEXT, true)) {
         Go(SCREEN_LESSON);
     }
-    if (UiButtonEx((Rectangle){ x0 + bw + gap, y, bw, bh }, L->questionCount ? "Retry quiz" : "All lessons",
-                   22, COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+    if (UiButtonIconEx((Rectangle){ x0 + bw + gap, y, bw, bh }, L->questionCount ? ICON_RETRY : ICON_BACK,
+                       L->questionCount ? "Retry quiz" : "All lessons", 22, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT,
+                       true)) {
         if (L->questionCount) StartQuiz();
         else Go(SCREEN_LIST);
     }
     bool canNext = passed && next >= 0;
-    if (UiButton((Rectangle){ x0 + (bw + gap) * 2, y, bw, bh }, next >= 0 ? "Next lesson" : "Track finished", canNext)
+    if (UiButtonIcon((Rectangle){ x0 + (bw + gap) * 2, y, bw, bh }, next >= 0 ? ICON_NEXT : ICON_TROPHY,
+                     next >= 0 ? "Next lesson" : "Track finished", canNext)
         || (canNext && IsKeyPressed(KEY_ENTER))) {
         OpenLesson(next);
     }
 }
 
 // ---------------------------------------------------------------------------
+
+static void ScreenSplash(void)
+{
+    float t = app.shotTime >= 0 ? app.shotTime : (float)(GetTime() - app.splashStart);
+    if (SplashScreen(t) && app.shotTime < 0) Go(SCREEN_LOGIN);
+}
+
+// Dev aid (--shot gallery): every icon and the logo at several sizes, to check the artwork.
+static void ScreenGallery(void)
+{
+    static const char *names[ICON_COUNT] = {
+        "back", "next", "check", "cross", "gear", "logout", "power", "user", "key", "lock",
+        "theme", "trash", "info", "book", "retry", "play", "trophy", "copy", "target", "code",
+    };
+    float x = 40, y = 40;
+    float sizes[] = { 128, 64, 48, 32, 16 };
+    for (int i = 0; i < 5; i++) {
+        BrandDrawLogo((Vector2){ x, y + (128 - sizes[i]) }, sizes[i], COL_BRAND, WHITE, LOGO_STATIC, i == 0);
+        x += sizes[i] + 28;
+    }
+    DrawLogoLockup(GetScreenWidth() - 300.0f, y + 30, 70);
+
+    y = 220;
+    for (int i = 0; i < ICON_COUNT; i++) {
+        float cx = 70 + (i % 10) * 118.0f, cy = y + (i / 10) * 150.0f;
+        UiRoundRect((Rectangle){ cx - 44, cy - 44, 88, 88 }, 12, COL_PANEL);
+        IconDraw((Icon)i, (Vector2){ cx, cy }, 48, COL_TEXT);
+        IconDraw((Icon)i, (Vector2){ cx + 30, cy + 62 }, 18, COL_ACCENT);
+        UiTextCentered(gFonts.text, names[i], cx - 10, cy + 52, 16, COL_DIM);
+    }
+    UiButtonIcon((Rectangle){ 40, 560, 240, 50 }, ICON_PLAY, "Start quiz", true);
+    UiButtonIconEx((Rectangle){ 300, 560, 160, 50 }, ICON_GEAR, "Settings", 20, COL_PANEL, COL_SECONDARY_HOVER,
+                   COL_TEXT, true);
+    UiIconText(ICON_CHECK, gFonts.bold, "Correct!", 490, 572, 26, COL_GOOD);
+}
+
+// Window/taskbar icon from the generated PNGs (the .exe icon is embedded by the resource file).
+static void LoadWindowIcons(const char *assetDir)
+{
+    static const int sizes[] = { 16, 24, 32, 48, 64, 128, 256 };
+    Image images[7];
+    int count = 0;
+    for (int i = 0; i < 7; i++) {
+        const char *path = TextFormat("%s/icon/icon_%d.png", assetDir, sizes[i]);
+        if (!FileExists(path)) continue;
+        images[count] = LoadImage(path);
+        ImageFormat(&images[count], PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+        count++;
+    }
+    if (count) SetWindowIcons(images, count);
+    for (int i = 0; i < count; i++) UnloadImage(images[i]);
+}
 
 static void FindAssetDir(char *out, size_t size)
 {
@@ -517,6 +583,11 @@ static Shot ParseShot(int argc, char **argv)
     ApplySettings();
 
     if (strcmp(screen, "login") == 0) app.screen = SCREEN_LOGIN;
+    else if (strcmp(screen, "splash") == 0) {
+        app.screen = SCREEN_SPLASH;
+        app.shotTime = (argc > 5 ? (float)atof(argv[5]) : 1500) / 1000.0f;  // ms into the animation
+    }
+    else if (strcmp(screen, "gallery") == 0) app.screen = SCREEN_GALLERY;
     else if (strcmp(screen, "register") == 0 || strcmp(screen, "reset") == 0) app.screen = SCREEN_LOGIN;
     else if (strcmp(screen, "recovery") == 0) app.screen = SCREEN_RECOVERY;
     else if (strcmp(screen, "settings") == 0 || strcmp(screen, "delete") == 0) {
@@ -535,6 +606,8 @@ static Shot ParseShot(int argc, char **argv)
     }
     app.scroll = argc > 5 ? (float)atof(argv[5]) : 0;
     app.contentH = 100000; // let the requested scroll survive the first frame's clamp
+    app.listScroll = app.scroll;
+    app.listH = 100000;
     app.lastPercent = 75;
     app.correctCount = 3;
     AccountScreensDemo(screen);
@@ -552,6 +625,7 @@ int main(int argc, char **argv)
     char assetDir[1024];
     FindAssetDir(assetDir, sizeof assetDir);
     UiLoadFonts(assetDir);
+    LoadWindowIcons(assetDir);
     LessonsLoad(&lessons, TextFormat("%s/lessons", assetDir));
 
     // Accounts and progress live next to the exe unless INCREMENT_DATA_DIR says otherwise.
@@ -567,6 +641,9 @@ int main(int argc, char **argv)
     AccountsInit(dataDir);
 
     ShowLogin();
+    app.screen = SCREEN_SPLASH;  // ShowLogin prepared the login form; show the splash first
+    app.splashStart = GetTime();
+    app.shotTime = -1;
     Shot shot = ParseShot(argc, argv);
 
     while (!WindowShouldClose() && !app.quit) {
@@ -575,6 +652,8 @@ int main(int argc, char **argv)
         ClearBackground(COL_BG);
 
         switch (app.screen) {
+        case SCREEN_SPLASH:   ScreenSplash();       break;
+        case SCREEN_GALLERY:  ScreenGallery();      break;
         case SCREEN_LOGIN:    ScreenLoginWrap();    break;
         case SCREEN_RECOVERY: ScreenRecoveryWrap(); break;
         case SCREEN_SETTINGS: ScreenSettingsWrap(); break;
