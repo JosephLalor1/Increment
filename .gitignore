@@ -1,6 +1,9 @@
 # Professor's course notes: copyrighted course material, not ours to publish
 Class Material/
 
+# Development journals (personal coursework submissions with name and student number)
+journal/
+
 # Build output
 build/
 *.exe
