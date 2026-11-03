@@ -1,0 +1,74 @@
+@id cpp_02_references
+@track C++
+@title References
+
+A reference is another name for an existing variable. Anything you do through the reference happens to the original. References are one of the first features C++ adds that C does not have.
+
+```
+int score = 10;
+int& alias = score;   // alias refers to score
+
+alias = 25;
+std::cout << score << "\n";   // prints 25
+```
+
+# Rules for references
+
+A reference must be initialised when it is declared, because it has to refer to something.
+
+Once bound, a reference cannot be reseated to refer to a different variable. Assigning to it changes the value of the original instead.
+
+> Think of a reference as a nickname: two names, one person.
+
+# Passing by reference
+
+The most common use is function parameters. Passing by value copies the argument. Passing by reference lets the function change the caller's variable.
+
+```
+void addBonus(int& points)
+{
+    points += 100;
+}
+
+int main()
+{
+    int total = 50;
+    addBonus(total);
+    std::cout << total << "\n";   // prints 150
+}
+```
+
+# const references
+
+A const reference avoids the copy but promises not to change the value. It is the usual way to pass large objects that a function only reads.
+
+```
+void printName(const std::string& name)
+{
+    std::cout << name << "\n";
+}
+```
+
+@quiz
+? What does this print?
+```
+int a = 5;
+int& r = a;
+r = 8;
+std::cout << a;
+```
+- 5
+* 8
+- 13
+! r is another name for a, so assigning to r changes a.
+
+? Which declaration does not compile?
+* int& r;
+- int x = 1; int& r = x;
+- const int& r = 42;
+! A reference must be initialised to refer to something.
+
+? Why pass a large object as const std::string& instead of std::string?
+- So the function can modify it
+* To avoid copying it while promising not to change it
+- Because strings cannot be passed by value

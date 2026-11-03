@@ -1,0 +1,72 @@
+@id c_02_variables
+@track C
+@title Variables and Types
+
+A variable is a named piece of memory that holds a value. In C every variable has a type, and the type decides what kind of value it can hold and how much memory it uses.
+
+```
+#include <stdio.h>
+
+int main(void)
+{
+    int age = 30;          // whole numbers
+    double height = 1.75;  // numbers with a fractional part
+    char initial = 'J';    // a single character
+
+    printf("Age: %d\n", age);
+    printf("Height: %.2f\n", height);
+    printf("Initial: %c\n", initial);
+    return 0;
+}
+```
+
+# Common types
+
+int holds whole numbers like 42 or -7. double holds floating-point numbers like 3.14. char holds a single character, written in single quotes like 'A'.
+
+> Single quotes make a char ('A'). Double quotes make a string ("A"). They are not interchangeable.
+
+# Format specifiers
+
+printf uses placeholders to print values: %d for int, %f for double, and %c for char. %.2f prints a double with exactly two digits after the decimal point.
+
+# Assignment
+
+You can change a variable after it is declared. The = sign means "store this value", not "is equal to".
+
+```
+int score = 10;
+score = score + 5;   // score is now 15
+score += 5;          // shorthand: score is now 20
+```
+
+@quiz
+? Which type would you use to store the value 3.14?
+- int
+- char
+* double
+! int only holds whole numbers; double holds floating-point values.
+
+? Which printf format specifier prints an int?
+* %d
+- %f
+- %c
+- %s
+
+? What is the value of x after this code runs?
+```
+int x = 4;
+x = x * 2;
+x += 1;
+```
+- 4
+- 8
+* 9
+- 10
+! x starts at 4, doubles to 8, then += 1 makes it 9.
+
+? Which of these is a valid char literal?
+- "A"
+* 'A'
+- A
+! Single quotes make a char. "A" is a string.

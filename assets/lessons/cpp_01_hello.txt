@@ -1,0 +1,77 @@
+@id cpp_01_hello
+@track C++
+@title Hello, C++
+
+C++ grew out of C, so most C code still compiles as C++. C++ adds its own standard library on top, and the first thing most people meet is iostream for input and output.
+
+```
+#include <iostream>
+
+int main()
+{
+    std::cout << "Hello, C++!" << std::endl;
+    return 0;
+}
+```
+
+# What changed from C?
+
+#include <iostream> replaces stdio.h. It provides std::cout, the standard output stream.
+
+std::cout << "text" sends text to the output. The << operator can be chained to print several things in a row.
+
+std::endl writes a newline and flushes the output. You can also just write "\n".
+
+> In C++, int main() with empty parentheses already means "takes no arguments". In older C you needed int main(void) to say that.
+
+# Namespaces
+
+The std:: prefix means cout lives in the std namespace, where the standard library keeps its names. Namespaces stop names from different libraries clashing.
+
+```
+#include <iostream>
+
+int main()
+{
+    int apples = 3;
+    std::cout << "I have " << apples << " apples\n";
+}
+```
+
+C++ lets main finish without a return statement. Reaching the end of main counts as return 0.
+
+# Compiling
+
+Use g++ instead of gcc for C++ files:
+
+```
+g++ hello.cpp -o hello
+```
+
+@quiz
+? Which header provides std::cout?
+- <stdio.h>
+* <iostream>
+- <string>
+- <cout>
+
+? What does std:: in front of cout mean?
+- cout is a standard type
+* cout belongs to the std namespace
+- cout is a pointer
+! The standard library places its names inside the std namespace.
+
+? What does this print?
+```
+int n = 2;
+std::cout << "n = " << n << "\n";
+```
+- n = n
+* n = 2
+- "n = " 2
+! Each << sends the next value to the stream in order.
+
+? What happens if main reaches its closing brace without a return statement in C++?
+- Compile error
+- Undefined behaviour
+* It behaves as if it returned 0

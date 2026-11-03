@@ -1,0 +1,61 @@
+@id c_01_hello
+@track C
+@title Hello, World
+
+Every C program starts running at a function called main. Here is the smallest useful C program: it prints one line of text and exits.
+
+```
+#include <stdio.h>
+
+int main(void)
+{
+    printf("Hello, World!\n");
+    return 0;
+}
+```
+
+# Line by line
+
+#include <stdio.h> pulls in the standard input/output header. That header declares printf, so the compiler knows how to call it.
+
+int main(void) defines the main function. int is the type of value it returns, and void means it takes no arguments.
+
+printf("Hello, World!\n"); prints the text between the quotes. The \n is an escape sequence meaning "newline". Every statement in C ends with a semicolon.
+
+return 0; ends main and reports success to the operating system. Any non-zero value conventionally means something went wrong.
+
+> The curly braces { } group statements into a block. The body of every function lives inside one.
+
+# Compiling
+
+C is a compiled language. A compiler such as gcc turns your source file into an executable you can run:
+
+```
+gcc hello.c -o hello
+./hello
+```
+
+@quiz
+? Which function does every C program start running in?
+- start
+* main
+- printf
+- init
+! The operating system calls main when your program starts.
+
+? What does the \n in "Hello, World!\n" do?
+- Prints a backslash and the letter n
+* Moves the output to a new line
+- Ends the program
+! \n is an escape sequence for the newline character.
+
+? Why do we write #include <stdio.h>?
+- It makes the program run faster
+- It is required at the top of every C file
+* It declares printf and other standard I/O functions
+! Headers declare functions so the compiler knows they exist and how to call them.
+
+? What does return 0; from main usually mean?
+* The program finished successfully
+- The program crashed
+- main returns nothing
