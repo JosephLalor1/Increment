@@ -11,7 +11,7 @@ A desktop app for learning C and C++, written in C99 with raylib 6.0. This is an
 
 ## Verifying UI changes
 
-`increment.exe --shot out.png [login|register|menu|list|lesson|quiz|answered|result] [lessonIndex] [scroll]` renders one screen to a PNG and exits. Write shots to the scratchpad and view them after any visual change. `lessonIndex` indexes all lessons in filename order.
+`increment.exe --shot out.png <screen> [lessonIndex] [scroll]` renders one screen to a PNG and exits. Screens: `login register reset recovery settings delete menu list lesson quiz answered result` (`register`, `reset`, `recovery` and `delete` pre-fill demo state via `AccountScreensDemo`). Check both themes: the theme comes from the signed-in user's (or last user's) settings file. Write shots to the scratchpad and view them after any visual change. `lessonIndex` indexes all lessons in filename order.
 
 Env vars for testing:
 - `INCREMENT_DATA_DIR`: where accounts and progress live (default: the exe's folder). Point it at the scratchpad so you never touch real accounts.
@@ -22,10 +22,13 @@ Python's `hashlib.pbkdf2_hmac('sha256', pw, salt, iterations)` produces hashes t
 
 ## Layout
 
-- `src/main.c`: screen state machine (login, menu, list, lesson, quiz, result) and the `--shot` dev aid.
-- `src/ui.c`: immediate-mode widgets (buttons, text boxes), word wrap, syntax-highlighted code blocks, fonts. Widgets draw and handle input in the same call. Text boxes only take input if they had focus at the start of the frame, so moving focus can't let one key press trigger two fields.
+- `src/main.c`: screen state machine and navigation, lesson/quiz/result screens, the `--shot` dev aid.
+- `src/account_screens.c`: login (sign in / create / reset modes), recovery-code and settings screens. They return an `AccountAction`; main.c decides where to go next.
+- `src/layout.c`: page pieces shared by screens (top bar, content column, scroll views).
+- `src/ui.c`: themes, immediate-mode widgets (buttons, links, text boxes), word wrap, syntax-highlighted code blocks, fonts. Widgets draw and handle input in the same call. Text boxes only take input if they had focus at the start of the frame, so moving focus can't let one key press trigger two fields. Esc/Backspace in the top bar don't navigate while a text box has focus.
+- Colours: always use the `COL_*` macros (they read the live `gTheme`), never literal colours, so both themes work. Text on an accent fill uses `COL_ON_ACCENT`; neutral buttons hover with `COL_SECONDARY_HOVER`.
 - `src/lesson.c`: parser for lesson files.
-- `src/account.c`: local accounts in `<data>/accounts.txt` (`name iterations salt-hex hash-hex` lines plus `@last name`). Passwords use PBKDF2-HMAC-SHA256 with a 16-byte random salt and 210k iterations; the iteration count is stored per account so it can be raised later. Usernames are 3-20 of `[A-Za-z0-9_-]`, case-insensitive, and that character set is what makes them safe as filenames.
+- `src/account.c`: local accounts in `<data>/accounts.txt`: `@last name` plus `name iter salt hash [riter rsalt rhash]` lines (the recovery triple is optional; older 4-field lines still load). Passwords and recovery codes use PBKDF2-HMAC-SHA256 with a 16-byte random salt and 210k iterations; iteration counts are stored per secret so they can be raised later. Recovery codes are 16 symbols from a 32-char alphabet with no look-alikes (80 bits), shown once, used once (a reset issues a new one), and matched without regard to case or dashes. Per-user settings (theme, accent, text size) live in `users/<name>.settings.txt`. Usernames are 3-20 of `[A-Za-z0-9_-]`, case-insensitive, and that character set is what makes them safe as filenames.
 - `src/platform.c`: the only file that includes `<windows.h>` (random bytes, PBKDF2, atomic file replace). Never include raylib.h there; the headers clash.
 - `src/progress.c`: best score per lesson id, saved to `<data>/users/<lowercase name>.txt`. 70% passes. The first account created takes over a pre-accounts `progress.txt`.
 - `assets/lessons/*.txt`: lesson content, loaded in filename order (`c_NN_*`, `cpp_NN_*`).

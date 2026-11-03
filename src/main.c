@@ -2,6 +2,8 @@
 #include "rlgl.h"
 
 #include "account.h"
+#include "account_screens.h"
+#include "layout.h"
 #include "lesson.h"
 #include "progress.h"
 #include "ui.h"
@@ -11,20 +13,13 @@
 #include <string.h>
 
 #define PASS_PERCENT 70
-#define TOPBAR_H     64.0f
-#define MAX_WIDTH    880.0f
 
-typedef enum { SCREEN_LOGIN, SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT } Screen;
+typedef enum {
+    SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS,
+    SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT,
+} Screen;
 
 static LessonSet lessons;
-
-static struct {
-    bool creating;       // "Create account" tab rather than "Sign in"
-    char name[USERNAME_MAX + 1];
-    char pass[PASSWORD_MAX + 1];
-    char confirm[PASSWORD_MAX + 1];
-    const char *error;
-} login;
 
 static struct {
     Screen screen;
@@ -38,24 +33,12 @@ static struct {
     int picked;          // -1 until the current question is answered
     int correctCount;
     int lastPercent;
+    Screen afterRecovery; // where to go once a new recovery code has been saved
     bool quit;
 } app;
 
 // ---------------------------------------------------------------------------
 // Helpers
-
-static float ContentWidth(void)
-{
-    float w = GetScreenWidth() - 80.0f;
-    return w > MAX_WIDTH ? MAX_WIDTH : w;
-}
-
-static float ContentX(void) { return (GetScreenWidth() - ContentWidth()) / 2.0f; }
-
-static Rectangle ScrollView(void)
-{
-    return (Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), GetScreenHeight() - TOPBAR_H };
-}
 
 static bool Passed(const Lesson *L) { return ProgressBest(L->id) >= PASS_PERCENT; }
 
@@ -105,53 +88,11 @@ static void StartQuiz(void)
     }
 }
 
-static void UpdateScroll(float *scroll, float contentH, float viewH)
-{
-    *scroll -= GetMouseWheelMove() * 60.0f;
-    if (IsKeyDown(KEY_DOWN)) *scroll += 12.0f;
-    if (IsKeyDown(KEY_UP)) *scroll -= 12.0f;
-    if (IsKeyPressed(KEY_PAGE_DOWN)) *scroll += viewH * 0.9f;
-    if (IsKeyPressed(KEY_PAGE_UP)) *scroll -= viewH * 0.9f;
-    if (IsKeyPressed(KEY_HOME)) *scroll = 0;
-    if (IsKeyPressed(KEY_END)) *scroll = contentH;
-
-    float max = contentH - viewH;
-    if (max < 0) max = 0;
-    if (*scroll > max) *scroll = max;
-    if (*scroll < 0) *scroll = 0;
-}
-
-static void BeginView(Rectangle v)
-{
-    BeginScissorMode((int)v.x, (int)v.y, (int)v.width, (int)v.height);
-    UiSetClip(v);
-}
-
-static void EndView(void)
-{
-    EndScissorMode();
-    UiClearClip();
-}
-
-// Returns true when the user asks to go back (button, Esc, or Backspace).
-static bool TopBar(const char *title)
-{
-    DrawRectangle(0, 0, GetScreenWidth(), (int)TOPBAR_H, COL_PANEL);
-    bool back = UiButtonEx((Rectangle){ 16, 12, 96, 40 }, "< Back", 20, COL_PANEL_HI, COL_ACCENT, COL_TEXT, true);
-    UiText(gFonts.text, title, 132, 17, 26, COL_TEXT);
-    return back || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE);
-}
 
 static void DrawCheck(float cx, float cy, float s, Color c)
 {
     DrawLineEx((Vector2){ cx - s, cy }, (Vector2){ cx - s * 0.3f, cy + s * 0.7f }, 3, c);
     DrawLineEx((Vector2){ cx - s * 0.3f, cy + s * 0.7f }, (Vector2){ cx + s, cy - s * 0.7f }, 3, c);
-}
-
-static void ProgressBar(Rectangle r, float t, Color track, Color fill)
-{
-    UiRoundRect(r, r.height / 2, track);
-    if (t > 0) UiRoundRect((Rectangle){ r.x, r.y, r.width * t, r.height }, r.height / 2, fill);
 }
 
 // ---------------------------------------------------------------------------
@@ -176,158 +117,85 @@ static bool TrackCard(Rectangle r, Track t)
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
-static void ClearPasswords(void)
-{
-    memset(login.pass, 0, sizeof login.pass);
-    memset(login.confirm, 0, sizeof login.confirm);
-}
+// ---------------------------------------------------------------------------
+// Account navigation
 
-static void ResetLogin(void)
+static void ShowLogin(void)
 {
-    ClearPasswords();
-    login.error = NULL;
-    login.creating = AccountCount() == 0;
-    snprintf(login.name, sizeof login.name, "%s", AccountLastUser());
-    UiFocus(login.name[0] ? login.pass : login.name);
-}
-
-static void OnLoggedIn(void)
-{
-    ClearPasswords();
-    login.error = NULL;
-    UiFocus(NULL);
-    ProgressLoad(AccountProgressPath());
-    Go(SCREEN_MENU);
+    ProgressLoad(""); // drop the previous user's scores from memory
+    LoginReset();
+    ApplySettings();
+    Go(SCREEN_LOGIN);
 }
 
 static void LogOut(void)
 {
     AccountLogout();
-    ProgressLoad(""); // drop the previous user's scores from memory
-    ResetLogin();
-    Go(SCREEN_LOGIN);
+    ShowLogin();
 }
 
-static void SubmitLogin(void)
+static void SignedIn(void)
 {
-    const char *err = NULL;
-    bool ok;
-    if (login.creating && strcmp(login.pass, login.confirm) != 0) {
-        err = "The passwords don't match.";
-        ok = false;
-    } else if (login.creating) {
-        ok = AccountCreate(login.name, login.pass, &err);
+    ProgressLoad(AccountProgressPath());
+    if (RecoveryPending()) {
+        app.afterRecovery = SCREEN_MENU;
+        Go(SCREEN_RECOVERY);
     } else {
-        ok = AccountLogin(login.name, login.pass, &err);
-    }
-
-    if (ok) {
-        OnLoggedIn();
-    } else {
-        login.error = err;
-        ClearPasswords();
-        UiFocus(login.pass);
+        Go(SCREEN_MENU);
     }
 }
 
-static void LoginField(const char *label, char *buf, int size, bool password, float x, float *y, float w)
+static void ScreenLoginWrap(void)
 {
-    UiText(gFonts.text, label, x, *y, 18, COL_DIM);
-    *y += 26;
-    if (UiTextBox((Rectangle){ x, *y, w, 48 }, buf, size, "", password)) {
-        // Enter moves to the next empty field, or submits from the last one.
-        if (buf == login.name) UiFocus(login.pass);
-        else if (buf == login.pass && login.creating) UiFocus(login.confirm);
-        else SubmitLogin();
-    }
-    *y += 48 + 16;
+    AccountAction a = LoginScreen();
+    if (a == ACCOUNT_SIGNED_IN) SignedIn();
+    else if (a == ACCOUNT_QUIT) app.quit = true;
 }
 
-static void ScreenLogin(void)
+static void ScreenRecoveryWrap(void)
 {
-    float cx = GetScreenWidth() / 2.0f;
-    float cardW = 460, pad = 32;
-    int fields = login.creating ? 3 : 2;
-    float cardH = 28 + 64 + fields * 90 + (login.error ? 36 : 0) + 50 + (login.creating ? 40 : 0) + 28;
+    if (RecoveryScreen() == ACCOUNT_BACK) Go(app.afterRecovery);
+}
 
-    // Full layout: title, subtitle, card, Quit. Short windows drop the subtitle and Quit.
-    float full = 146 + cardH + 74;
-    bool compact = full > GetScreenHeight();
-    float top = compact ? 16 : (GetScreenHeight() - full) / 2.0f;
-    if (compact) {
-        UiTextCentered(gFonts.text, "Increment", cx, top, 48, COL_TEXT);
-        top += 72;
-    } else {
-        UiTextCentered(gFonts.text, "Increment", cx, top, 72, COL_TEXT);
-        UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, top + 86, 24, COL_DIM);
-        top += 146;
-    }
-    Rectangle card = { cx - cardW / 2, top, cardW, cardH };
-    UiRoundRect(card, 14, COL_PANEL);
-
-    float x = card.x + pad, w = cardW - pad * 2;
-    float y = card.y + 28;
-
-    float tabW = (w - 8) / 2;
-    for (int i = 0; i < 2; i++) {
-        bool active = login.creating == (i == 1);
-        Rectangle tab = { x + i * (tabW + 8), y, tabW, 40 };
-        if (UiButtonEx(tab, i ? "Create account" : "Sign in", 20, active ? COL_ACCENT : COL_PANEL_HI,
-                       active ? COL_ACCENT : COL_NOTE_BG, active ? COL_BG : COL_TEXT, true) && !active) {
-            login.creating = i == 1;
-            login.error = NULL;
-            ClearPasswords();
-            UiFocus(login.name[0] ? login.pass : login.name);
-        }
-    }
-    y += 40 + 24;
-
-    LoginField("Username", login.name, sizeof login.name, false, x, &y, w);
-    LoginField("Password", login.pass, sizeof login.pass, true, x, &y, w);
-    if (login.creating) LoginField("Confirm password", login.confirm, sizeof login.confirm, true, x, &y, w);
-
-    if (IsKeyPressed(KEY_TAB)) {
-        char *order[3] = { login.name, login.pass, login.confirm };
-        int cur = 0;
-        for (int i = 0; i < fields; i++) if (UiHasFocus(order[i])) cur = i;
-        bool back = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-        UiFocus(order[(cur + (back ? fields - 1 : 1)) % fields]);
-    }
-
-    if (login.error) {
-        UiText(gFonts.text, login.error, x, y - 4, 18, COL_BAD);
-        y += 36;
-    }
-    if (UiButton((Rectangle){ x, y, w, 50 }, login.creating ? "Create account" : "Sign in", true)) SubmitLogin();
-    y += 50;
-    if (login.creating) {
-        UiTextCentered(gFonts.text, "Accounts are stored on this computer only.", cx, y + 14, 16, COL_DIM);
-    }
-
-    if (!compact && UiButtonEx((Rectangle){ cx - 70, card.y + cardH + 28, 140, 46 }, "Quit", 20,
-                               COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
-        app.quit = true;
+static void ScreenSettingsWrap(void)
+{
+    AccountAction a = SettingsScreen();
+    if (a == ACCOUNT_BACK) {
+        Go(SCREEN_MENU);
+    } else if (a == ACCOUNT_SIGNED_OUT) {
+        ShowLogin();
+    } else if (a == ACCOUNT_SHOW_CODE) {
+        app.afterRecovery = SCREEN_SETTINGS;
+        Go(SCREEN_RECOVERY);
     }
 }
 
-static void AccountCorner(void)
+// Returns false if the user logged out (the menu should stop drawing).
+static bool AccountCorner(void)
 {
     const char *who = AccountCurrent();
-    if (!who) return;
-    float bw = 110, right = GetScreenWidth() - 20.0f;
-    if (UiButtonEx((Rectangle){ right - bw, 20, bw, 40 }, "Log out", 18, COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+    if (!who) return true;
+    float right = GetScreenWidth() - 20.0f;
+    Rectangle logout = { right - 110, 20, 110, 40 };
+    Rectangle gear = { logout.x - 12 - 110, 20, 110, 40 };
+    if (UiButtonEx(logout, "Log out", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         LogOut();
-        return;
+        return false;
+    }
+    if (UiButtonEx(gear, "Settings", 18, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        SettingsOpen();
+        Go(SCREEN_SETTINGS);
+        return false;
     }
     const char *label = TextFormat("Signed in as %s", who);
     Vector2 m = MeasureTextEx(gFonts.text, label, 18, 0);
-    UiText(gFonts.text, label, right - bw - 16 - m.x, 30, 18, COL_DIM);
+    UiText(gFonts.text, label, gear.x - 16 - m.x, 30, 18, COL_DIM);
+    return true;
 }
 
 static void ScreenMenu(void)
 {
-    AccountCorner();
-    if (app.screen != SCREEN_MENU) return; // logged out
+    if (!AccountCorner()) return;
 
     float cx = GetScreenWidth() / 2.0f;
     UiTextCentered(gFonts.text, "Increment", cx, 90, 80, COL_TEXT);
@@ -347,8 +215,19 @@ static void ScreenMenu(void)
 
     if (lessons.count == 0) {
         UiTextCentered(gFonts.text, "No lessons found. Put lesson .txt files in assets/lessons.", cx, y + cardH + 30, 20, COL_BAD);
+    } else if (AccountCurrent() && !AccountHasRecovery()) {
+        // Accounts made before recovery codes existed have none.
+        const char *msg = "You don't have a recovery code yet.";
+        const char *link = "Make one in Settings";
+        float mw = MeasureTextEx(gFonts.text, msg, 18, 0).x, lw = MeasureTextEx(gFonts.text, link, 18, 0).x;
+        float x = cx - (mw + 8 + lw) / 2;
+        UiText(gFonts.text, msg, x, y + cardH + 30, 18, COL_DIM);
+        if (UiLink(x + mw + 8, y + cardH + 30, link, 18)) {
+            SettingsOpen();
+            Go(SCREEN_SETTINGS);
+        }
     }
-    if (UiButtonEx((Rectangle){ cx - 70, y + cardH + 80, 140, 46 }, "Quit", 20, COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+    if (UiButtonEx((Rectangle){ cx - 70, y + cardH + 80, 140, 46 }, "Quit", 20, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         app.quit = true;
     }
 }
@@ -412,30 +291,31 @@ static void ScreenLesson(void)
     BeginView(view);
 
     float x = ContentX(), w = ContentWidth();
+    float ts = TextScale(); // user's lesson text size
     float top = view.y + 32 - app.scroll;
     float y = top;
 
-    y += UiWrappedText(gFonts.text, L->title, (Vector2){ x, y }, w, 44, COL_TEXT, true) + 16;
+    y += UiWrappedText(gFonts.text, L->title, (Vector2){ x, y }, w, 44 * ts, COL_TEXT, true) + 16;
 
     for (int i = 0; i < L->blockCount; i++) {
         Block *b = &L->blocks[i];
         switch (b->type) {
         case BLOCK_HEADING:
             y += 14;
-            y += UiWrappedText(gFonts.text, b->text, (Vector2){ x, y }, w, 30, COL_ACCENT, true) + 8;
+            y += UiWrappedText(gFonts.text, b->text, (Vector2){ x, y }, w, 30 * ts, COL_ACCENT, true) + 8;
             break;
         case BLOCK_TEXT:
-            y += UiWrappedText(gFonts.text, b->text, (Vector2){ x, y }, w, 22, COL_TEXT, true) + 14;
+            y += UiWrappedText(gFonts.text, b->text, (Vector2){ x, y }, w, 22 * ts, COL_TEXT, true) + 14;
             break;
         case BLOCK_NOTE: {
-            float h = UiWrappedText(gFonts.text, b->text, (Vector2){ 0, 0 }, w - 48, 21, COL_TEXT, false);
+            float h = UiWrappedText(gFonts.text, b->text, (Vector2){ 0, 0 }, w - 48, 21 * ts, COL_TEXT, false);
             UiRoundRect((Rectangle){ x, y, w, h + 28 }, 8, COL_NOTE_BG);
             DrawRectangle((int)x, (int)y + 6, 4, (int)h + 16, COL_ACCENT);
-            UiWrappedText(gFonts.text, b->text, (Vector2){ x + 24, y + 14 }, w - 48, 21, COL_TEXT, true);
+            UiWrappedText(gFonts.text, b->text, (Vector2){ x + 24, y + 14 }, w - 48, 21 * ts, COL_TEXT, true);
             y += h + 28 + 16;
         } break;
         case BLOCK_CODE:
-            y += UiCodeBlock(b->text, (Vector2){ x, y }, w, 20, true) + 16;
+            y += UiCodeBlock(b->text, (Vector2){ x, y }, w, 20 * ts, true) + 16;
             break;
         }
     }
@@ -473,6 +353,7 @@ static void ScreenQuiz(void)
     BeginView(view);
 
     float x = ContentX(), w = ContentWidth();
+    float ts = TextScale(); // user's lesson text size
     float top = view.y + 32 - app.scroll;
     float y = top;
 
@@ -481,13 +362,13 @@ static void ScreenQuiz(void)
     ProgressBar((Rectangle){ x, y, w, 6 }, (float)app.question / L->questionCount, COL_PANEL_HI, COL_ACCENT);
     y += 30;
 
-    y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28, COL_TEXT, true) + 16;
-    if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20, true) + 20;
+    y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28 * ts, COL_TEXT, true) + 16;
+    if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20 * ts, true) + 20;
 
     bool answered = app.picked >= 0;
     for (int i = 0; i < q->choiceCount; i++) {
         const char *label = TextFormat("%d.  %s", i + 1, q->choices[i]);
-        float h = UiWrappedText(gFonts.text, label, (Vector2){ 0, 0 }, w - 48, 22, COL_TEXT, false) + 28;
+        float h = UiWrappedText(gFonts.text, label, (Vector2){ 0, 0 }, w - 48, 22 * ts, COL_TEXT, false) + 28;
         Rectangle r = { x, y, w, h };
         bool over = !answered && UiMouseOver(r);
         if (over) UiWantHand();
@@ -500,7 +381,7 @@ static void ScreenQuiz(void)
             else fg = COL_DIM;
         }
         UiRoundRect(r, 10, bg);
-        UiWrappedText(gFonts.text, label, (Vector2){ x + 24, y + 14 }, w - 48, 22, fg, true);
+        UiWrappedText(gFonts.text, label, (Vector2){ x + 24, y + 14 }, w - 48, 22 * ts, fg, true);
 
         bool chosen = (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) || (!answered && IsKeyPressed(KEY_ONE + i));
         if (chosen) {
@@ -516,7 +397,7 @@ static void ScreenQuiz(void)
         bool right = app.picked == q->correct;
         UiText(gFonts.text, right ? "Correct!" : "Not quite.", x, y, 26, right ? COL_GOOD : COL_BAD);
         y += 40;
-        if (q->explain) y += UiWrappedText(gFonts.text, q->explain, (Vector2){ x, y }, w, 21, COL_TEXT, true) + 16;
+        if (q->explain) y += UiWrappedText(gFonts.text, q->explain, (Vector2){ x, y }, w, 21 * ts, COL_TEXT, true) + 16;
 
         bool last = app.question + 1 >= L->questionCount;
         if (UiButton((Rectangle){ x, y, 220, 50 }, last ? "See results" : "Next question", true)
@@ -598,8 +479,9 @@ static void FindAssetDir(char *out, size_t size)
     snprintf(out, size, "assets");
 }
 
-// Dev aid: --shot out.png [login|register|menu|list|lesson|quiz|answered|result] [lessonIndex] [scroll]
-// renders one screen, saves it as a PNG, and exits.
+// Dev aid: --shot out.png <screen> [lessonIndex] [scroll] renders one screen, saves it as a
+// PNG, and exits. Screens: login register reset recovery settings delete menu list lesson
+// quiz answered result.
 typedef struct {
     const char *path;
     int framesLeft;
@@ -625,14 +507,14 @@ static Shot ParseShot(int argc, char **argv)
     const char *user = getenv("INCREMENT_SHOT_USER"), *pass = getenv("INCREMENT_SHOT_PASS");
     const char *err;
     if (user && pass && AccountLogin(user, pass, &err)) ProgressLoad(AccountProgressPath());
+    ApplySettings();
 
     if (strcmp(screen, "login") == 0) app.screen = SCREEN_LOGIN;
-    else if (strcmp(screen, "register") == 0) {
-        app.screen = SCREEN_LOGIN;
-        login.creating = true;
-        snprintf(login.name, sizeof login.name, "ada");
-        snprintf(login.pass, sizeof login.pass, "secret1");
-        login.error = "The passwords don't match.";
+    else if (strcmp(screen, "register") == 0 || strcmp(screen, "reset") == 0) app.screen = SCREEN_LOGIN;
+    else if (strcmp(screen, "recovery") == 0) app.screen = SCREEN_RECOVERY;
+    else if (strcmp(screen, "settings") == 0 || strcmp(screen, "delete") == 0) {
+        SettingsOpen();
+        app.screen = SCREEN_SETTINGS;
     }
     else if (strcmp(screen, "list") == 0) app.screen = SCREEN_LIST;
     else if (strcmp(screen, "lesson") == 0) app.screen = SCREEN_LESSON;
@@ -648,6 +530,7 @@ static Shot ParseShot(int argc, char **argv)
     app.contentH = 100000; // let the requested scroll survive the first frame's clamp
     app.lastPercent = 75;
     app.correctCount = 3;
+    AccountScreensDemo(screen);
     return shot;
 }
 
@@ -676,8 +559,7 @@ int main(int argc, char **argv)
     }
     AccountsInit(dataDir);
 
-    app.screen = SCREEN_LOGIN;
-    ResetLogin();
+    ShowLogin();
     Shot shot = ParseShot(argc, argv);
 
     while (!WindowShouldClose() && !app.quit) {
@@ -686,7 +568,9 @@ int main(int argc, char **argv)
         ClearBackground(COL_BG);
 
         switch (app.screen) {
-        case SCREEN_LOGIN:  ScreenLogin();  break;
+        case SCREEN_LOGIN:    ScreenLoginWrap();    break;
+        case SCREEN_RECOVERY: ScreenRecoveryWrap(); break;
+        case SCREEN_SETTINGS: ScreenSettingsWrap(); break;
         case SCREEN_MENU:   ScreenMenu();   break;
         case SCREEN_LIST:   ScreenList();   break;
         case SCREEN_LESSON: ScreenLesson(); break;

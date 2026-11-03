@@ -8,6 +8,69 @@
 #define PASSWORD_DISPLAY_MAX 128
 
 UiFonts gFonts;
+UiTheme gTheme;
+
+// ---------------------------------------------------------------------------
+// Themes
+
+static const UiTheme darkBase = {
+    .bg = { 24, 26, 33, 255 },        .panel = { 34, 37, 46, 255 },     .panelHi = { 46, 50, 62, 255 },
+    .text = { 225, 228, 235, 255 },   .dim = { 150, 156, 170, 255 },
+    .onAccent = { 24, 26, 33, 255 },
+    .good = { 90, 200, 130, 255 },    .goodBg = { 34, 70, 52, 255 },
+    .bad = { 235, 95, 95, 255 },      .badBg = { 82, 36, 40, 255 },
+    .codeBg = { 16, 17, 22, 255 },    .noteBg = { 38, 45, 64, 255 },
+    .synDefault = { 220, 223, 228, 255 }, .synKeyword = { 198, 120, 221, 255 }, .synType = { 86, 182, 194, 255 },
+    .synString = { 152, 195, 121, 255 },  .synNumber = { 209, 154, 102, 255 },  .synComment = { 110, 118, 135, 255 },
+    .synPreproc = { 224, 108, 117, 255 },
+};
+
+static const UiTheme lightBase = {
+    .bg = { 243, 244, 248, 255 },     .panel = { 255, 255, 255, 255 },  .panelHi = { 228, 232, 241, 255 },
+    .text = { 30, 33, 40, 255 },      .dim = { 100, 106, 120, 255 },
+    .onAccent = { 255, 255, 255, 255 },
+    .good = { 22, 140, 70, 255 },     .goodBg = { 214, 245, 225, 255 },
+    .bad = { 205, 40, 40, 255 },      .badBg = { 252, 224, 224, 255 },
+    .codeBg = { 235, 237, 243, 255 }, .noteBg = { 226, 236, 252, 255 },
+    .synDefault = { 40, 44, 52, 255 },    .synKeyword = { 166, 38, 164, 255 },  .synType = { 1, 122, 170, 255 },
+    .synString = { 60, 130, 60, 255 },    .synNumber = { 152, 94, 1, 255 },     .synComment = { 140, 142, 150, 255 },
+    .synPreproc = { 200, 70, 60, 255 },
+};
+
+// Each accent has a bright variant for dark mode and a deeper one for light mode,
+// so it stays readable as text on either background.
+static const struct {
+    const char *name;
+    Color dark, darkHi, light, lightHi;
+} accents[UI_ACCENT_COUNT] = {
+    { "Blue",   { 98, 160, 255, 255 },  { 130, 180, 255, 255 }, { 37, 99, 235, 255 },  { 29, 78, 216, 255 } },
+    { "Purple", { 167, 139, 250, 255 }, { 196, 181, 253, 255 }, { 124, 58, 237, 255 }, { 109, 40, 217, 255 } },
+    { "Green",  { 52, 211, 153, 255 },  { 110, 231, 183, 255 }, { 5, 140, 100, 255 },  { 4, 115, 82, 255 } },
+    { "Orange", { 251, 146, 60, 255 },  { 253, 186, 116, 255 }, { 214, 82, 12, 255 },  { 180, 62, 12, 255 } },
+    { "Pink",   { 244, 114, 182, 255 }, { 249, 168, 212, 255 }, { 210, 36, 115, 255 }, { 180, 22, 90, 255 } },
+};
+
+void UiSetTheme(bool light, int accent)
+{
+    if (accent < 0 || accent >= UI_ACCENT_COUNT) accent = 0;
+    gTheme = light ? lightBase : darkBase;
+    gTheme.accent = light ? accents[accent].light : accents[accent].dark;
+    gTheme.accentHi = light ? accents[accent].lightHi : accents[accent].darkHi;
+    gTheme.secondaryHover = ColorLerp(gTheme.panelHi, gTheme.accent, light ? 0.18f : 0.3f);
+}
+
+Color UiAccentSwatch(int accent, bool light)
+{
+    if (accent < 0 || accent >= UI_ACCENT_COUNT) accent = 0;
+    return light ? accents[accent].light : accents[accent].dark;
+}
+
+const char *UiAccentName(int accent)
+{
+    return (accent >= 0 && accent < UI_ACCENT_COUNT) ? accents[accent].name : "";
+}
+
+// ---------------------------------------------------------------------------
 
 static Rectangle clipRect;
 static bool clipOn;
@@ -142,11 +205,25 @@ bool UiButtonEx(Rectangle r, const char *label, float size, Color base, Color ho
 
 bool UiButton(Rectangle r, const char *label, bool enabled)
 {
-    return UiButtonEx(r, label, 22, COL_ACCENT, COL_ACCENT_HI, COL_BG, enabled);
+    return UiButtonEx(r, label, 22, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, enabled);
+}
+
+bool UiLink(float x, float y, const char *text, float size)
+{
+    Vector2 m = MeasureTextEx(gFonts.text, text, size, UiSpacing(gFonts.text, size));
+    Rectangle r = { x, y, m.x, m.y };
+    bool over = UiMouseOver(r);
+    if (over) {
+        UiWantHand();
+        DrawRectangle((int)x, (int)(y + m.y), (int)m.x, 1, COL_ACCENT_HI);
+    }
+    UiText(gFonts.text, text, x, y, size, over ? COL_ACCENT_HI : COL_ACCENT);
+    return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
 void UiFocus(char *buf) { focused = buf; }
 bool UiHasFocus(const char *buf) { return focused == buf; }
+bool UiAnyFocus(void) { return focused != NULL; }
 
 static void InsertText(char *buf, int size, const char *text)
 {
@@ -278,13 +355,13 @@ float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float si
 // ---------------------------------------------------------------------------
 // Syntax highlighting
 
-#define SYN_DEFAULT  (Color){ 220, 223, 228, 255 }
-#define SYN_KEYWORD  (Color){ 198, 120, 221, 255 }
-#define SYN_TYPE     (Color){ 86, 182, 194, 255 }
-#define SYN_STRING   (Color){ 152, 195, 121, 255 }
-#define SYN_NUMBER   (Color){ 209, 154, 102, 255 }
-#define SYN_COMMENT  (Color){ 110, 118, 135, 255 }
-#define SYN_PREPROC  (Color){ 224, 108, 117, 255 }
+#define SYN_DEFAULT  (gTheme.synDefault)
+#define SYN_KEYWORD  (gTheme.synKeyword)
+#define SYN_TYPE     (gTheme.synType)
+#define SYN_STRING   (gTheme.synString)
+#define SYN_NUMBER   (gTheme.synNumber)
+#define SYN_COMMENT  (gTheme.synComment)
+#define SYN_PREPROC  (gTheme.synPreproc)
 
 static const char *keywords[] = {
     "break", "case", "const", "continue", "default", "do", "else", "enum", "extern", "for", "goto", "if",

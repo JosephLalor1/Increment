@@ -1,0 +1,67 @@
+#include "layout.h"
+#include "ui.h"
+
+#include <stddef.h>
+
+float ContentWidth(void)
+{
+    float w = GetScreenWidth() - 80.0f;
+    return w > MAX_WIDTH ? MAX_WIDTH : w;
+}
+
+float ContentX(void) { return (GetScreenWidth() - ContentWidth()) / 2.0f; }
+
+Rectangle ScrollView(void)
+{
+    return (Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), GetScreenHeight() - TOPBAR_H };
+}
+
+void UpdateScroll(float *scroll, float contentH, float viewH)
+{
+    *scroll -= GetMouseWheelMove() * 60.0f;
+    if (!UiAnyFocus()) {
+        if (IsKeyDown(KEY_DOWN)) *scroll += 12.0f;
+        if (IsKeyDown(KEY_UP)) *scroll -= 12.0f;
+        if (IsKeyPressed(KEY_PAGE_DOWN)) *scroll += viewH * 0.9f;
+        if (IsKeyPressed(KEY_PAGE_UP)) *scroll -= viewH * 0.9f;
+        if (IsKeyPressed(KEY_HOME)) *scroll = 0;
+        if (IsKeyPressed(KEY_END)) *scroll = contentH;
+    }
+
+    float max = contentH - viewH;
+    if (max < 0) max = 0;
+    if (*scroll > max) *scroll = max;
+    if (*scroll < 0) *scroll = 0;
+}
+
+void BeginView(Rectangle v)
+{
+    BeginScissorMode((int)v.x, (int)v.y, (int)v.width, (int)v.height);
+    UiSetClip(v);
+}
+
+void EndView(void)
+{
+    EndScissorMode();
+    UiClearClip();
+}
+
+bool TopBar(const char *title)
+{
+    DrawRectangle(0, 0, GetScreenWidth(), (int)TOPBAR_H, COL_PANEL);
+    DrawRectangle(0, (int)TOPBAR_H - 1, GetScreenWidth(), 1, COL_PANEL_HI);
+    bool back = UiButtonEx((Rectangle){ 16, 12, 96, 40 }, "< Back", 20, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
+    UiText(gFonts.text, title, 132, 17, 26, COL_TEXT);
+
+    if (UiAnyFocus()) {
+        if (IsKeyPressed(KEY_ESCAPE)) UiFocus(NULL);
+        return back;
+    }
+    return back || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE);
+}
+
+void ProgressBar(Rectangle r, float t, Color track, Color fill)
+{
+    UiRoundRect(r, r.height / 2, track);
+    if (t > 0) UiRoundRect((Rectangle){ r.x, r.y, r.width * t, r.height }, r.height / 2, fill);
+}
