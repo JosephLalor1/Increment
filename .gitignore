@@ -1,3 +1,6 @@
 build/
 progress.txt
+accounts.txt
+accounts.txt.tmp
+users/
 *.png

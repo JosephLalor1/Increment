@@ -14,7 +14,7 @@ if not exist "%CC%" (
 )
 
 set CFLAGS=-std=c99 -Wall -Wextra -Wno-missing-field-initializers -I"%RL_SRC%"
-set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm
+set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt
 
 if /i "%1"=="release" (
     set CFLAGS=%CFLAGS% -O2 -DNDEBUG

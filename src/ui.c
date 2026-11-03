@@ -1,12 +1,19 @@
 #include "ui.h"
 
 #include <ctype.h>
+#include <math.h>
+#include <stdio.h>
 #include <string.h>
+
+#define PASSWORD_DISPLAY_MAX 128
 
 UiFonts gFonts;
 
 static Rectangle clipRect;
 static bool clipOn;
+
+static char *focused;
+static char *frameFocus; // focus at the start of the frame; only it receives input
 
 // ASCII, Latin-1, and the typographic punctuation people tend to paste in.
 static int *FontCodepoints(int *count)
@@ -69,6 +76,7 @@ void UiBeginFrame(void)
 {
     wantedCursor = MOUSE_CURSOR_DEFAULT;
     clipOn = false;
+    frameFocus = focused;
 }
 
 void UiEndFrame(void)
@@ -135,6 +143,82 @@ bool UiButtonEx(Rectangle r, const char *label, float size, Color base, Color ho
 bool UiButton(Rectangle r, const char *label, bool enabled)
 {
     return UiButtonEx(r, label, 22, COL_ACCENT, COL_ACCENT_HI, COL_BG, enabled);
+}
+
+void UiFocus(char *buf) { focused = buf; }
+bool UiHasFocus(const char *buf) { return focused == buf; }
+
+static void InsertText(char *buf, int size, const char *text)
+{
+    int len = (int)strlen(buf);
+    for (const char *c = text; *c && len < size - 1; c++) {
+        if (*c >= 32 && *c < 127) buf[len++] = *c;
+    }
+    buf[len] = '\0';
+}
+
+bool UiTextBox(Rectangle r, char *buf, int size, const char *placeholder, bool password)
+{
+    const float fontSize = 22, pad = 14;
+    bool over = UiMouseOver(r);
+    if (over) wantedCursor = MOUSE_CURSOR_IBEAM;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (over) focused = buf;
+        else if (focused == buf) focused = NULL;
+    }
+
+    bool hasFocus = focused == buf;
+    bool submitted = false;
+    if (hasFocus && frameFocus == buf) {
+        int c;
+        while ((c = GetCharPressed()) != 0) {
+            char ch[2] = { (char)c, '\0' };
+            if (c < 127) InsertText(buf, size, ch);
+        }
+        bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+        if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE)) {
+            size_t len = strlen(buf);
+            if (ctrl) buf[0] = '\0';
+            else if (len) buf[len - 1] = '\0';
+        }
+        if (ctrl && IsKeyPressed(KEY_V)) {
+            const char *clip = GetClipboardText();
+            if (clip) InsertText(buf, size, clip);
+        }
+        submitted = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
+    }
+
+    UiRoundRect(r, 8, COL_CODE_BG);
+    if (hasFocus) DrawRectangleRoundedLinesEx(r, 16.0f / r.height, 8, 2, COL_ACCENT);
+
+    // Masked text is drawn as bullets (U+2022).
+    int len = (int)strlen(buf);
+    char shown[PASSWORD_DISPLAY_MAX * 3 + 1];
+    int unit = password ? 3 : 1;
+    int count = len < PASSWORD_DISPLAY_MAX ? len : PASSWORD_DISPLAY_MAX;
+    if (password) {
+        for (int i = 0; i < count; i++) memcpy(shown + i * 3, "\xE2\x80\xA2", 3);
+        shown[count * 3] = '\0';
+    } else {
+        snprintf(shown, sizeof shown, "%s", buf);
+        count = (int)strlen(shown);
+    }
+
+    // Keep the end of the text (and the caret) visible by dropping leading characters.
+    float inner = r.width - pad * 2 - 4;
+    float sp = UiSpacing(gFonts.text, fontSize);
+    const char *start = shown;
+    while (*start && MeasureTextEx(gFonts.text, start, fontSize, sp).x > inner) start += unit;
+
+    float ty = r.y + (r.height - fontSize) / 2.0f - 2;
+    if (len == 0 && !hasFocus) UiText(gFonts.text, placeholder, r.x + pad, ty, fontSize, COL_DIM);
+    else UiText(gFonts.text, start, r.x + pad, ty, fontSize, COL_TEXT);
+
+    if (hasFocus && fmod(GetTime(), 1.0) < 0.55) {
+        float cx = r.x + pad + MeasureTextEx(gFonts.text, start, fontSize, sp).x + 2;
+        DrawRectangle((int)cx, (int)(r.y + 12), 2, (int)(r.height - 24), COL_TEXT);
+    }
+    return submitted;
 }
 
 float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float size, Color c, bool draw)

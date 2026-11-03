@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "rlgl.h"
 
+#include "account.h"
 #include "lesson.h"
 #include "progress.h"
 #include "ui.h"
@@ -13,9 +14,17 @@
 #define TOPBAR_H     64.0f
 #define MAX_WIDTH    880.0f
 
-typedef enum { SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT } Screen;
+typedef enum { SCREEN_LOGIN, SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT } Screen;
 
 static LessonSet lessons;
+
+static struct {
+    bool creating;       // "Create account" tab rather than "Sign in"
+    char name[USERNAME_MAX + 1];
+    char pass[PASSWORD_MAX + 1];
+    char confirm[PASSWORD_MAX + 1];
+    const char *error;
+} login;
 
 static struct {
     Screen screen;
@@ -167,8 +176,159 @@ static bool TrackCard(Rectangle r, Track t)
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
+static void ClearPasswords(void)
+{
+    memset(login.pass, 0, sizeof login.pass);
+    memset(login.confirm, 0, sizeof login.confirm);
+}
+
+static void ResetLogin(void)
+{
+    ClearPasswords();
+    login.error = NULL;
+    login.creating = AccountCount() == 0;
+    snprintf(login.name, sizeof login.name, "%s", AccountLastUser());
+    UiFocus(login.name[0] ? login.pass : login.name);
+}
+
+static void OnLoggedIn(void)
+{
+    ClearPasswords();
+    login.error = NULL;
+    UiFocus(NULL);
+    ProgressLoad(AccountProgressPath());
+    Go(SCREEN_MENU);
+}
+
+static void LogOut(void)
+{
+    AccountLogout();
+    ProgressLoad(""); // drop the previous user's scores from memory
+    ResetLogin();
+    Go(SCREEN_LOGIN);
+}
+
+static void SubmitLogin(void)
+{
+    const char *err = NULL;
+    bool ok;
+    if (login.creating && strcmp(login.pass, login.confirm) != 0) {
+        err = "The passwords don't match.";
+        ok = false;
+    } else if (login.creating) {
+        ok = AccountCreate(login.name, login.pass, &err);
+    } else {
+        ok = AccountLogin(login.name, login.pass, &err);
+    }
+
+    if (ok) {
+        OnLoggedIn();
+    } else {
+        login.error = err;
+        ClearPasswords();
+        UiFocus(login.pass);
+    }
+}
+
+static void LoginField(const char *label, char *buf, int size, bool password, float x, float *y, float w)
+{
+    UiText(gFonts.text, label, x, *y, 18, COL_DIM);
+    *y += 26;
+    if (UiTextBox((Rectangle){ x, *y, w, 48 }, buf, size, "", password)) {
+        // Enter moves to the next empty field, or submits from the last one.
+        if (buf == login.name) UiFocus(login.pass);
+        else if (buf == login.pass && login.creating) UiFocus(login.confirm);
+        else SubmitLogin();
+    }
+    *y += 48 + 16;
+}
+
+static void ScreenLogin(void)
+{
+    float cx = GetScreenWidth() / 2.0f;
+    float cardW = 460, pad = 32;
+    int fields = login.creating ? 3 : 2;
+    float cardH = 28 + 64 + fields * 90 + (login.error ? 36 : 0) + 50 + (login.creating ? 40 : 0) + 28;
+
+    // Full layout: title, subtitle, card, Quit. Short windows drop the subtitle and Quit.
+    float full = 146 + cardH + 74;
+    bool compact = full > GetScreenHeight();
+    float top = compact ? 16 : (GetScreenHeight() - full) / 2.0f;
+    if (compact) {
+        UiTextCentered(gFonts.text, "Increment", cx, top, 48, COL_TEXT);
+        top += 72;
+    } else {
+        UiTextCentered(gFonts.text, "Increment", cx, top, 72, COL_TEXT);
+        UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, top + 86, 24, COL_DIM);
+        top += 146;
+    }
+    Rectangle card = { cx - cardW / 2, top, cardW, cardH };
+    UiRoundRect(card, 14, COL_PANEL);
+
+    float x = card.x + pad, w = cardW - pad * 2;
+    float y = card.y + 28;
+
+    float tabW = (w - 8) / 2;
+    for (int i = 0; i < 2; i++) {
+        bool active = login.creating == (i == 1);
+        Rectangle tab = { x + i * (tabW + 8), y, tabW, 40 };
+        if (UiButtonEx(tab, i ? "Create account" : "Sign in", 20, active ? COL_ACCENT : COL_PANEL_HI,
+                       active ? COL_ACCENT : COL_NOTE_BG, active ? COL_BG : COL_TEXT, true) && !active) {
+            login.creating = i == 1;
+            login.error = NULL;
+            ClearPasswords();
+            UiFocus(login.name[0] ? login.pass : login.name);
+        }
+    }
+    y += 40 + 24;
+
+    LoginField("Username", login.name, sizeof login.name, false, x, &y, w);
+    LoginField("Password", login.pass, sizeof login.pass, true, x, &y, w);
+    if (login.creating) LoginField("Confirm password", login.confirm, sizeof login.confirm, true, x, &y, w);
+
+    if (IsKeyPressed(KEY_TAB)) {
+        char *order[3] = { login.name, login.pass, login.confirm };
+        int cur = 0;
+        for (int i = 0; i < fields; i++) if (UiHasFocus(order[i])) cur = i;
+        bool back = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+        UiFocus(order[(cur + (back ? fields - 1 : 1)) % fields]);
+    }
+
+    if (login.error) {
+        UiText(gFonts.text, login.error, x, y - 4, 18, COL_BAD);
+        y += 36;
+    }
+    if (UiButton((Rectangle){ x, y, w, 50 }, login.creating ? "Create account" : "Sign in", true)) SubmitLogin();
+    y += 50;
+    if (login.creating) {
+        UiTextCentered(gFonts.text, "Accounts are stored on this computer only.", cx, y + 14, 16, COL_DIM);
+    }
+
+    if (!compact && UiButtonEx((Rectangle){ cx - 70, card.y + cardH + 28, 140, 46 }, "Quit", 20,
+                               COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+        app.quit = true;
+    }
+}
+
+static void AccountCorner(void)
+{
+    const char *who = AccountCurrent();
+    if (!who) return;
+    float bw = 110, right = GetScreenWidth() - 20.0f;
+    if (UiButtonEx((Rectangle){ right - bw, 20, bw, 40 }, "Log out", 18, COL_PANEL, COL_PANEL_HI, COL_TEXT, true)) {
+        LogOut();
+        return;
+    }
+    const char *label = TextFormat("Signed in as %s", who);
+    Vector2 m = MeasureTextEx(gFonts.text, label, 18, 0);
+    UiText(gFonts.text, label, right - bw - 16 - m.x, 30, 18, COL_DIM);
+}
+
 static void ScreenMenu(void)
 {
+    AccountCorner();
+    if (app.screen != SCREEN_MENU) return; // logged out
+
     float cx = GetScreenWidth() / 2.0f;
     UiTextCentered(gFonts.text, "Increment", cx, 90, 80, COL_TEXT);
     UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, 185, 26, COL_DIM);
@@ -438,7 +598,7 @@ static void FindAssetDir(char *out, size_t size)
     snprintf(out, size, "assets");
 }
 
-// Dev aid: --shot out.png [menu|list|lesson|quiz|answered|result] [lessonIndex] [scroll]
+// Dev aid: --shot out.png [login|register|menu|list|lesson|quiz|answered|result] [lessonIndex] [scroll]
 // renders one screen, saves it as a PNG, and exits.
 typedef struct {
     const char *path;
@@ -451,6 +611,8 @@ static Shot ParseShot(int argc, char **argv)
     if (argc < 3 || strcmp(argv[1], "--shot") != 0) return shot;
     shot.path = argv[2];
     shot.framesLeft = 3;
+    const char *height = getenv("INCREMENT_SHOT_HEIGHT");
+    if (height) SetWindowSize(1280, atoi(height));
 
     const char *screen = argc > 3 ? argv[3] : "menu";
     int index = argc > 4 ? atoi(argv[4]) : 0;
@@ -458,11 +620,25 @@ static Shot ParseShot(int argc, char **argv)
     app.lesson = index;
     app.track = lessons.count ? lessons.items[index].track : TRACK_C;
 
-    if (strcmp(screen, "list") == 0) app.screen = SCREEN_LIST;
+    // Content screens normally require a login; shots may sign in via env vars to show a user's state.
+    app.screen = SCREEN_MENU;
+    const char *user = getenv("INCREMENT_SHOT_USER"), *pass = getenv("INCREMENT_SHOT_PASS");
+    const char *err;
+    if (user && pass && AccountLogin(user, pass, &err)) ProgressLoad(AccountProgressPath());
+
+    if (strcmp(screen, "login") == 0) app.screen = SCREEN_LOGIN;
+    else if (strcmp(screen, "register") == 0) {
+        app.screen = SCREEN_LOGIN;
+        login.creating = true;
+        snprintf(login.name, sizeof login.name, "ada");
+        snprintf(login.pass, sizeof login.pass, "secret1");
+        login.error = "The passwords don't match.";
+    }
+    else if (strcmp(screen, "list") == 0) app.screen = SCREEN_LIST;
     else if (strcmp(screen, "lesson") == 0) app.screen = SCREEN_LESSON;
     else if (strcmp(screen, "quiz") == 0 || strcmp(screen, "answered") == 0) app.screen = SCREEN_QUIZ;
     else if (strcmp(screen, "result") == 0) app.screen = SCREEN_RESULT;
-    if (app.screen != SCREEN_MENU && lessons.count == 0) app.screen = SCREEN_MENU;
+    if (app.screen > SCREEN_MENU && lessons.count == 0) app.screen = SCREEN_MENU;
 
     app.picked = -1;
     if (strcmp(screen, "answered") == 0 && lessons.count && lessons.items[index].questionCount) {
@@ -487,9 +663,21 @@ int main(int argc, char **argv)
     FindAssetDir(assetDir, sizeof assetDir);
     UiLoadFonts(assetDir);
     LessonsLoad(&lessons, TextFormat("%s/lessons", assetDir));
-    ProgressLoad(TextFormat("%sprogress.txt", GetApplicationDirectory()));
 
-    app.screen = SCREEN_MENU;
+    // Accounts and progress live next to the exe unless INCREMENT_DATA_DIR says otherwise.
+    char dataDir[1024];
+    const char *envDir = getenv("INCREMENT_DATA_DIR");
+    if (envDir && envDir[0]) {
+        size_t n = strlen(envDir);
+        bool slash = envDir[n - 1] == '/' || envDir[n - 1] == '\\';
+        snprintf(dataDir, sizeof dataDir, "%s%s", envDir, slash ? "" : "/");
+    } else {
+        snprintf(dataDir, sizeof dataDir, "%s", GetApplicationDirectory());
+    }
+    AccountsInit(dataDir);
+
+    app.screen = SCREEN_LOGIN;
+    ResetLogin();
     Shot shot = ParseShot(argc, argv);
 
     while (!WindowShouldClose() && !app.quit) {
@@ -498,6 +686,7 @@ int main(int argc, char **argv)
         ClearBackground(COL_BG);
 
         switch (app.screen) {
+        case SCREEN_LOGIN:  ScreenLogin();  break;
         case SCREEN_MENU:   ScreenMenu();   break;
         case SCREEN_LIST:   ScreenList();   break;
         case SCREEN_LESSON: ScreenLesson(); break;
