@@ -3,9 +3,8 @@
 
 #include "lesson.h"
 
-// The learning progress dashboard screen: overall and per-track completion, milestones,
-// quiz performance, recommendations and a filterable topic list. Statistics come from
-// dashboard_stats.h; this module only lays them out.
+// Learning journeys for C and C++, with detailed statistics available separately.
+// Both views read existing progress and return lesson indices to main.c for navigation.
 
 void DashboardOpen(void);  // entering from the menu: scroll to the top and reset the topic filters
 
@@ -15,5 +14,6 @@ int DashboardScreen(const LessonSet *set);
 
 // Dev aid for --shot: start scrolled down by `scroll` pixels.
 void DashboardDemo(float scroll);
+void DashboardDemoTrack(Track track, bool statistics); // dev preview selection
 
 #endif

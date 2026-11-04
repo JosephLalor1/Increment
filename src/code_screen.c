@@ -1,6 +1,7 @@
 // The code editor screen: editors for code, input and output, running programs with the
 // runner, exercise checking and per-user drafts. See code_screen.h.
 #include "code_screen.h"
+#include "mascot.h"
 #include "editor.h"
 #include "layout.h"
 #include "progress.h"
@@ -468,8 +469,17 @@ bool CodeScreen(void)
         UiText(gFonts.mono, cs.cpp ? "C++" : "C", x + 4, barY + 10, 19, COL_DIM);
     }
     const char *hint = "F5 or Ctrl+Enter: run    Ctrl+Z: undo";
+    float mascotSpace = MascotAvailable() ? 68 : 0;
+    Rectangle foxBounds = { W - pad - 58, barY - 6, 58, 54 };
+    if (mascotSpace && UiMouseOver(foxBounds))
+        hint = cs.checked && !cs.passed ? "You can solve this. Keep trying!" : "Let's build something awesome!";
     float hw = MeasureTextEx(gFonts.text, hint, 16, 0).x;
-    if (W - pad - hw > x + 20) UiText(gFonts.text, hint, W - pad - hw, barY + 12, 16, COL_DIM);
+    if (W - pad - hw - mascotSpace > x + 20)
+        UiText(gFonts.text, hint, W - pad - hw - mascotSpace, barY + 12, 16, COL_DIM);
+    if (mascotSpace && W - pad - mascotSpace > x + 20) {
+        MascotDrawActor(FOX_EDITOR, foxBounds,
+                        cs.checked && !cs.passed ? FOX_DETERMINED : FOX_CODING);
+    }
 
     // Columns: code on the left, task / input / output on the right.
     float top = barY + barH + 12, bottom = H - pad;

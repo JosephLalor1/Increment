@@ -1,6 +1,8 @@
 #include "dashboard.h"
 #include "dashboard_stats.h"
 #include "layout.h"
+#include "journey_view.h"
+#include "mascot.h"
 #include "progress.h"
 #include "ui.h"
 
@@ -39,8 +41,10 @@ static float TrackSummary(DashboardStats stats, const char *title, float x, floa
 static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, float y, float w, float scale, int *selected)
 {
     float ringSize = 116 * scale;
-    float textX = x + ringSize + 52, textW = w - ringSize - 76;
-    const char *title = stats.lessons && stats.next < 0 ? "Look how far you've come!" : "One step closer. Every lesson counts.";
+    float foxSize = MascotAvailable() ? 112 * scale : 0;
+    float textX = x + ringSize + 52, textW = w - ringSize - 76 - (foxSize ? foxSize + 16 : 0);
+    const char *title = stats.lessons && stats.next < 0 ? "Amazing work! Keep going!"
+                      : stats.completed > 0 ? "You're making great progress!" : "Ready to learn something new?";
     float titleH = UiWrappedText(gFonts.bold, title, (Vector2){ 0, 0 }, textW, 27 * scale, COL_TEXT, false);
     float bodyH = UiWrappedText(gFonts.text, TextFormat("%d of %d lessons complete", stats.completed, stats.lessons),
                                (Vector2){ 0, 0 }, textW, 19 * scale, COL_DIM, false);
@@ -51,6 +55,8 @@ static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, fl
     if (h < ringSize + 48) h = ringSize + 48;
     UiRoundRect((Rectangle){ x, y + 5, w, h }, 18, COL_PANEL_HI);
     UiRoundRect((Rectangle){ x, y, w, h }, 18, COL_PANEL);
+    if (foxSize) MascotDrawActor(FOX_DASHBOARD, (Rectangle){ x + w - foxSize - 16, y + (h - foxSize) / 2, foxSize, foxSize },
+                                stats.completed > 0 ? FOX_LOVE_LEARNING : FOX_HAPPY);
     Vector2 center = { x + 24 + ringSize / 2, y + h / 2 };
     float ratio = stats.lessons ? (float)stats.completed / stats.lessons : 0;
     DrawRing(center, ringSize / 2 - 12, ringSize / 2, 0, 360, 96, COL_BG);
@@ -355,12 +361,22 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
 static struct {
     float scroll;
     float contentHeight;  // measured last frame, for clamping the scroll
+    bool statistics;
+    Track journeyTrack;
+    float journeyScroll[TRACK_COUNT];
+    float journeyTarget[TRACK_COUNT];
+    float journeyHeight[TRACK_COUNT];
 } page;
 
 void DashboardOpen(void)
 {
     page.scroll = 0;
     page.contentHeight = 0;
+    page.statistics = false;
+    page.journeyTrack = TRACK_C;
+    for (int i = 0; i < TRACK_COUNT; i++) {
+        page.journeyScroll[i] = page.journeyTarget[i] = page.journeyHeight[i] = 0;
+    }
     topics.track = TRACK_COUNT;
     topics.filter = TOPICS_ALL;
 }
@@ -369,11 +385,56 @@ void DashboardDemo(float scroll)
 {
     page.scroll = scroll;
     page.contentHeight = 100000;  // let the requested scroll survive the first frame's clamp
+    page.journeyScroll[page.journeyTrack] = page.journeyTarget[page.journeyTrack] = scroll;
+    page.journeyHeight[page.journeyTrack] = 100000;
+}
+
+void DashboardDemoTrack(Track track, bool statistics)
+{
+    if (track >= 0 && track < TRACK_COUNT) page.journeyTrack = track;
+    page.statistics = statistics;
 }
 
 int DashboardScreen(const LessonSet *set)
 {
-    if (TopBar("Learning Progress Dashboard")) return PAGE_BACK;
+    if (TopBar(page.statistics ? "Learning Statistics" : "Your Learning Journey")) return PAGE_BACK;
+    if (UiButtonIconEx((Rectangle){ GetScreenWidth() - 194.0f, 12, 178, 40 },
+                       page.statistics ? ICON_BOOK : ICON_TROPHY, page.statistics ? "Journey" : "Statistics", 18,
+                       COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) page.statistics = !page.statistics;
+
+    if (!page.statistics) {
+        float x = ContentX(), w = ContentWidth();
+        for (int t = 0; t < TRACK_COUNT; t++) {
+            bool active = page.journeyTrack == (Track)t;
+            Rectangle tab = { x + t * (w / 2 + 6), TOPBAR_H + 12, w / 2 - 6, 42 };
+            if (UiButtonEx(tab, t == TRACK_C ? "C Journey" : "C++ Journey", 20,
+                           active ? COL_ACCENT : COL_PANEL, active ? COL_ACCENT_HI : COL_SECONDARY_HOVER,
+                           active ? COL_ON_ACCENT : COL_TEXT, true)) page.journeyTrack = (Track)t;
+        }
+        DashboardStats stats = DashboardCalculate(set, page.journeyTrack);
+        UiText(gFonts.text, TextFormat("%s  |  %d / %d lessons complete  |  %d%%", TrackName(page.journeyTrack),
+               stats.completed, stats.lessons, stats.lessons ? stats.completed * 100 / stats.lessons : 0),
+               x, TOPBAR_H + 68, 18, COL_TEXT);
+        ProgressBar((Rectangle){ x, TOPBAR_H + 98, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
+                     COL_PANEL_HI, COL_GOOD);
+        Rectangle journeyView = ScrollView();
+        journeyView.y = TOPBAR_H + 120;
+        journeyView.height = GetScreenHeight() - journeyView.y;
+        Track track = page.journeyTrack;
+        if (UiButtonEx((Rectangle){ x + w - 174, TOPBAR_H + 61, 174, 30 }, "Find my place", 16,
+                       COL_PANEL, COL_SECONDARY_HOVER, COL_ACCENT, true))
+            page.journeyTarget[track] = JourneyViewFocus(set, track);
+        UpdateScroll(&page.journeyTarget[track], page.journeyHeight[track], journeyView.height);
+        float blend = GetFrameTime() * 16;
+        if (blend > 1) blend = 1;
+        page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
+        BeginView(journeyView);
+        int clicked = JourneyViewDraw(set, track, x, journeyView.y + 8 - page.journeyScroll[track], w,
+                                      &page.journeyHeight[track]);
+        page.journeyHeight[track] += 8;
+        EndView();
+        return clicked >= 0 ? clicked : PAGE_STAY;
+    }
 
     Rectangle view = ScrollView();
     UpdateScroll(&page.scroll, page.contentHeight, view.height);

@@ -2,6 +2,7 @@
 #include "menu_screen.h"
 #include "account.h"
 #include "layout.h"
+#include "mascot.h"
 #include "roadmap.h"
 #include "ui.h"
 
@@ -73,7 +74,11 @@ MenuChoice MenuScreen(const LessonSet *set, Track *trackOut)
 
     float cx = GetScreenWidth() / 2.0f;
     DrawLogoLockup(cx, 84, 76);
-    UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, 185, 26, COL_DIM);
+    if (MascotAvailable()) {
+        MascotCompanionActor(FOX_MENU, cx - 300, 168, 600, 76, 20, FOX_HAPPY, "Ready for another coding adventure?");
+    } else {
+        UiTextCentered(gFonts.text, "Learn C and C++, one step at a time.", cx, 185, 26, COL_DIM);
+    }
 
     MenuChoice choice = MENU_STAY;
     float cardW = 340, cardH = 220, gap = 40;

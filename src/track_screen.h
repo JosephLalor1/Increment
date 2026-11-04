@@ -4,12 +4,10 @@
 #include "lesson.h"
 #include "search.h"
 
-// A track's lessons: the roadmap (or a plain list), with a lesson search box above it.
-// While the box holds text, search results replace the roadmap; clearing it brings the
-// roadmap back where it was.
+// Traditional sequential course lesson list with search. Search results replace the
+// list while the box holds text; clearing it restores the list and its scroll position.
 
 // Entering from the menu: show this track from the top, with the search cleared.
-// Whether the roadmap or the plain list is shown is remembered between visits.
 void TrackScreenOpen(Track track);
 
 // Draws the screen and handles input. Returns a lesson index to open, PAGE_STAY or
@@ -17,7 +15,7 @@ void TrackScreenOpen(Track track);
 int TrackScreen(const LessonSet *set);
 
 // Dev aid for --shot: type query into the search box (NULL leaves it alone; any string,
-// even blank, also focuses the box), pick the track filter, and scroll the roadmap.
+// even blank, also focuses the box), pick the track filter, and scroll the course list.
 void TrackScreenDemo(const char *query, SearchFilter filter, float scroll);
 
 #endif

@@ -11,7 +11,7 @@ typedef enum {
     SCREEN_SETTINGS,
     SCREEN_CODE,       // code editor
     SCREEN_MENU,
-    SCREEN_TRACK,      // a track's roadmap or lesson list, with search
+    SCREEN_TRACK,      // traditional sequential course list, with search
     SCREEN_LESSON,     // reading a lesson, its quiz and its result
     SCREEN_DASHBOARD,
 } AppScreen;

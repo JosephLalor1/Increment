@@ -14,15 +14,39 @@ build\increment.exe
 
 Run `test.bat` to build and run the tests.
 
-## Learning roadmap
+## Increment Fox
 
-Choose C or C++ from the main menu to see its roadmap. Connected lesson cards show completed lessons, the **Recommended Next** lesson, and upcoming topics. Every card is clickable; preparation suggestions never restrict lessons, quizzes, or exercises. Use **Show lesson list** to return to the compact list.
+The original mascot lives at `assets/mascot/increment_fox.png`, with 12 expressions in `01_fox_happy.png` through `12_fox_celebrating.png`. The app loads them once at startup, preserves transparency and aspect ratios, and releases textures at shutdown. A missing expression falls back to the happy fox, the original image, or another available expression. With no images, learning and navigation still work. Asset discovery supports the executable in `build` or another working directory. Keep `assets` next to the executable or one level above it when distributing the app.
+
+The fox welcomes students on the main menu, accompanies dashboard progress, highlights the first unfinished lesson in each roadmap, and encourages students on quiz results. Its messages respond to completion and quiz outcomes. It does not modify accounts, scores, or progress. If the PNG is missing or cannot load, the app continues with its existing illustrations.
+
+The fox now reacts to confirmed quiz answers: excitement for correct answers, brief sadness followed by determination after an incorrect answer, then a return to thinking. The existing grading and explanations are unchanged. Correct/incorrect messages rotate, and the fox also accompanies lesson reading, review, and the editor. Hover over the editor fox for encouragement; click the menu fox for a general learning tip or a break-themed message. No inactivity is tracked. Expression fades, brief bounce effects, and celebration confetti are always enabled.
+
+First-time lesson passes show a dismissible trophy celebration. Completing the final outstanding lesson in a track shows graduation instead, even when that lesson is not the final lesson file. C and C++ are checked independently. These screens are triggered only around the existing score write when saved completion changes from incomplete to complete; visiting a page, retrying an already-passed quiz, signing in, or restarting does not replay a milestone. No new progress records or account fields are added. **Continue** opens the regular results page, **Return to Roadmap** opens that track, and **View Progress** opens its statistics. Back dismisses the celebration to results. All celebration buttons remain visible while the content scrolls.
+
+Automated mascot tests cover timed reactions, return to default expressions, score thresholds, out-of-order course completion, independent tracks, repeated navigation checks, account clearing, and preserved best scores. Journey rendering tests exercise missing images. Developer screenshots support `celebration` and `graduation`; these are synthetic previews and never save scores.
+
+Manual interaction checks:
+
+- In each track, answer one question correctly and one incorrectly. Check excitement, the sad-to-determined transition, and returning to thinking; explanations and answers must follow the existing quiz rules.
+- Pass an unfinished lesson and verify the trophy, lesson title, confetti, and all three navigation buttons. Retry a previously passed lesson and confirm there is no new milestone popup.
+- Complete the final outstanding lesson in C, then C++; verify the correct course name and graduation art. Reopen the journey and restart to confirm the celebration does not repeat.
+- Check the fox beside the current journey station, on the menu, in lesson reading/review, and in the editor. Code typing and navigation must keep working.
+- Try menu-fox tips and animated reactions, and check both themes at 900x640 with large text. Missing expression files should fall back safely. Real account files and mascot artwork should remain unchanged.
+
+Manual mascot checks: open the menu, dashboard, C/C++ roadmaps, and passed/failed quiz results in both themes. Check 900x640 and large text; controls and statistics must stay visible. Scroll a roadmap after completing a lesson to see the fox beside the new recommendation. Fully completed tracks have no unfinished recommendation. Launch `build/increment.exe` from outside the project folder to check asset discovery.
+
+## Courses and learning journeys
+
+Choose the C or C++ course card on the main menu to browse the original sequential lesson list. Rows retain lesson numbers, titles, completion checks, practice icons, best scores, scrolling, and search. Courses never show the winding path or a roadmap/list toggle. Returning from a lesson restores the originating course list or search results.
+
+Choose **Progress dashboard** for the separate gamified learning journey. Its winding path uses numbered circular stations for real lessons in existing order. Green checks show completed lessons; a glowing purple **START/CONTINUE** station marks the first unfinished lesson, accompanied by the fox. Muted upcoming stations remain open. Click a station or its title to study; preparation suggestions remain available on lesson pages. Both interfaces use the same lessons and saved progress.
 
 Completion uses the existing saved best quiz score (70% passes). The recommendation is the first incomplete lesson in filename order within the selected track, even if later lessons are already complete. Totals and the progress bar update from the same scores. Optional preparation relationships are maintained in the lesson-ID table in `src/roadmap.c`; references to missing content are omitted.
 
 Manual roadmap checks:
 
-- Open both tracks, switch between roadmap and list, and open completed and upcoming lessons.
+- Open both courses and confirm sequential lists; open Progress dashboard and confirm winding C/C++ journeys. Open completed and upcoming lessons from each interface.
 - Pass or fail a quiz, return to the roadmap, and check completion and the first incomplete recommendation. A failed retry should preserve a previous pass.
 - Scroll to the final lesson using the wheel and keyboard; check Back navigation and exercise/editor return navigation.
 - Check light/dark themes and all text sizes at 900x640 and larger window sizes.
@@ -30,11 +54,15 @@ Manual roadmap checks:
 
 ## Lesson search
 
-The search box at the top of each track's lessons (or `Ctrl+F`) searches every lesson's title and text, including code and exercises, ignoring case. Each word you type must appear somewhere in the lesson. Choose **C and C++**, **C** or **C++** to filter the results; each result shows the lesson's title, track, best score and the text around the match. Click a result (or press `Enter` for the top one) to open the lesson; **Back** returns to the results. Clear the box with the **x** button to get the roadmap or list back.
+The search box at the top of each course's lessons (or `Ctrl+F`) searches every lesson's title and text, including code and exercises, ignoring case. Each word you type must appear somewhere in the lesson. Choose **C and C++**, **C** or **C++** to filter the results; each result shows the lesson's title, track, best score and the text around the match. Click a result (or press `Enter` for the top one) to open the lesson; **Back** returns to the results. Clear the box with the **x** button to get the sequential course list back.
 
 ## Learning progress dashboard (IN-7)
 
-Open **Progress dashboard** from the main menu. The scrollable dashboard includes overall lesson completion, completed coding exercises, separate C and C++ progress cards, quiz performance, revision suggestions, and clickable topic performance bars. Use the wheel, arrow keys, Page Up/Down, or Home/End to scroll. Opening a lesson and going Back returns to the dashboard at the previous scroll position.
+Open **Progress dashboard** from the main menu to enter the **Learning Journey**. Switch between **C Journey** and **C++ Journey** using the fixed top tabs. A compact header shows course completion; the winding path is the main view, with layered circular stations, curved connections, hover effects, and an animated current lesson. The fox guides the first unfinished lesson. Each track retains its scroll position while switching tabs or visiting a lesson. Every station remains clickable, regardless of progress.
+
+The **Statistics** button opens the detailed dashboard: overall completion, exercises, milestones, quiz scores, revision suggestions, and topic filters. Its **Journey** button returns to the path. Both views share existing navigation and scores, and completion updates immediately after returning from a quiz. The winding journey renderer is exclusive to the dashboard. Courses use the original sequential row renderer. Both read the same lesson order and progress system.
+
+Use the wheel, arrow keys, Page Up/Down, or Home/End to scroll, or **Find my place** to jump to the first unfinished station. Journey scrolling eases smoothly toward its target. Developer screenshots support `dashboard` (journey) and `statistics`; choose a C++ lesson index to preview the C++ journey. Rendering tests cover both tracks, themes, scrolling alignment, missing art, empty/completed tracks, and unchanged saved scores.
 
 The dashboard presents a circular completion display and **Continue learning** action. Click either track card to open its first unfinished lesson (or revisit a completed track). Milestone badges celebrate the first completed lesson, five completed lessons, the first completed exercise, and completion of all lessons. These badges are derived from existing progress. Topic filters select all tracks, C, or C++, and all lessons, revision topics, unattempted lessons, or completed lessons. Filters remain selected when returning from a lesson and reset when entering from the main menu.
 
