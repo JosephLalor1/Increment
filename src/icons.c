@@ -171,6 +171,11 @@ void IconDraw(Icon icon, Vector2 c, float size, Color col)
         Poly(r, 3);
         Line(0.07f, -0.32f, -0.07f, 0.32f);
     } break;
+    case ICON_MAIL: {
+        Box(-0.38f, -0.26f, 0.76f, 0.52f, 0.06f);
+        float flap[] = { -0.33f, -0.2f, 0.0f, 0.06f, 0.33f, -0.2f };
+        Poly(flap, 3);
+    } break;
     case ICON_COUNT:
         break;
     }

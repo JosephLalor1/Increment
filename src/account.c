@@ -1,10 +1,12 @@
 #include "account.h"
+#include "email.h"
 #include "platform.h"
 #include "raylib.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #define MAX_ACCOUNTS    64
 #define SALT_LEN        16
@@ -275,6 +277,275 @@ static AccountSettings LoadSettings(const char *name)
     return s;
 }
 
+// ---------------------------------------------------------------------------
+// Email: verification and password reset. users/<name>.email.txt holds:
+//   email <verified address>       (absent until one is verified)
+//   pending <address being verified>
+//   code <iter> <salt> <hash> <expires unix time> <wrong attempts>    (verification code)
+//   reset <iter> <salt> <hash> <expires unix time> <wrong attempts>   (password reset code)
+
+#define CODE_LIFETIME     (15 * 60)
+#define CODE_MAX_ATTEMPTS 5
+
+static bool RequireLogin(const char **err);
+static void SetCurrent(int index);
+
+// A one-time 6-digit code, stored hashed like a password.
+typedef struct {
+    bool active;
+    Secret secret;
+    long long expires;
+    int attempts;
+} OneTimeCode;
+
+typedef struct {
+    char email[EMAIL_MAX + 1];    // verified address, "" if none
+    char pending[EMAIL_MAX + 1];  // address waiting for its verification code, "" if none
+    OneTimeCode verify;
+    OneTimeCode reset;
+} EmailFile;
+
+static EmailFile mail;  // the signed-in user's
+
+static long long clockOverride;
+
+static long long Now(void) { return clockOverride ? clockOverride : (long long)time(NULL); }
+
+void AccountSetClockForTests(long long unixTime) { clockOverride = unixTime; }
+
+static void CopyEmail(char *dst, const char *src)
+{
+    snprintf(dst, EMAIL_MAX + 1, "%.*s", EMAIL_MAX, src);
+}
+
+static bool ParseCode(const char *line, const char *key, OneTimeCode *c)
+{
+    char fmt[64], salt[128], hash[128];
+    unsigned long iter;
+    long long expires;
+    int attempts;
+    snprintf(fmt, sizeof fmt, "%s %%lu %%127s %%127s %%lld %%d", key);
+    if (sscanf(line, fmt, &iter, salt, hash, &expires, &attempts) != 5) return false;
+    c->active = SecretFromText(iter, salt, hash, &c->secret);
+    c->expires = expires;
+    c->attempts = attempts;
+    return true;
+}
+
+static void LoadEmailFile(const char *name, EmailFile *m)
+{
+    memset(m, 0, sizeof *m);
+    FILE *f = fopen(UserFile(name, ".email.txt"), "r");
+    if (!f) return;
+    char line[700];
+    while (fgets(line, sizeof line, f)) {
+        char value[EMAIL_MAX + 1];
+        if (sscanf(line, "email %254s", value) == 1) CopyEmail(m->email, value);
+        else if (sscanf(line, "pending %254s", value) == 1) CopyEmail(m->pending, value);
+        else if (!ParseCode(line, "code", &m->verify)) ParseCode(line, "reset", &m->reset);
+    }
+    fclose(f);
+}
+
+static size_t AppendCode(char *text, size_t len, size_t size, const char *key, const OneTimeCode *c)
+{
+    if (!c->active) return len;
+    char secret[200];
+    SecretToText(&c->secret, secret, sizeof secret);
+    return len + (size_t)snprintf(text + len, size - len, "%s %s %lld %d\n", key, secret, c->expires, c->attempts);
+}
+
+static bool SaveEmailFile(const char *name, const EmailFile *m)
+{
+    char text[1600];
+    size_t len = 0;
+    text[0] = '\0';
+    if (m->email[0]) len += (size_t)snprintf(text + len, sizeof text - len, "email %s\n", m->email);
+    if (m->pending[0]) len += (size_t)snprintf(text + len, sizeof text - len, "pending %s\n", m->pending);
+    len = AppendCode(text, len, sizeof text, "code", &m->verify);
+    AppendCode(text, len, sizeof text, "reset", &m->reset);
+    MakeDirectory(TextFormat("%susers", dataDir));
+    return WriteFileAtomic(UserFile(name, ".email.txt"), text);
+}
+
+static bool SaveEmail(void)
+{
+    return current >= 0 && SaveEmailFile(accounts[current].name, &mail);
+}
+
+static bool CodeUsable(const OneTimeCode *c)
+{
+    return c->active && Now() < c->expires && c->attempts < CODE_MAX_ATTEMPTS;
+}
+
+// Makes a fresh 6-digit code. Rejecting the top of the random range keeps every code
+// equally likely.
+static bool NewCode(OneTimeCode *c, char codeOut[EMAIL_CODE_SIZE], const char **err)
+{
+    unsigned int r;
+    do {
+        if (!PlatformRandom((unsigned char *)&r, sizeof r)) {
+            *err = "Could not create a code. Please try again.";
+            return false;
+        }
+    } while (r >= 4294000000u);
+    snprintf(codeOut, EMAIL_CODE_SIZE, "%06u", r % 1000000u);
+    if (!MakeSecret(codeOut, &c->secret)) {
+        *err = "Could not create a code. Please try again.";
+        return false;
+    }
+    c->active = true;
+    c->expires = Now() + CODE_LIFETIME;
+    c->attempts = 0;
+    return true;
+}
+
+// Checks an entered code. A wrong code costs one attempt; the caller saves either way.
+// A correct code is used up.
+static bool UseCode(OneTimeCode *c, const char *entered, const char **err)
+{
+    if (!c->active) {
+        *err = "There's no code waiting. Send a new one.";
+        return false;
+    }
+    if (Now() >= c->expires) {
+        *err = "That code has expired. Send a new one.";
+        return false;
+    }
+    if (c->attempts >= CODE_MAX_ATTEMPTS) {
+        *err = "Too many wrong codes. Send a new one.";
+        return false;
+    }
+    char digits[8];
+    int n = 0;
+    for (const char *p = entered; *p; p++) {
+        if (*p == ' ' || *p == '-') continue;
+        if (*p < '0' || *p > '9' || n >= 6) {
+            *err = "Codes are 6 digits.";
+            return false;
+        }
+        digits[n++] = *p;
+    }
+    digits[n] = '\0';
+    if (n != 6) {
+        *err = "Codes are 6 digits.";
+        return false;
+    }
+    if (!CheckSecret(digits, &c->secret)) {
+        c->attempts++;
+        int left = CODE_MAX_ATTEMPTS - c->attempts;
+        if (left <= 0) *err = "That code isn't right, and there are no tries left. Send a new one.";
+        else *err = left == 1 ? "That code isn't right. 1 try left." : TextFormat("That code isn't right. %d tries left.", left);
+        return false;
+    }
+    c->active = false;
+    return true;
+}
+
+bool AccountEmailVerified(void) { return current >= 0 && mail.email[0]; }
+const char *AccountEmail(void) { return current >= 0 ? mail.email : ""; }
+const char *AccountPendingEmail(void) { return current >= 0 ? mail.pending : ""; }
+bool AccountCodeActive(void) { return current >= 0 && CodeUsable(&mail.verify); }
+
+bool AccountStartEmailVerification(const char *email, char codeOut[EMAIL_CODE_SIZE], const char **err)
+{
+    if (!RequireLogin(err)) return false;
+    if (!EmailAddressValid(email)) {
+        *err = "That email address doesn't look right.";
+        return false;
+    }
+    if (!NewCode(&mail.verify, codeOut, err)) return false;
+    CopyEmail(mail.pending, email);
+    if (!SaveEmail()) {
+        *err = "Could not save the verification code.";
+        return false;
+    }
+    return true;
+}
+
+bool AccountVerifyEmail(const char *entered, const char **err)
+{
+    if (!RequireLogin(err)) return false;
+    if (!mail.pending[0]) {
+        *err = "There's no code waiting. Send a new one.";
+        return false;
+    }
+    bool ok = UseCode(&mail.verify, entered, err);
+    if (ok) {
+        CopyEmail(mail.email, mail.pending);
+        mail.pending[0] = '\0';
+    }
+    if (!SaveEmail() && ok) {
+        *err = "Could not save the verified email.";
+        return false;
+    }
+    return ok;
+}
+
+void AccountCancelEmailChange(void)
+{
+    if (current < 0 || !mail.email[0]) return;  // only when a verified address remains
+    mail.pending[0] = '\0';
+    mail.verify.active = false;
+    SaveEmail();
+}
+
+// ---------------------------------------------------------------------------
+// Password reset by email (works while signed out)
+
+bool AccountStartPasswordReset(const char *name, char emailOut[EMAIL_MAX + 1], char codeOut[EMAIL_CODE_SIZE],
+                               const char **err)
+{
+    int i = FindAccount(name);
+    if (i < 0) {
+        *err = "There's no account with that username.";
+        return false;
+    }
+    EmailFile m;
+    LoadEmailFile(accounts[i].name, &m);
+    if (!m.email[0]) {
+        *err = "That account has no verified email. Use your recovery code instead.";
+        return false;
+    }
+    if (!NewCode(&m.reset, codeOut, err)) return false;
+    if (!SaveEmailFile(accounts[i].name, &m)) {
+        *err = "Could not save the reset code.";
+        return false;
+    }
+    CopyEmail(emailOut, m.email);
+    return true;
+}
+
+bool AccountResetPasswordWithEmail(const char *name, const char *code, const char *newPassword, const char **err)
+{
+    int i = FindAccount(name);
+    if (i < 0) {
+        *err = "There's no account with that username.";
+        return false;
+    }
+    if (!ValidPassword(newPassword, err)) return false;  // before using up the code
+
+    EmailFile m;
+    LoadEmailFile(accounts[i].name, &m);
+    bool ok = UseCode(&m.reset, code, err);
+    SaveEmailFile(accounts[i].name, &m);  // records a wrong attempt, or retires the used code
+    if (!ok) return false;
+
+    Secret old = accounts[i].password;
+    if (!MakeSecret(newPassword, &accounts[i].password)) {
+        accounts[i].password = old;
+        *err = "Could not secure the password. Please try again.";
+        return false;
+    }
+    if (!SaveAccounts()) {
+        accounts[i].password = old;
+        *err = "Could not save the account file.";
+        return false;
+    }
+    SetCurrent(i);
+    return true;
+}
+
 static void SetCurrent(int index)
 {
     current = index;
@@ -282,6 +553,7 @@ static void SetCurrent(int index)
     snprintf(progressPath, sizeof progressPath, "%s", UserFile(accounts[index].name, ".txt"));
     MakeDirectory(TextFormat("%susers", dataDir));
     settings = LoadSettings(accounts[index].name);
+    LoadEmailFile(accounts[index].name, &mail);
     SaveAccounts(); // remembers lastUser; failure here isn't fatal
 }
 
@@ -457,7 +729,9 @@ bool AccountDelete(const char *password, const char **err)
 
     remove(UserFile(removed.name, ".txt"));
     remove(UserFile(removed.name, ".settings.txt"));
+    remove(UserFile(removed.name, ".email.txt"));
     PlatformRemoveDir(UserFile(removed.name, "_code"));  // code editor drafts
+    memset(&mail, 0, sizeof mail);
     current = -1;
     settings = defaultSettings;
     return true;

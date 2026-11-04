@@ -37,6 +37,26 @@ bool AccountChangePassword(const char *currentPassword, const char *newPassword,
 bool AccountNewRecoveryCode(const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err);
 bool AccountDelete(const char *password, const char **err); // also deletes progress and settings; logs out
 
+// Email verification for the logged-in user. Codes are 6 digits, stored hashed, valid
+// for 15 minutes and 5 attempts. Sending the email is the caller's job (see email.h).
+#define EMAIL_MAX       254
+#define EMAIL_CODE_SIZE 7   // 6 digits + terminator
+bool AccountEmailVerified(void);          // has a verified address
+const char *AccountEmail(void);           // verified address, or ""
+const char *AccountPendingEmail(void);    // address waiting for its code, or ""
+bool AccountCodeActive(void);             // a code was sent and can still be used
+bool AccountStartEmailVerification(const char *email, char codeOut[EMAIL_CODE_SIZE], const char **err);
+bool AccountVerifyEmail(const char *code, const char **err);
+void AccountCancelEmailChange(void);      // drop a pending change, keeping the verified address
+
+// Password reset by email, while signed out. Start emails nothing itself: it creates a
+// reset code for the account's verified address and returns both for the caller to send.
+// The reset signs the user in. Recovery codes (AccountResetPassword) still work too.
+bool AccountStartPasswordReset(const char *name, char emailOut[EMAIL_MAX + 1], char codeOut[EMAIL_CODE_SIZE],
+                               const char **err);
+bool AccountResetPasswordWithEmail(const char *name, const char *code, const char *newPassword, const char **err);
+void AccountSetClockForTests(long long unixTime);  // 0 = real clock
+
 const char *AccountCurrent(void);       // display name, or NULL when logged out
 bool AccountHasRecovery(void);          // whether the logged-in user has a recovery code
 const char *AccountProgressPath(void);  // progress file for the current user

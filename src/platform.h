@@ -29,6 +29,20 @@ bool PlatformTempDir(char *out, size_t size);
 bool PlatformFindOnPath(const char *exe, char *out, size_t size);
 
 // ---------------------------------------------------------------------------
+// HTTPS POST on a background thread (WinHTTP), so the UI never waits on the network.
+
+typedef struct PlatformHttp PlatformHttp;
+
+// Starts POST https://host/path. extraHeaders is "Name: value\r\n" lines (may be NULL).
+PlatformHttp *PlatformHttpPostStart(const char *host, const char *path, const char *extraHeaders,
+                                    const char *body);
+bool PlatformHttpDone(const PlatformHttp *h);
+int PlatformHttpStatus(const PlatformHttp *h);            // HTTP status, or 0 if the request failed
+const char *PlatformHttpResponse(const PlatformHttp *h);  // response body ("" if none)
+const char *PlatformHttpError(const PlatformHttp *h);     // network error text when status is 0
+void PlatformHttpFree(PlatformHttp *h);                   // waits for the request to finish
+
+// ---------------------------------------------------------------------------
 // Child processes, for compiling and running learners' programs.
 // The process runs without a console window, in a job object that limits its memory and
 // lets the whole process tree be killed. stdout and stderr are captured together.

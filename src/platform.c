@@ -5,6 +5,7 @@
 #include <string.h>
 #include <windows.h>
 #include <bcrypt.h>
+#include <winhttp.h>
 
 bool PlatformRandom(unsigned char *buf, size_t len)
 {
@@ -56,6 +57,119 @@ bool PlatformFindOnPath(const char *exe, char *out, size_t size)
 {
     DWORD n = SearchPathA(NULL, exe, NULL, (DWORD)size, out, NULL);
     return n > 0 && n < size;
+}
+
+// ---------------------------------------------------------------------------
+// HTTPS
+
+struct PlatformHttp {
+    HANDLE thread;
+    volatile LONG done;
+    wchar_t *host, *path, *headers;
+    char *body;
+    int status;
+    char *response;
+    char error[160];
+};
+
+static wchar_t *Widen(const char *s)
+{
+    if (!s) return NULL;
+    int n = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
+    wchar_t *w = malloc(sizeof(wchar_t) * (size_t)n);
+    MultiByteToWideChar(CP_UTF8, 0, s, -1, w, n);
+    return w;
+}
+
+static void HttpFail(PlatformHttp *h, const char *what)
+{
+    snprintf(h->error, sizeof h->error, "%s (error %lu)", what, GetLastError());
+}
+
+static DWORD WINAPI HttpWorker(LPVOID arg)
+{
+    PlatformHttp *h = arg;
+    HINTERNET session = NULL, conn = NULL, req = NULL;
+    size_t len = 0, cap = 4096;
+    h->response = malloc(cap);
+    h->response[0] = '\0';
+
+    session = WinHttpOpen(L"Increment/0.1", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
+                          WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) { HttpFail(h, "Could not start the network connection"); goto done; }
+    WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
+    conn = WinHttpConnect(session, h->host, INTERNET_DEFAULT_HTTPS_PORT, 0);
+    if (!conn) { HttpFail(h, "Could not reach the email service"); goto done; }
+    req = WinHttpOpenRequest(conn, L"POST", h->path, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+                             WINHTTP_FLAG_SECURE);
+    if (!req) { HttpFail(h, "Could not create the request"); goto done; }
+
+    DWORD bodyLen = (DWORD)strlen(h->body);
+    if (!WinHttpSendRequest(req, h->headers ? h->headers : WINHTTP_NO_ADDITIONAL_HEADERS, (DWORD)-1L, h->body,
+                            bodyLen, bodyLen, 0) ||
+        !WinHttpReceiveResponse(req, NULL)) {
+        HttpFail(h, "Could not connect to the email service. Check your internet connection");
+        goto done;
+    }
+
+    DWORD status = 0, size = sizeof status;
+    WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX,
+                        &status, &size, WINHTTP_NO_HEADER_INDEX);
+    DWORD avail;
+    while (WinHttpQueryDataAvailable(req, &avail) && avail > 0 && len < 65536) {
+        if (len + avail + 1 > cap) {
+            while (len + avail + 1 > cap) cap *= 2;
+            h->response = realloc(h->response, cap);
+        }
+        DWORD got = 0;
+        if (!WinHttpReadData(req, h->response + len, avail, &got) || got == 0) break;
+        len += got;
+    }
+    h->response[len] = '\0';
+    h->status = (int)status;
+
+done:
+    if (req) WinHttpCloseHandle(req);
+    if (conn) WinHttpCloseHandle(conn);
+    if (session) WinHttpCloseHandle(session);
+    InterlockedExchange(&h->done, 1);
+    return 0;
+}
+
+PlatformHttp *PlatformHttpPostStart(const char *host, const char *path, const char *extraHeaders, const char *body)
+{
+    PlatformHttp *h = calloc(1, sizeof *h);
+    h->host = Widen(host);
+    h->path = Widen(path);
+    h->headers = Widen(extraHeaders);
+    h->body = _strdup(body ? body : "");
+    h->thread = CreateThread(NULL, 0, HttpWorker, h, 0, NULL);
+    if (!h->thread) {
+        HttpFail(h, "Could not start the network request");
+        h->response = _strdup("");
+        h->done = 1;
+    }
+    return h;
+}
+
+bool PlatformHttpDone(const PlatformHttp *h) { return h->done != 0; }
+int PlatformHttpStatus(const PlatformHttp *h) { return h->done ? h->status : 0; }
+const char *PlatformHttpResponse(const PlatformHttp *h) { return h->done && h->response ? h->response : ""; }
+const char *PlatformHttpError(const PlatformHttp *h) { return h->error; }
+
+void PlatformHttpFree(PlatformHttp *h)
+{
+    if (!h) return;
+    if (h->thread) {
+        WaitForSingleObject(h->thread, INFINITE);  // requests time out within ~30 s
+        CloseHandle(h->thread);
+    }
+    free(h->host);
+    free(h->path);
+    free(h->headers);
+    free(h->body);
+    free(h->response);
+    free(h);
 }
 
 // ---------------------------------------------------------------------------

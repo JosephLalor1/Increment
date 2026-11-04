@@ -5,6 +5,7 @@
 #include "account_screens.h"
 #include "brand.h"
 #include "code_screen.h"
+#include "email.h"
 #include "layout.h"
 #include "lesson.h"
 #include "progress.h"
@@ -18,7 +19,7 @@
 #define PASS_PERCENT 70
 
 typedef enum {
-    SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS, SCREEN_CODE,
+    SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_VERIFY, SCREEN_SETTINGS, SCREEN_CODE,
     SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT,
 } Screen;
 
@@ -136,14 +137,38 @@ static void LogOut(void)
     ShowLogin();
 }
 
-static void SignedIn(void)
+// After signing in (or verifying): show a new recovery code if there is one, then the menu.
+static void EnterApp(void)
 {
-    ProgressLoad(AccountProgressPath());
     if (RecoveryPending()) {
         app.afterRecovery = SCREEN_MENU;
         Go(SCREEN_RECOVERY);
     } else {
         Go(SCREEN_MENU);
+    }
+}
+
+static void SignedIn(void)
+{
+    ProgressLoad(AccountProgressPath());
+    if (VerifyNeeded()) {  // the account isn't usable until its email is verified
+        VerifyOpen(false);
+        Go(SCREEN_VERIFY);
+    } else {
+        EnterApp();
+    }
+}
+
+static void ScreenVerifyWrap(void)
+{
+    AccountAction a = VerifyScreen();
+    if (a == ACCOUNT_VERIFIED) {
+        if (VerifyChanging()) Go(SCREEN_SETTINGS);
+        else EnterApp();
+    } else if (a == ACCOUNT_BACK) {
+        Go(SCREEN_SETTINGS);
+    } else if (a == ACCOUNT_SIGNED_OUT) {
+        LogOut();
     }
 }
 
@@ -169,6 +194,10 @@ static void ScreenSettingsWrap(void)
     } else if (a == ACCOUNT_SHOW_CODE) {
         app.afterRecovery = SCREEN_SETTINGS;
         Go(SCREEN_RECOVERY);
+    } else if (a == ACCOUNT_CHANGE_EMAIL) {
+        SettingsOpen();
+        VerifyOpen(true);
+        Go(SCREEN_VERIFY);
     }
 }
 
@@ -577,7 +606,7 @@ static void ScreenGallery(void)
 {
     static const char *names[ICON_COUNT] = {
         "back", "next", "check", "cross", "gear", "logout", "power", "user", "key", "lock",
-        "theme", "trash", "info", "book", "retry", "play", "trophy", "copy", "target", "code",
+        "theme", "trash", "info", "book", "retry", "play", "trophy", "copy", "target", "code", "mail",
     };
     float x = 40, y = 40;
     float sizes[] = { 128, 64, 48, 32, 16 };
@@ -595,10 +624,10 @@ static void ScreenGallery(void)
         IconDraw((Icon)i, (Vector2){ cx + 30, cy + 62 }, 18, COL_ACCENT);
         UiTextCentered(gFonts.text, names[i], cx - 10, cy + 52, 16, COL_DIM);
     }
-    UiButtonIcon((Rectangle){ 40, 560, 240, 50 }, ICON_PLAY, "Start quiz", true);
-    UiButtonIconEx((Rectangle){ 300, 560, 160, 50 }, ICON_GEAR, "Settings", 20, COL_PANEL, COL_SECONDARY_HOVER,
+    UiButtonIcon((Rectangle){ 40, 690, 240, 50 }, ICON_PLAY, "Start quiz", true);
+    UiButtonIconEx((Rectangle){ 300, 690, 160, 50 }, ICON_GEAR, "Settings", 20, COL_PANEL, COL_SECONDARY_HOVER,
                    COL_TEXT, true);
-    UiIconText(ICON_CHECK, gFonts.bold, "Correct!", 490, 572, 26, COL_GOOD);
+    UiIconText(ICON_CHECK, gFonts.bold, "Correct!", 490, 702, 26, COL_GOOD);
 }
 
 // Window/taskbar icon from the generated PNGs (the .exe icon is embedded by the resource file).
@@ -697,8 +726,10 @@ static Shot ParseShot(int argc, char **argv)
         const char *runIt = getenv("INCREMENT_SHOT_RUN");
         if (app.screen == SCREEN_CODE && runIt && runIt[0] == '1') CodeRunNow();
     }
-    else if (strcmp(screen, "register") == 0 || strcmp(screen, "reset") == 0) app.screen = SCREEN_LOGIN;
+    else if (strcmp(screen, "register") == 0 || strcmp(screen, "reset") == 0 || strcmp(screen, "resetemail") == 0
+             || strcmp(screen, "resetcode") == 0) app.screen = SCREEN_LOGIN;
     else if (strcmp(screen, "recovery") == 0) app.screen = SCREEN_RECOVERY;
+    else if (strcmp(screen, "verify") == 0 || strcmp(screen, "addemail") == 0) app.screen = AccountCurrent() ? SCREEN_VERIFY : SCREEN_LOGIN;
     else if (strcmp(screen, "settings") == 0 || strcmp(screen, "delete") == 0) {
         SettingsOpen();
         app.screen = SCREEN_SETTINGS;
@@ -748,6 +779,8 @@ int main(int argc, char **argv)
         snprintf(dataDir, sizeof dataDir, "%s", GetApplicationDirectory());
     }
     AccountsInit(dataDir);
+    const char *emailDirs[] = { GetApplicationDirectory(), dataDir };  // where email_config.txt may live
+    EmailInit(emailDirs, 2);
 
     ShowLogin();
     app.screen = SCREEN_SPLASH;  // ShowLogin prepared the login form; show the splash first
@@ -765,6 +798,7 @@ int main(int argc, char **argv)
         case SCREEN_GALLERY:  ScreenGallery();      break;
         case SCREEN_LOGIN:    ScreenLoginWrap();    break;
         case SCREEN_RECOVERY: ScreenRecoveryWrap(); break;
+        case SCREEN_VERIFY:   ScreenVerifyWrap();   break;
         case SCREEN_SETTINGS: ScreenSettingsWrap(); break;
         case SCREEN_CODE:     ScreenCodeWrap();     break;
         case SCREEN_MENU:   ScreenMenu();   break;
@@ -788,6 +822,7 @@ int main(int argc, char **argv)
     }
 
     CodeShutdown();
+    EmailShutdown();
     LessonsUnload(&lessons);
     UiUnloadFonts();
     CloseWindow();

@@ -11,6 +11,9 @@ build/
 *.obj
 *.pdb
 
+# Email sending config: holds the Resend API key. Never commit it.
+email_config.txt
+
 # Per-user data the app writes at runtime (accounts, password hashes, progress)
 progress.txt
 accounts.txt

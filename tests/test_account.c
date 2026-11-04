@@ -253,6 +253,148 @@ static void TestDelete(void)
     AccountLogout();
 }
 
+static void TestEmailVerification(void)
+{
+    const char *err = NULL;
+    char recovery[RECOVERY_CODE_SIZE], code[EMAIL_CODE_SIZE], other[EMAIL_CODE_SIZE];
+    AccountSetClockForTests(1000000);
+
+    AccountsInit(dir);
+    CHECK(!AccountStartEmailVerification("ada@example.com", code, &err));  // not logged in
+    CHECK(AccountCreate("mailer", "letters1", recovery, &err));
+    CHECK(!AccountEmailVerified());
+    CHECK(!AccountCodeActive());
+
+    CHECK(!AccountStartEmailVerification("not an email", code, &err));
+    CHECK(AccountStartEmailVerification("mailer@example.com", code, &err));
+    CHECK(strlen(code) == 6 && strspn(code, "0123456789") == 6);
+    CHECK(AccountCodeActive());
+    CHECK(strcmp(AccountPendingEmail(), "mailer@example.com") == 0);
+    CHECK(!AccountEmailVerified());
+    CHECK(!FileContains(DataFile("users/mailer.email.txt"), code));  // stored hashed
+
+    // A wrong code costs a try; malformed codes don't
+    char wrong[16];
+    snprintf(wrong, sizeof wrong, "%06d", (atoi(code) + 1) % 1000000);
+    CHECK(!AccountVerifyEmail(wrong, &err) && strstr(err, "4 tries left"));
+    CHECK(!AccountVerifyEmail("12345", &err) && strstr(err, "6 digits"));
+    CHECK(!AccountVerifyEmail("abcdef", &err) && strstr(err, "6 digits"));
+
+    // The right code works, with spaces or a dash in it
+    char spaced[16];
+    snprintf(spaced, sizeof spaced, "%.3s %.3s", code, code + 3);
+    CHECK(AccountVerifyEmail(spaced, &err));
+    CHECK(AccountEmailVerified());
+    CHECK(strcmp(AccountEmail(), "mailer@example.com") == 0);
+    CHECK(AccountPendingEmail()[0] == '\0' && !AccountCodeActive());
+    CHECK(!AccountVerifyEmail(code, &err));  // a used code can't be reused
+
+    // Survives a reload
+    AccountLogout();
+    AccountsInit(dir);
+    CHECK(AccountLogin("mailer", "letters1", &err));
+    CHECK(AccountEmailVerified() && strcmp(AccountEmail(), "mailer@example.com") == 0);
+
+    // Changing email keeps the old verified address until the new one is confirmed
+    CHECK(AccountStartEmailVerification("new@example.com", other, &err));
+    CHECK(AccountEmailVerified() && strcmp(AccountEmail(), "mailer@example.com") == 0);
+    AccountCancelEmailChange();
+    CHECK(AccountPendingEmail()[0] == '\0' && strcmp(AccountEmail(), "mailer@example.com") == 0);
+
+    // Codes expire after 15 minutes
+    CHECK(AccountStartEmailVerification("new@example.com", other, &err));
+    AccountSetClockForTests(1000000 + 15 * 60 + 1);
+    CHECK(!AccountCodeActive());
+    CHECK(!AccountVerifyEmail(other, &err) && strstr(err, "expired"));
+
+    // Five wrong codes lock the code; a fresh code works again
+    AccountSetClockForTests(2000000);
+    CHECK(AccountStartEmailVerification("new@example.com", other, &err));
+    snprintf(wrong, sizeof wrong, "%06d", (atoi(other) + 1) % 1000000);
+    for (int i = 0; i < 5; i++) CHECK(!AccountVerifyEmail(wrong, &err));
+    CHECK(!AccountCodeActive());
+    CHECK(!AccountVerifyEmail(other, &err) && strstr(err, "Too many"));
+    CHECK(AccountStartEmailVerification("new@example.com", other, &err));
+    CHECK(AccountVerifyEmail(other, &err));
+    CHECK(strcmp(AccountEmail(), "new@example.com") == 0);
+
+    // A different account doesn't see this one's email
+    AccountLogout();
+    CHECK(AccountLogin("Ada", "correct horse", &err));
+    CHECK(!AccountEmailVerified() && AccountEmail()[0] == '\0');
+    AccountLogout();
+
+    // Deleting the account removes its email file
+    CHECK(AccountLogin("mailer", "letters1", &err));
+    CHECK(AccountDelete("letters1", &err));
+    CHECK(!FileExists(DataFile("users/mailer.email.txt")));
+    AccountSetClockForTests(0);
+}
+
+static void TestPasswordResetByEmail(void)
+{
+    const char *err = NULL;
+    char recovery[RECOVERY_CODE_SIZE], code[EMAIL_CODE_SIZE], reset[EMAIL_CODE_SIZE], addr[EMAIL_MAX + 1];
+    char wrong[16];
+    AccountSetClockForTests(5000000);
+
+    AccountsInit(dir);
+    CHECK(AccountCreate("forgetful", "original1", recovery, &err));
+    CHECK(AccountStartEmailVerification("forgetful@example.com", code, &err));
+    CHECK(AccountVerifyEmail(code, &err));
+    AccountLogout();
+
+    // Only accounts with a verified email can reset this way
+    CHECK(!AccountStartPasswordReset("nobody", addr, reset, &err) && strstr(err, "no account"));
+    CHECK(!AccountStartPasswordReset("Ada", addr, reset, &err) && strstr(err, "recovery code"));
+
+    CHECK(AccountStartPasswordReset("FORGETFUL", addr, reset, &err));  // usernames are case-insensitive
+    CHECK(strcmp(addr, "forgetful@example.com") == 0);
+    CHECK(strlen(reset) == 6);
+    CHECK(AccountCurrent() == NULL);  // starting a reset doesn't sign anyone in
+    CHECK(!FileContains(DataFile("users/forgetful.email.txt"), reset));  // stored hashed
+
+    // A too-short password is refused before the code is used; a wrong code costs a try
+    CHECK(!AccountResetPasswordWithEmail("forgetful", reset, "tiny", &err) && strstr(err, "6 to 64"));
+    snprintf(wrong, sizeof wrong, "%06d", (atoi(reset) + 1) % 1000000);
+    CHECK(!AccountResetPasswordWithEmail("forgetful", wrong, "brandnew1", &err) && strstr(err, "4 tries left"));
+    CHECK(!AccountLogin("forgetful", "brandnew1", &err));
+
+    // The right code sets the new password and signs in
+    CHECK(AccountResetPasswordWithEmail("forgetful", reset, "brandnew1", &err));
+    CHECK(AccountCurrent() && strcmp(AccountCurrent(), "forgetful") == 0);
+    CHECK(AccountEmailVerified());  // the verified address is untouched
+    AccountLogout();
+    CHECK(!AccountLogin("forgetful", "original1", &err));
+    CHECK(AccountLogin("forgetful", "brandnew1", &err));
+    AccountLogout();
+    CHECK(!AccountResetPasswordWithEmail("forgetful", reset, "another1", &err));  // used up
+
+    // Reset codes expire
+    CHECK(AccountStartPasswordReset("forgetful", addr, reset, &err));
+    AccountSetClockForTests(5000000 + 15 * 60 + 1);
+    CHECK(!AccountResetPasswordWithEmail("forgetful", reset, "another1", &err) && strstr(err, "expired"));
+
+    // A reset doesn't disturb a pending email change, and vice versa
+    AccountSetClockForTests(6000000);
+    CHECK(AccountLogin("forgetful", "brandnew1", &err));
+    CHECK(AccountStartEmailVerification("changed@example.com", code, &err));
+    AccountLogout();
+    CHECK(AccountStartPasswordReset("forgetful", addr, reset, &err));
+    CHECK(strcmp(addr, "forgetful@example.com") == 0);  // still sent to the verified address
+    CHECK(AccountResetPasswordWithEmail("forgetful", reset, "third-pass", &err));
+    CHECK(strcmp(AccountPendingEmail(), "changed@example.com") == 0);
+    CHECK(AccountVerifyEmail(code, &err));
+    CHECK(strcmp(AccountEmail(), "changed@example.com") == 0);
+    AccountLogout();
+
+    // Recovery codes still work as well
+    char next[RECOVERY_CODE_SIZE];
+    CHECK(AccountResetPassword("forgetful", recovery, "fourth-pass", next, &err));
+    AccountLogout();
+    AccountSetClockForTests(0);
+}
+
 static void TestLegacyAndCorruptFiles(void)
 {
     const char *err = NULL;
@@ -296,6 +438,8 @@ int main(int argc, char **argv)
     TestChangePasswordAndNewCode();
     TestSettings();
     TestDelete();
+    TestEmailVerification();
+    TestPasswordResetByEmail();
     TestLegacyAndCorruptFiles();
 
     if (failures) {

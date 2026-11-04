@@ -25,6 +25,7 @@ typedef enum {
     ICON_COPY,
     ICON_TARGET,
     ICON_CODE,
+    ICON_MAIL,
     ICON_COUNT
 } Icon;
 
