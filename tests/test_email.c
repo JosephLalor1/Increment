@@ -64,6 +64,7 @@ int main(int argc, char **argv)
         _putenv_s("INCREMENT_EMAIL_OUTBOX", outbox);
         EmailInit(NULL, 0);
         CHECK(EmailConfigured());
+        CHECK(strcmp(EmailOutboxPath(), outbox) == 0);
         EmailSendCode(EMAIL_VERIFY, "ada@example.com", "ada", "482913");
         CHECK(WaitForSend() == EMAIL_SENT);
         char *mail = LoadFileText(TextFormat("%s/ada.txt", outbox));
@@ -78,6 +79,7 @@ int main(int argc, char **argv)
     // No config and no outbox: sending fails with a clear message, without touching the network
     EmailInit(NULL, 0);
     CHECK(!EmailConfigured());
+    CHECK(EmailOutboxPath()[0] == '\0');
     EmailSendCode(EMAIL_VERIFY, "ada@example.com", "ada", "123456");
     CHECK(WaitForSend() == EMAIL_FAILED && strstr(EmailError(), "email_config.txt"));
 

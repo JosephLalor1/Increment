@@ -22,6 +22,7 @@ typedef enum { EMAIL_VERIFY, EMAIL_RESET } EmailKind;  // which message the code
 // Loads email_config.txt from the first of these folders that has one.
 void EmailInit(const char **dirs, int count);
 bool EmailConfigured(void);  // a key was found, or the test outbox is set
+const char *EmailOutboxPath(void); // nonempty in local development mode; never exposes the API key
 
 // Starts sending a code. Only one send runs at a time; a new one replaces the old.
 void EmailSendCode(EmailKind kind, const char *to, const char *username, const char *code);

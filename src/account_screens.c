@@ -190,7 +190,9 @@ static void PollResetSend(void)
     EmailState s = EmailUpdate();
     if (s == EMAIL_SENT) {
         login.sending = false;
-        snprintf(login.notice, sizeof login.notice, "Code sent. Check your inbox (and spam folder).");
+        snprintf(login.notice, sizeof login.notice, "%s", EmailOutboxPath()[0]
+                 ? "Code saved to the local outbox. No email was sent."
+                 : "Code sent. Check your inbox (and spam folder).");
     } else if (s == EMAIL_FAILED) {
         login.sending = false;
         login.resendAt = 0;  // let them try again straight away
@@ -268,13 +270,20 @@ AccountAction LoginScreen(void)
     if (login.mode == LOGIN_RESET_EMAIL) {
         snprintf(info, sizeof info, "Enter your username and we'll email a reset code to its verified address.");
     } else if (login.mode == LOGIN_RESET_CODE) {
-        snprintf(info, sizeof info, login.sending ? "Sending a 6-digit code to %s..." : "We sent a 6-digit code to %s.",
+        snprintf(info, sizeof info, EmailOutboxPath()[0] ? "Development mode: find the 6-digit code in your local outbox for %s."
+                 : login.sending ? "Sending a 6-digit code to %s..." : "We sent a 6-digit code to %s.",
                  login.resetTo);
     }
     const char *message = login.error ? login.error : login.notice;
     float infoH = info[0] ? UiWrappedText(gFonts.text, info, (Vector2){ 0, 0 }, w, 18, COL_TEXT, false) + 14 : 0;
     float msgH = message[0] ? UiWrappedText(gFonts.text, message, (Vector2){ 0, 0 }, w, 17, COL_TEXT, false) + 10 : 0;
-    float fixedH = 28 + 64 + infoH + msgH + 50 + 48 + 20;  // everything but the fields
+    const char *emailMode = EmailOutboxPath()[0]
+        ? "Development mode: codes are saved locally.\nNo email is sent. Use your launcher's outbox folder."
+        : EmailConfigured() ? "Email verification enabled.\nWe'll email you a code to confirm your address."
+        : "Email verification is unavailable on this installation.\nYou can create a local account without email.";
+    float footerH = login.mode == LOGIN_CREATE
+        ? UiWrappedText(gFonts.text, emailMode, (Vector2){ 0, 0 }, w, 16, COL_DIM, false) + 30 : 48;
+    float fixedH = 28 + 64 + infoH + msgH + 50 + footerH + 20;  // everything but the fields
     float cardH = fixedH + count * 90;
 
     // Full layout: title, subtitle, card, Quit. Short windows drop the subtitle and Quit
@@ -282,6 +291,10 @@ AccountAction LoginScreen(void)
     float full = 146 + cardH + 74;
     bool compact = full > GetScreenHeight();
     float labelGap = compact ? 22 : 26, fieldH = compact ? 42 : 48, fieldGap = compact ? 10 : 16;
+    if (compact && login.mode == LOGIN_CREATE) {
+        fieldH = 40;
+        fieldGap = 8; // leave room for the email-mode explanation and validation errors
+    }
     cardH = fixedH + count * (labelGap + fieldH + fieldGap);
     float top = compact ? 16 : (GetScreenHeight() - full) / 2.0f;
     if (compact) {
@@ -363,10 +376,7 @@ AccountAction LoginScreen(void)
         if (CenteredLink(cx, linkY, "Forgot your password?")) SetLoginMode(EmailConfigured() ? LOGIN_RESET_EMAIL : LOGIN_RESET);
         break;
     case LOGIN_CREATE:
-        UiTextCentered(gFonts.text,
-                       EmailConfigured() ? "We'll email you a code to confirm your address."
-                                         : "Accounts are stored on this computer only.",
-                       cx, y + 18, 16, COL_DIM);
+        UiWrappedText(gFonts.text, emailMode, (Vector2){ x, y + 14 }, w, 16, COL_DIM, true);
         break;
     case LOGIN_RESET:
         if (EmailConfigured()) {
@@ -499,7 +509,9 @@ static void PollSend(void)
     EmailState s = EmailUpdate();
     if (s == EMAIL_SENT) {
         verify.sending = false;
-        snprintf(verify.notice, sizeof verify.notice, "Code sent. Check your inbox (and spam folder).");
+        snprintf(verify.notice, sizeof verify.notice, "%s", EmailOutboxPath()[0]
+                 ? "Code saved to the local outbox. No email was sent."
+                 : "Code sent. Check your inbox (and spam folder).");
     } else if (s == EMAIL_FAILED) {
         verify.sending = false;
         snprintf(verify.error, sizeof verify.error, "Couldn't send the email: %s", EmailError());
@@ -514,11 +526,14 @@ AccountAction VerifyScreen(void)
     float cardW = 480, pad = 32, x0 = cx - cardW / 2, w = cardW - pad * 2;
     const char *pending = AccountPendingEmail();
 
-    const char *title = verify.askEmail ? (verify.changing ? "Change your email" : "Add your email") : "Check your email";
+    const char *title = verify.askEmail ? (verify.changing ? "Change your email" : "Add your email")
+                                      : EmailOutboxPath()[0] ? "Check your local outbox" : "Check your email";
     char body[400];
     if (verify.askEmail) {
         snprintf(body, sizeof body, "%s We'll send a 6-digit code to confirm the address is yours.",
                  verify.changing ? "Enter your new address." : "Your account needs a verified email address.");
+    } else if (EmailOutboxPath()[0]) {
+        snprintf(body, sizeof body, "Development mode: open the outbox text file named after your username to read the 6-digit code. It expires in 15 minutes.");
     } else if (verify.sending) {
         snprintf(body, sizeof body, "Sending a 6-digit code to %s...", pending);
     } else {
@@ -600,6 +615,7 @@ AccountAction VerifyScreen(void)
     }
     y += 30;
     const char *leave = verify.changing ? "Cancel" : "Sign out";
+    if (EmailOutboxPath()[0] && UiLink(x, y, "Copy outbox path", 17)) SetClipboardText(EmailOutboxPath());
     float lw = MeasureTextEx(gFonts.text, leave, 17, 0).x;
     if (action == ACCOUNT_STAY && UiLink(cx - lw / 2, y, leave, 17)) {
         if (verify.changing) AccountCancelEmailChange();
