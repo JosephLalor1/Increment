@@ -65,6 +65,7 @@ static void OpenSettings(void)
 
 static void ShowLogin(void)
 {
+    LessonScreenClearAttempt();
     ProgressLoad("");  // drop the previous user's scores from memory
     LoginReset();
     ApplyUserAppearance();

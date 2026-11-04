@@ -97,6 +97,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
     LessonPage page = Is(name, "lesson")                         ? LESSON_PAGE_READING
                     : Is(name, "quiz") || Is(name, "answered")   ? LESSON_PAGE_QUIZ
                     : Is(name, "result")                         ? LESSON_PAGE_RESULT
+                    : Is(name, "review")                         ? LESSON_PAGE_REVIEW
                                                                  : (LessonPage)-1;
     if ((int)page < 0) return SCREEN_MENU;  // "menu", or a name we don't know
     LessonScreenOpen(lessons, lessonIndex, "All lessons");

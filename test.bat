@@ -25,6 +25,10 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_dashboard.c src\dashboard_stats.c src\progress.c -o build\test_dashboard.exe %LIBS%
 if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_quiz_attempt.c src\quiz_attempt.c src\lesson.c src\progress.c -o build\test_quiz_attempt.exe %LIBS%
+if errorlevel 1 exit /b 1
+build\test_quiz_attempt.exe
+if errorlevel 1 set FAILED=1
 
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
 "%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c -o build\test_roadmap.exe %LIBS%

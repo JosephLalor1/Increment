@@ -83,6 +83,16 @@ from Increment <onboarding@resend.dev>
 
 Use a **sending-only** API key, never a full-access one, and never commit the file (it's in `.gitignore`). While Resend is in test mode (no verified domain), the `onboarding@resend.dev` sender can only deliver to the email address of the Resend account; verify a domain in Resend to email anyone. Without `email_config.txt` the app still works, just without the email step.
 
+## Quiz answer review
+
+After completing a C or C++ quiz, choose **Review Answers** on the results page. Each question shows its original prompt and code, your selected answer, the correct answer, a Correct/Incorrect label, and the lesson's explanation when one exists. Unanswered questions display **Not answered**. Use the wheel, arrows, Page Up/Down, or Home/End to scroll. **Retry Quiz** and **Return to Lesson** remain visible at the bottom; Back returns to results.
+
+Answers are kept in memory for the current lesson attempt, not written to accounts or progress files. Returning to the reading page keeps **Review Answers** available. Starting a new attempt, opening another lesson, or signing out clears the selections. Retry preserves the saved best score, even if the new result is lower. Viewing review never records or changes a score.
+
+Manual checks: complete quizzes in both tracks with a mix of right/wrong answers; verify every selection, code snippet, and explanation against the quiz. Check Back to Results, Return to Lesson, and Retry Quiz; retry must clear selections while retaining best scores. Check scrolling and fixed navigation in both themes, all text sizes, and at 900x640. Restarting the app does not restore past attempt answers.
+
+Developer preview: `build\increment.exe --shot build/review.png review 0` shows a synthetic attempt without saving progress. Replace `0` with a lesson index; an optional final argument sets the scroll position. The demo intentionally includes an unanswered final question; the normal quiz flow requires answering every question.
+
 ## Controls
 
 - Mouse to click, wheel or arrow keys / Page Up / Page Down to scroll
