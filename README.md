@@ -28,6 +28,10 @@ Manual roadmap checks:
 - Check light/dark themes and all text sizes at 900x640 and larger window sizes.
 - With a fully completed track, check the congratulations message and that all lessons remain accessible.
 
+## Lesson search
+
+The search box at the top of each track's lessons (or `Ctrl+F`) searches every lesson's title and text, including code and exercises, ignoring case. Each word you type must appear somewhere in the lesson. Choose **C and C++**, **C** or **C++** to filter the results; each result shows the lesson's title, track, best score and the text around the match. Click a result (or press `Enter` for the top one) to open the lesson; **Back** returns to the results. Clear the box with the **x** button to get the roadmap or list back.
+
 ## Learning progress dashboard (IN-7)
 
 Open **Progress dashboard** from the main menu. The scrollable dashboard includes overall lesson completion, completed coding exercises, separate C and C++ progress cards, quiz performance, revision suggestions, and clickable topic performance bars. Use the wheel, arrow keys, Page Up/Down, or Home/End to scroll. Opening a lesson and going Back returns to the dashboard at the previous scroll position.

@@ -2,7 +2,9 @@
 // Compiled by build.bat with windres. Regenerate the icon with: build.bat icons
 #include <winver.h>
 
-1 ICON "assets/icon/increment.ico"
+// Named GLFW_ICON so raylib's window uses it too when the PNGs in assets/icon can't be loaded;
+// Explorer and shortcuts take the first icon in the file, which is this one.
+GLFW_ICON ICON "assets/icon/increment.ico"
 
 1 VERSIONINFO
 FILEVERSION     0,1,0,0

@@ -11,6 +11,7 @@
 #include "lesson.h"
 #include "progress.h"
 #include "roadmap.h"
+#include "search.h"
 #include "splash.h"
 #include "ui.h"
 
@@ -34,6 +35,11 @@ static struct {
     float listScroll;
     float listH;
     bool plainList;
+    char search[SEARCH_QUERY_MAX + 1];      // lesson search box on the list screen
+    char searchSeen[SEARCH_QUERY_MAX + 1];  // last frame's query, to reset scrolling when it changes
+    SearchFilter searchFilter;
+    float searchScroll;
+    float searchH;
     float dashboardScroll;
     float dashboardH;
     Screen lessonReturn;
@@ -240,6 +246,7 @@ static void ScreenMenu(void)
         if (TrackCard(r, (Track)t)) {
             app.track = (Track)t;
             app.listScroll = 0;
+            app.search[0] = '\0';  // a new visit starts with normal navigation
             Go(SCREEN_LIST);
         }
     }
@@ -328,6 +335,146 @@ static void ScreenCodeWrap(void)
     }
 }
 
+// Cuts text (in place) to fit maxW, ending it with "..." when anything was cut.
+static void FitText(char *text, Font f, float size, float maxW)
+{
+    float sp = UiSpacing(f, size);
+    if (MeasureTextEx(f, text, size, sp).x <= maxW) return;
+    int n = (int)strlen(text);
+    while (n > 0) {
+        n--;
+        while (n > 0 && text[n - 1] == ' ') n--;
+        memcpy(text + n, "...", 4);
+        if (MeasureTextEx(f, text, size, sp).x <= maxW) return;
+    }
+}
+
+// The open lesson's track changes app.track; a search result keeps the list on its own track.
+static void OpenFromSearch(int index)
+{
+    Track keep = app.track;
+    OpenLesson(index);
+    app.track = keep;
+}
+
+// One search result row: track badge, title, progress, and the text around the match.
+static bool SearchRow(const Lesson *L, float x, float y, float w)
+{
+    Rectangle row = { x, y, w, 92 };
+    bool over = UiMouseOver(row);
+    if (over) UiWantHand();
+    UiRoundRect(row, 10, over ? COL_PANEL_HI : COL_PANEL);
+
+    const char *track = TrackName(L->track);
+    float pillW = MeasureTextEx(gFonts.bold, track, 17, UiSpacing(gFonts.bold, 17)).x + 22;
+    UiRoundRect((Rectangle){ x + 20, y + 18, pillW, 28 }, 14, COL_BG);
+    UiTextCentered(gFonts.bold, track, x + 20 + pillW / 2, y + 22, 17, COL_ACCENT);
+
+    int best = ProgressBest(L->id);
+    bool passed = best >= PASS_PERCENT;
+    const char *status = best < 0 ? "New" : TextFormat("Best: %d%%", best);
+    float statusW = MeasureTextEx(gFonts.text, status, 18, UiSpacing(gFonts.text, 18)).x;
+    UiText(gFonts.text, status, x + w - statusW - 24, y + 22, 18, passed ? COL_GOOD : COL_DIM);
+    if (passed) IconDraw(ICON_CHECK, (Vector2){ x + w - statusW - 44, y + 32 }, 18, COL_GOOD);
+
+    char title[128];
+    snprintf(title, sizeof title, "%s", L->title);
+    float titleX = x + 20 + pillW + 14;
+    FitText(title, gFonts.text, 24, x + w - statusW - 64 - titleX);
+    UiText(gFonts.text, title, titleX, y + 16, 24, COL_TEXT);
+
+    // The excerpt, with the matched word picked out in the accent colour.
+    char snip[256];
+    int at, len;
+    float sy = y + 58, sx = x + 20, size = 18, maxW = w - 40;
+    if (!SearchSnippet(L, app.search, snip, sizeof snip, &at, &len)) {
+        UiText(gFonts.text, "Matches the lesson title", sx, sy, size, COL_DIM);
+    } else {
+        FitText(snip, gFonts.text, size, maxW);
+        int n = (int)strlen(snip);
+        if (at > n) at = n;
+        if (at + len > n) len = n - at;
+        char part[256];
+        float sp = UiSpacing(gFonts.text, size);
+        snprintf(part, sizeof part, "%.*s", at, snip);
+        UiText(gFonts.text, part, sx, sy, size, COL_DIM);
+        sx += MeasureTextEx(gFonts.text, part, size, sp).x;
+        snprintf(part, sizeof part, "%.*s", len, snip + at);
+        UiText(gFonts.text, part, sx, sy, size, COL_ACCENT);
+        sx += MeasureTextEx(gFonts.text, part, size, sp).x;
+        UiText(gFonts.text, snip + at + len, sx, sy, size, COL_DIM);
+    }
+    return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+}
+
+// Search results in place of the roadmap/list. Returns the lesson to open, or -1.
+static int SearchResults(Rectangle view, bool submitted)
+{
+    static int found[1024];
+    int n = SearchLessons(&lessons, app.search, app.searchFilter, found, 1024);
+    if (submitted && n > 0) return found[0];  // Enter opens the top result
+
+    UpdateScroll(&app.searchScroll, app.searchH, view.height);
+    BeginView(view);
+    float x = ContentX(), w = ContentWidth();
+    float top = view.y + 8 - app.searchScroll, y = top;
+    int open = -1;
+
+    // Track filter, then the result count.
+    static const char *labels[] = { "C and C++", "C", "C++" };
+    static const float widths[] = { 124, 56, 72 };
+    float fx = x;
+    for (int i = 0; i < 3; i++) {
+        bool on = (int)app.searchFilter == i;
+        if (UiButtonEx((Rectangle){ fx, y, widths[i], 38 }, labels[i], 18, on ? COL_ACCENT : COL_PANEL,
+                       on ? COL_ACCENT_HI : COL_SECONDARY_HOVER, on ? COL_ON_ACCENT : COL_TEXT, true)) {
+            app.searchFilter = (SearchFilter)i;
+            app.searchScroll = 0;
+        }
+        fx += widths[i] + 8;
+    }
+    if (n > 0) {
+        const char *count = n == 1 ? "1 lesson found" : TextFormat("%d lessons found", n);
+        float cw = MeasureTextEx(gFonts.text, count, 19, UiSpacing(gFonts.text, 19)).x;
+        UiText(gFonts.text, count, x + w - cw, y + 8, 19, COL_DIM);
+    }
+    y += 56;
+
+    if (n == 0) {
+        const char *advice = "Check the spelling, or try fewer or shorter words: \"point\" finds pointer and pointers.";
+        float adviceH = UiWrappedText(gFonts.text, advice, (Vector2){ 0, 0 }, w - 96, 19, COL_DIM, false);
+        Rectangle box = { x, y, w, 68 + adviceH + 64 };
+        UiRoundRect(box, 12, COL_PANEL);
+        IconDraw(ICON_INFO, (Vector2){ x + 40, y + 42 }, 28, COL_ACCENT);
+        char what[160];
+        if (app.searchFilter == SEARCH_BOTH) snprintf(what, sizeof what, "No lessons match \"%s\".", app.search);
+        else snprintf(what, sizeof what, "No %s lessons match \"%s\".", SearchFilterName(app.searchFilter), app.search);
+        FitText(what, gFonts.bold, 24, w - 96);
+        UiText(gFonts.bold, what, x + 72, y + 26, 24, COL_TEXT);
+        UiWrappedText(gFonts.text, advice, (Vector2){ x + 72, y + 68 }, w - 96, 19, COL_DIM, true);
+        float ly = y + 68 + adviceH + 18, lx = x + 72;
+        if (app.searchFilter != SEARCH_BOTH) {
+            if (UiLink(lx, ly, "Search C and C++", 19)) {
+                app.searchFilter = SEARCH_BOTH;
+                app.searchScroll = 0;
+            }
+            lx += MeasureTextEx(gFonts.text, "Search C and C++", 19, UiSpacing(gFonts.text, 19)).x + 32;
+        }
+        if (UiLink(lx, ly, "Clear search", 19)) {
+            app.search[0] = '\0';
+            UiFocus(app.search);
+        }
+        y += box.height + 16;
+    }
+    for (int i = 0; i < n; i++) {
+        if (SearchRow(&lessons.items[found[i]], x, y, w)) open = found[i];
+        y += 104;
+    }
+    app.searchH = (y - top) + 24;
+    EndView();
+    return open;
+}
+
 static void ScreenList(void)
 {
     app.lessonReturn = SCREEN_LIST;
@@ -336,14 +483,52 @@ static void ScreenList(void)
         return;
     }
 
-    if (UiButtonEx((Rectangle){ GetScreenWidth() - 206.0f, 12, 190, 40 },
-                   app.plainList ? "Show roadmap" : "Show lesson list", 18,
-                   COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+    bool searching = !SearchIsBlank(app.search);
+    if (!searching && UiButtonEx((Rectangle){ GetScreenWidth() - 206.0f, 12, 190, 40 },
+                                 app.plainList ? "Show roadmap" : "Show lesson list", 18,
+                                 COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         app.plainList = !app.plainList;
         app.listScroll = 0;
         app.listH = 0;
     }
+
+    // Search box, fixed above the scrolling content. Ctrl+F jumps to it.
+    float bx = ContentX(), bw = ContentWidth();
+    Rectangle box = { bx, TOPBAR_H + 16, bw, 48 };
+    bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+    if (ctrl && IsKeyPressed(KEY_F)) UiFocus(app.search);
+    bool submitted = UiTextBox(box, app.search, sizeof app.search, "Search all lessons  (Ctrl+F)", false);
+    if (app.search[0] && UiButtonIconEx((Rectangle){ box.x + box.width - 44, box.y + 6, 36, 36 }, ICON_CROSS, NULL,
+                                        18, COL_CODE_BG, COL_SECONDARY_HOVER, COL_DIM, true)) {
+        app.search[0] = '\0';  // clearing brings back the roadmap or list, where it was
+        UiFocus(app.search);
+    }
+    if (strcmp(app.search, app.searchSeen) != 0) {
+        snprintf(app.searchSeen, sizeof app.searchSeen, "%s", app.search);
+        app.searchScroll = 0;
+        app.searchH = 0;
+    }
+    searching = !SearchIsBlank(app.search);
+    float barBottom = box.y + box.height + 12;
+    if (!searching && UiHasFocus(app.search)) {
+        // An empty search: say what the box does instead of searching for nothing.
+        const char *hint = "Type a word to search every lesson's title and text, like \"pointer\" or \"malloc\".";
+        UiIconText(ICON_INFO, gFonts.text, hint, bx + 2, barBottom - 2, 18, COL_DIM);
+        barBottom += 30;
+    }
+
     Rectangle view = ScrollView();
+    view.height -= barBottom - view.y;
+    view.y = barBottom;
+    if (searching) {
+        int open = SearchResults(view, submitted);
+        if (open >= 0) {
+            UiFocus(NULL);
+            OpenFromSearch(open);
+        }
+        return;
+    }
+
     UpdateScroll(&app.listScroll, app.listH, view.height);
     BeginView(view);
 
@@ -778,7 +963,17 @@ static Shot ParseShot(int argc, char **argv)
         SettingsOpen();
         app.screen = SCREEN_SETTINGS;
     }
-    else if (strcmp(screen, "list") == 0) app.screen = SCREEN_LIST;
+    else if (strcmp(screen, "list") == 0) {
+        app.screen = SCREEN_LIST;
+        // INCREMENT_SHOT_SEARCH types into the search box (even "" focuses it, for the empty-search hint);
+        // INCREMENT_SHOT_FILTER is c or cpp.
+        const char *query = getenv("INCREMENT_SHOT_SEARCH"), *filter = getenv("INCREMENT_SHOT_FILTER");
+        if (query) {
+            snprintf(app.search, sizeof app.search, "%s", query);
+            UiFocus(app.search);
+        }
+        if (filter) app.searchFilter = strcmp(filter, "cpp") == 0 ? SEARCH_CPP : strcmp(filter, "c") == 0 ? SEARCH_C : SEARCH_BOTH;
+    }
     else if (strcmp(screen, "dashboard") == 0) app.screen = SCREEN_DASHBOARD;
     else if (strcmp(screen, "lesson") == 0) app.screen = SCREEN_LESSON;
     else if (strcmp(screen, "quiz") == 0 || strcmp(screen, "answered") == 0) app.screen = SCREEN_QUIZ;
