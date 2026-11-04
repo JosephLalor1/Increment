@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define PASS_PERCENT 70
+
 // Best quiz score per lesson id, stored as "id percent" lines in a text file.
 void ProgressLoad(const char *path);
 bool ProgressSave(void);

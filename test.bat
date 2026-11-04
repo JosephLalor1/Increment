@@ -21,6 +21,11 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
+"%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c src\layout.c src\ui.c src\icons.c src\brand.c -o build\test_roadmap.exe %LIBS%
+if errorlevel 1 exit /b 1
+build\test_roadmap.exe
+if errorlevel 1 set FAILED=1
+
 mkdir "%TESTDIR%"
 build\test_account.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

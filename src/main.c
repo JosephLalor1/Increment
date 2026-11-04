@@ -8,14 +8,13 @@
 #include "layout.h"
 #include "lesson.h"
 #include "progress.h"
+#include "roadmap.h"
 #include "splash.h"
 #include "ui.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define PASS_PERCENT 70
 
 typedef enum {
     SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS, SCREEN_CODE,
@@ -32,6 +31,7 @@ static struct {
     float contentH;      // measured last frame, for scroll clamping
     float listScroll;
     float listH;
+    bool plainList;
     int question;
     int picked;          // -1 until the current question is answered
     int correctCount;
@@ -52,12 +52,7 @@ static bool Passed(const Lesson *L) { return ProgressBest(L->id) >= PASS_PERCENT
 
 static void TrackStats(Track t, int *done, int *total)
 {
-    *done = *total = 0;
-    for (int i = 0; i < lessons.count; i++) {
-        if (lessons.items[i].track != t) continue;
-        (*total)++;
-        if (Passed(&lessons.items[i])) (*done)++;
-    }
+    RoadmapNext(&lessons, t, done, total);
 }
 
 static int NextLessonInTrack(int from)
@@ -280,6 +275,13 @@ static void ScreenList(void)
         return;
     }
 
+    if (UiButtonEx((Rectangle){ GetScreenWidth() - 206.0f, 12, 190, 40 },
+                   app.plainList ? "Show roadmap" : "Show lesson list", 18,
+                   COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        app.plainList = !app.plainList;
+        app.listScroll = 0;
+        app.listH = 0;
+    }
     Rectangle view = ScrollView();
     UpdateScroll(&app.listScroll, app.listH, view.height);
     BeginView(view);
@@ -287,6 +289,13 @@ static void ScreenList(void)
     float x = ContentX(), w = ContentWidth();
     float top = view.y + 24 - app.listScroll;
     float y = top;
+    if (!app.plainList) {
+        int clicked = RoadmapDraw(&lessons, app.track, x, y, w, &app.listH);
+        app.listH += 24;
+        EndView();
+        if (clicked >= 0) OpenLesson(clicked);
+        return;
+    }
     int number = 0;
     for (int i = 0; i < lessons.count; i++) {
         Lesson *L = &lessons.items[i];
@@ -341,6 +350,8 @@ static void ScreenLesson(void)
     int openExercise = -1;
 
     y += UiWrappedText(gFonts.text, L->title, (Vector2){ x, y }, w, 44 * ts, COL_TEXT, true) + 16;
+    float preparationH = RoadmapPrerequisites(&lessons, L, x, y, w, 19 * ts, true);
+    if (preparationH) y += preparationH + 24;
 
     for (int i = 0; i < L->blockCount; i++) {
         Block *b = &L->blocks[i];
@@ -556,9 +567,9 @@ static void ScreenResult(void)
         if (L->questionCount) StartQuiz();
         else Go(SCREEN_LIST);
     }
-    bool canNext = passed && next >= 0;
+    bool canNext = next >= 0;
     if (UiButtonIcon((Rectangle){ x0 + (bw + gap) * 2, y, bw, bh }, next >= 0 ? ICON_NEXT : ICON_TROPHY,
-                     next >= 0 ? "Next lesson" : "Track finished", canNext)
+                     next >= 0 ? "Next lesson" : "End of lessons", canNext)
         || (canNext && IsKeyPressed(KEY_ENTER))) {
         OpenLesson(next);
     }
