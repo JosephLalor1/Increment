@@ -457,6 +457,7 @@ bool AccountDelete(const char *password, const char **err)
 
     remove(UserFile(removed.name, ".txt"));
     remove(UserFile(removed.name, ".settings.txt"));
+    PlatformRemoveDir(UserFile(removed.name, "_code"));  // code editor drafts
     current = -1;
     settings = defaultSettings;
     return true;
@@ -467,6 +468,14 @@ const char *AccountCurrent(void) { return current >= 0 ? accounts[current].name 
 bool AccountHasRecovery(void) { return current >= 0 && accounts[current].hasRecovery; }
 
 const char *AccountProgressPath(void) { return progressPath; }
+
+const char *AccountCodeDir(void)
+{
+    if (current < 0) return NULL;
+    const char *dir = UserFile(accounts[current].name, "_code");
+    if (!DirectoryExists(dir)) MakeDirectory(dir);
+    return dir;
+}
 
 const char *AccountLastUser(void) { return lastUser; }
 

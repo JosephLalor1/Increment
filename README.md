@@ -28,6 +28,17 @@ Each person on the computer can create a local account with their own saved prog
 - `Esc` or `Backspace` goes back
 - In forms, `Tab` / `Shift+Tab` moves between fields, `Enter` goes to the next field or submits, `Ctrl+V` pastes, and `Esc` leaves the field
 
+## Code editor
+
+Open it from the main menu, with **Try it** on any example in a lesson, or from a lesson's **Exercises**. Programs are compiled with the gcc/g++ that comes with raylib, and get whatever you type in the Input box as their input. Exercises check your output against the expected output and remember when you've passed one. Your code is saved per account, so you can leave an exercise and come back to it.
+
+- `F5` or `Ctrl+Enter` runs the program; while it runs, the button becomes **Stop**
+- Compiler errors are marked on their lines; crashes are explained in plain English
+- Programs are stopped after 5 seconds and limited to 512 MB of memory
+- `Ctrl+Z` / `Ctrl+Y` undo and redo (Reset and Show solution can be undone too)
+- `Tab` / `Shift+Tab` indent and outdent the selected lines
+- `Ctrl+A`, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`; double-click selects a word, triple-click a line
+
 ## Adding lessons
 
 Drop a `.txt` file in `assets/lessons/`. See the lesson format in [CLAUDE.md](CLAUDE.md).

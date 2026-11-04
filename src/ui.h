@@ -58,6 +58,7 @@ void UiUnloadFonts(void);
 void UiBeginFrame(void);
 void UiEndFrame(void);
 void UiWantHand(void); // request the pointing-hand cursor this frame
+void UiWantCursor(int cursor); // request any MOUSE_CURSOR_* this frame
 
 // Restrict mouse hit-testing to a region (e.g. a scrolling view).
 void UiSetClip(Rectangle r);
@@ -85,14 +86,28 @@ float UiIconText(Icon icon, Font f, const char *text, float x, float y, float si
 // Single-line text input. buf is also the focus identity, so it must outlive the frame.
 // Accepts printable ASCII up to size-1 bytes. Returns true when Enter is pressed while focused.
 bool UiTextBox(Rectangle r, char *buf, int size, const char *placeholder, bool password);
-void UiFocus(char *buf);       // give keyboard focus to the text box using buf (NULL clears)
-bool UiHasFocus(const char *buf);
+void UiFocus(const void *id);  // give keyboard focus to a widget (a text box's buf, or an editor); NULL clears
+bool UiHasFocus(const void *id);
+// True if id had focus at the start of this frame, so it may handle keys now (see UiTextBox).
+bool UiTakesInput(const void *id);
 bool UiAnyFocus(void);
 
 // Word-wrapped text. Returns the height used. Pass draw=false to only measure.
 float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float size, Color c, bool draw);
 
+// One syntax-highlighting token: a run of characters [start, start + len) in one colour.
+typedef struct {
+    int start, len;
+    Color color;
+} UiCodeToken;
+
+// Splits one line of C/C++ into coloured tokens. inBlockComment carries /* */ state
+// between lines. Returns the number of tokens written to out.
+int UiCodeTokens(const char *line, int len, bool *inBlockComment, UiCodeToken *out, int max);
+
 // Syntax-highlighted code block. Returns the height used.
 float UiCodeBlock(const char *code, Vector2 pos, float width, float size, bool draw);
+// The same box in plain text, for program output.
+float UiOutputBlock(const char *text, Vector2 pos, float width, float size, bool draw);
 
 #endif

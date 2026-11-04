@@ -19,4 +19,41 @@ bool PlatformHashPassword(const char *password, const unsigned char *salt, size_
 // Atomically replaces dst with src (both on the same volume).
 bool PlatformReplaceFile(const char *src, const char *dst);
 
+// Deletes every file in dir (not subfolders), then the folder itself. Missing dir is fine.
+bool PlatformRemoveDir(const char *dir);
+
+// Writes the system temp folder (with a trailing slash) to out.
+bool PlatformTempDir(char *out, size_t size);
+
+// Looks for an executable on PATH, e.g. "gcc.exe". Writes its full path to out.
+bool PlatformFindOnPath(const char *exe, char *out, size_t size);
+
+// ---------------------------------------------------------------------------
+// Child processes, for compiling and running learners' programs.
+// The process runs without a console window, in a job object that limits its memory and
+// lets the whole process tree be killed. stdout and stderr are captured together.
+
+typedef struct PlatformProcess PlatformProcess;
+
+// Puts dir at the front of PATH for this process and its children (once per dir), so a
+// compiler finds its own tools before any other toolchain installed on the machine.
+void PlatformPrependPath(const char *dir);
+
+#define PROCESS_OUTPUT_MAX (256 * 1024)     // output beyond this is dropped
+#define PROCESS_MEMORY_MAX (512u << 20)     // per-process memory limit, bytes
+
+// Starts cmdline in workDir and feeds it stdinText (may be NULL), then closes its stdin.
+// Returns NULL on failure and writes a message to err.
+PlatformProcess *PlatformProcessStart(const char *cmdline, const char *workDir, const char *stdinText,
+                                      char *err, size_t errSize);
+
+// Collects any new output. Returns true while the process is still running.
+bool PlatformProcessUpdate(PlatformProcess *p);
+
+const char *PlatformProcessOutput(const PlatformProcess *p);  // '\0'-terminated
+bool PlatformProcessTruncated(const PlatformProcess *p);      // output hit PROCESS_OUTPUT_MAX
+unsigned long PlatformProcessExitCode(const PlatformProcess *p);
+void PlatformProcessKill(PlatformProcess *p);
+void PlatformProcessFree(PlatformProcess *p);  // kills it if still running
+
 #endif

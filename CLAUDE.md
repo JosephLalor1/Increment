@@ -7,11 +7,12 @@ A desktop app for learning C and C++, written in C99 with raylib 6.0. This is an
 - `build.bat` builds a debug `build\increment.exe`; `build.bat release` builds an optimised one with no console window.
 - The toolchain is the raylib Windows bundle at `C:\raylib` (w64devkit gcc 15.2 + `raylib\src\libraylib.a`). Override with `RAYLIB_DIR`. Do not use the MSYS2 gcc on PATH; it has no raylib.
 - Build must stay warning-free under `-Wall -Wextra`.
-- `test.bat` builds and runs `tests\test_account.c` against a throwaway temp dir. Run it after touching `account.c` or `platform.c`.
+- `test.bat` builds and runs the tests (about 15 s): `tests\test_account.c` (throwaway data dir), `tests\test_editor.c` (editing operations) and `tests\test_runner.c` (compiles and runs real programs, including a crash, an endless loop and a 2 GB allocation). Run it after touching `account.c`, `platform.c`, `editor.c` or `runner.c`.
+- Never commit: the user commits to their GitHub repo themselves and hand-tests before each commit.
 
 ## Verifying UI changes
 
-`increment.exe --shot out.png <screen> [lessonIndex] [scroll]` renders one screen to a PNG and exits. Screens: `splash gallery login register reset recovery settings delete menu list lesson quiz answered result` (`register`, `reset`, `recovery` and `delete` pre-fill demo state via `AccountScreensDemo`). Check both themes: the theme comes from the signed-in user's (or last user's) settings file. Write shots to the scratchpad and view them after any visual change. `lessonIndex` indexes all lessons in filename order.
+`increment.exe --shot out.png <screen> [lessonIndex] [scroll]` renders one screen to a PNG and exits. Screens: `splash gallery login register reset recovery settings delete menu list lesson quiz answered result editor exercise tryit` (`register`, `reset`, `recovery` and `delete` pre-fill demo state via `AccountScreensDemo`; `exercise <lessonIndex> <exerciseNumber>` opens an exercise; `tryit <lessonIndex>` opens its first runnable example; set `INCREMENT_SHOT_RUN=1` to compile and run first, and the shot waits for it). Code editor shots need a signed-in user; put draft files in `<data>/users/<name>_code/` to show particular code. Check both themes: the theme comes from the signed-in user's (or last user's) settings file. Write shots to the scratchpad and view them after any visual change. `lessonIndex` indexes all lessons in filename order.
 
 Env vars for testing:
 - `INCREMENT_DATA_DIR`: where accounts and progress live (default: the exe's folder). Point it at the scratchpad so you never touch real accounts.
@@ -31,9 +32,12 @@ Python's `hashlib.pbkdf2_hmac('sha256', pw, salt, iterations)` produces hashes t
 - `src/icons.c`: the line-icon set (`IconDraw`), drawn from shapes so icons follow the theme. Use `UiButtonIcon`/`UiButtonIconEx` and `UiIconText` rather than drawing icons by hand. Check new or changed icons with `--shot out.png gallery`.
 - `src/splash.c`: launch animation (2.4 s, any key or click skips). `--shot out.png splash 0 <ms>` renders one moment of it.
 - `tools/make_icons.c` + `build.bat icons`: regenerates `assets/icon/` (PNGs at 16-256 px, `logo_512.png`, `increment.ico`) from `brand.c`. Re-run after changing the logo; the generated files are committed. `src/increment.rc` embeds the `.ico` and version info in the exe via windres. Window and taskbar icons are loaded from the PNGs at startup.
+- `src/editor.c`: multi-line code editor widget (selection, clipboard, undo/redo, auto-indent, syntax colours via `UiCodeTokens`, error-line marks). Editing operations are plain functions with no input or drawing, so they're unit-tested; keep new editing behaviour in that layer and add tests for it.
+- `src/runner.c`: compiles (with `-static`, so C++ programs need no DLLs) and runs learner code in the background, finds the compiler (`RunnerFindCompiler`), parses gcc diagnostics, explains crash codes, and compares output for exercises. `platform.c` runs the processes: no console window, a job object with a 512 MB memory cap, 5 s run limit, crash dialogs disabled with `SetErrorMode` (without it a crash hangs until the time limit when the app is started from Explorer or PowerShell), and the compiler's bin folder first on PATH (otherwise gcc can pick up another toolchain's `ld`, such as MSYS2's). Each build uses a new exe name, so a locked old exe can't block linking.
+- `src/code_screen.c`: the code editor screen. Three ways in: the free editor (menu), "Try it" on any lesson code block containing `main(` (Input is filled from a `// stdin:` marker), and lesson exercises. Drafts are saved per user in `users/<name>_code/` (deleted with the account); exercise passes are saved as progress id `<lesson id>#<n>`.
 - `src/lesson.c`: parser for lesson files.
 - `src/account.c`: local accounts in `<data>/accounts.txt`: `@last name` plus `name iter salt hash [riter rsalt rhash]` lines (the recovery triple is optional; older 4-field lines still load). Passwords and recovery codes use PBKDF2-HMAC-SHA256 with a 16-byte random salt and 210k iterations; iteration counts are stored per secret so they can be raised later. Recovery codes are 16 symbols from a 32-char alphabet with no look-alikes (80 bits), shown once, used once (a reset issues a new one), and matched without regard to case or dashes. Per-user settings (theme, accent, text size) live in `users/<name>.settings.txt`. Usernames are 3-20 of `[A-Za-z0-9_-]`, case-insensitive, and that character set is what makes them safe as filenames.
-- `src/platform.c`: the only file that includes `<windows.h>` (random bytes, PBKDF2, atomic file replace). Never include raylib.h there; the headers clash.
+- `src/platform.c`: the only file that includes `<windows.h>` (random bytes, PBKDF2, atomic file replace, child processes, PATH, temp dir). Never include raylib.h there; the headers clash.
 - `src/progress.c`: best score per lesson id, saved to `<data>/users/<lowercase name>.txt`. 70% passes. The first account created takes over a pre-accounts `progress.txt`.
 - `assets/lessons/*.txt`: lesson content, loaded in filename order (`c_NN_*`, `cpp_NN_*`).
 
@@ -57,6 +61,13 @@ Plain lines form paragraphs; a blank line ends one.
 - Bullet item             (one block per bullet; an indented next line continues it)
 (three backticks on their own line open/close a code block)
 
+@exercise Title           (optional, before @quiz; up to 8)
+Plain lines are the task description.
+(first unlabelled code block: starter code, including a test main())
+@input                    (optional: the next code block is stdin)
+@expect                   (the next code block is the expected output)
+@solution                 (the next code block is a reference solution)
+
 @quiz                     (everything after this is quiz)
 ? Question prompt
 (a code block right after a prompt attaches to that question)
@@ -66,10 +77,13 @@ Plain lines form paragraphs; a blank line ends one.
 ```
 
 - Keep lesson text ASCII where possible. Fonts include Latin-1 and common typographic punctuation, nothing else.
-- Limits: 256 blocks, 16 questions, 6 choices per question, 1023 chars per line.
+- Limits: 256 blocks, 16 questions, 6 choices per question, 8 exercises, 1023 chars per line.
+- Exercises: the checker requires the starter to compile but not already pass, and the solution to produce the expected output exactly (trailing spaces and blank lines ignored, as in the app).
+- A code block after a paragraph ending "output:" is drawn as plain text, not syntax-highlighted.
 - Code samples must be correct and compile. Quiz answers must be unambiguous.
 
 ## Gotchas
 
 - raylib batches draws; flush with `rlDrawRenderBatchActive()` before reading the framebuffer.
+- Don't edit C files with inline Python or sed when the new text contains backslash escapes (`\n`, `\"`, `\t`): the escapes get turned into real characters. Use the Edit tool, or build backslashes with `chr(92)`.
 - Fonts come from `assets/fonts/text.ttf` and `mono.ttf` if present, otherwise Segoe UI and Consolas from `C:\Windows\Fonts`.

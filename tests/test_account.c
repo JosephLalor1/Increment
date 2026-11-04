@@ -227,6 +227,9 @@ static void TestDelete(void)
     AccountSettings s = AccountGetSettings();
     s.theme = THEME_LIGHT;
     AccountSetSettings(s);
+    const char *codeDir = AccountCodeDir();  // code editor drafts
+    CHECK(codeDir && DirectoryExists(codeDir));
+    WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
     int before = AccountCount();
 
     CHECK(!AccountDelete("wrong", &err));
@@ -238,6 +241,7 @@ static void TestDelete(void)
     CHECK(AccountCount() == before - 1);
     CHECK(!FileExists(DataFile("users/temp_user.txt")));
     CHECK(!FileExists(DataFile("users/temp_user.settings.txt")));
+    CHECK(!DirectoryExists(DataFile("users/temp_user_code")));
     CHECK(strcmp(AccountLastUser(), "") == 0);
     CHECK(AccountGetSettings().theme == THEME_DARK);
     CHECK(!AccountLogin("temp_user", "deleteme", &err));

@@ -4,6 +4,7 @@
 #include "account.h"
 #include "account_screens.h"
 #include "brand.h"
+#include "code_screen.h"
 #include "layout.h"
 #include "lesson.h"
 #include "progress.h"
@@ -17,7 +18,7 @@
 #define PASS_PERCENT 70
 
 typedef enum {
-    SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS,
+    SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_SETTINGS, SCREEN_CODE,
     SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT,
 } Screen;
 
@@ -38,6 +39,9 @@ static struct {
     Screen afterRecovery; // where to go once a new recovery code has been saved
     double splashStart;   // GetTime() when the splash began
     float shotTime;       // --shot splash: fixed animation time, or < 0 to run live
+    Screen codeReturn;    // where the code editor goes back to
+    float savedScroll;    // lesson scroll position while the code editor is open
+    float savedContentH;
     bool quit;
 } app;
 
@@ -226,9 +230,46 @@ static void ScreenMenu(void)
             Go(SCREEN_SETTINGS);
         }
     }
-    if (UiButtonIconEx((Rectangle){ cx - 70, y + cardH + 80, 140, 46 }, ICON_POWER, "Quit", 20, COL_PANEL,
+    if (UiButtonIcon((Rectangle){ cx - 210, y + cardH + 80, 250, 46 }, ICON_CODE, "Open code editor", true)) {
+        CodeOpenPlayground();
+        app.codeReturn = SCREEN_MENU;
+        Go(SCREEN_CODE);
+    }
+    if (UiButtonIconEx((Rectangle){ cx + 60, y + cardH + 80, 150, 46 }, ICON_POWER, "Quit", 20, COL_PANEL,
                        COL_SECONDARY_HOVER, COL_TEXT, true)) {
         app.quit = true;
+    }
+}
+
+// True for paragraphs like "Output:" or "Example output:" that introduce program output.
+static bool IntroducesOutput(const char *text)
+{
+    size_t n = strlen(text);
+    const char *tail = "output:";
+    if (n < 7) return false;
+    for (size_t i = 0; i < 7; i++) {
+        char c = text[n - 7 + i];
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        if (c != tail[i]) return false;
+    }
+    return true;
+}
+
+static void OpenCodeFromLesson(void)
+{
+    app.savedScroll = app.scroll;
+    app.savedContentH = app.contentH;
+    app.codeReturn = SCREEN_LESSON;
+    Go(SCREEN_CODE);
+}
+
+static void ScreenCodeWrap(void)
+{
+    if (!CodeScreen()) return;
+    Go(app.codeReturn);
+    if (app.codeReturn == SCREEN_LESSON) {  // back to where the learner was reading
+        app.scroll = app.savedScroll;
+        app.contentH = app.savedContentH;
     }
 }
 
@@ -296,6 +337,8 @@ static void ScreenLesson(void)
     float ts = TextScale(); // user's lesson text size
     float top = view.y + 32 - app.scroll;
     float y = top;
+    const char *trySnippet = NULL;  // acted on after the view is closed
+    int openExercise = -1;
 
     y += UiWrappedText(gFonts.text, L->title, (Vector2){ x, y }, w, 44 * ts, COL_TEXT, true) + 16;
 
@@ -317,9 +360,19 @@ static void ScreenLesson(void)
             UiWrappedText(gFonts.text, b->text, (Vector2){ x + textX, y + 14 }, w - textX - 24, 21 * ts, COL_TEXT, true);
             y += h + 28 + 16;
         } break;
-        case BLOCK_CODE:
-            y += UiCodeBlock(b->text, (Vector2){ x, y }, w, 20 * ts, true) + 16;
-            break;
+        case BLOCK_CODE: {
+            // A block after "Output:" (or "Example output:") is program output: plain, not highlighted.
+            bool isOutput = i > 0 && L->blocks[i - 1].type == BLOCK_TEXT && IntroducesOutput(L->blocks[i - 1].text);
+            float h = isOutput ? UiOutputBlock(b->text, (Vector2){ x, y }, w, 20 * ts, true)
+                               : UiCodeBlock(b->text, (Vector2){ x, y }, w, 20 * ts, true);
+            if (strstr(b->text, "main(")) {  // a complete program: offer to run it
+                Rectangle tryIt = { x + w - 112, y + 10, 100, 34 };
+                if (UiButtonIconEx(tryIt, ICON_PLAY, "Try it", 17, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+                    trySnippet = b->text;
+                }
+            }
+            y += h + 16;
+        } break;
         case BLOCK_BULLET: {
             float size = 22 * ts;
             DrawCircleV((Vector2){ x + 9, y + size * 0.62f }, 3.5f * ts, COL_ACCENT);
@@ -327,6 +380,25 @@ static void ScreenLesson(void)
             bool lastInList = i + 1 >= L->blockCount || L->blocks[i + 1].type != BLOCK_BULLET;
             if (lastInList) y += 10;
         } break;
+        }
+    }
+
+    // Exercises, done in the code editor
+    if (L->exerciseCount > 0) {
+        y += 14;
+        y += UiWrappedText(gFonts.text, "Exercises", (Vector2){ x, y }, w, 30 * ts, COL_ACCENT, true) + 10;
+        for (int i = 0; i < L->exerciseCount; i++) {
+            Rectangle row = { x, y, w, 64 };
+            bool done = CodeExerciseDone(L, i);
+            UiRoundRect(row, 10, COL_PANEL);
+            Vector2 badge = { x + 34, y + 32 };
+            DrawCircleV(badge, 18, done ? COL_GOOD_BG : COL_BG);
+            IconDraw(done ? ICON_CHECK : ICON_CODE, badge, 20, done ? COL_GOOD : COL_ACCENT);
+            UiText(gFonts.text, L->exercises[i].title, x + 66, y + 20, 21, COL_TEXT);
+            if (UiButtonIcon((Rectangle){ x + w - 150, y + 12, 136, 40 }, ICON_NEXT, done ? "Open" : "Start", true)) {
+                openExercise = i;
+            }
+            y += 76;
         }
     }
 
@@ -340,6 +412,14 @@ static void ScreenLesson(void)
 
     app.contentH = y - top + 32;
     EndView();
+
+    if (trySnippet) {
+        CodeOpenSnippet(TextFormat("Try it: %s", L->title), trySnippet, L->track == TRACK_CPP);
+        OpenCodeFromLesson();
+    } else if (openExercise >= 0) {
+        CodeOpenExercise(L, openExercise);
+        OpenCodeFromLesson();
+    }
 }
 
 static void FinishQuiz(void)
@@ -553,11 +633,12 @@ static void FindAssetDir(char *out, size_t size)
 }
 
 // Dev aid: --shot out.png <screen> [lessonIndex] [scroll] renders one screen, saves it as a
-// PNG, and exits. Screens: login register reset recovery settings delete menu list lesson
-// quiz answered result.
+// PNG, and exits. Screens: splash gallery login register reset recovery settings delete menu
+// list lesson quiz answered result editor exercise tryit.
 typedef struct {
     const char *path;
     int framesLeft;
+    int waited;  // frames spent waiting for a program to finish
 } Shot;
 
 static Shot ParseShot(int argc, char **argv)
@@ -588,6 +669,34 @@ static Shot ParseShot(int argc, char **argv)
         app.shotTime = (argc > 5 ? (float)atof(argv[5]) : 1500) / 1000.0f;  // ms into the animation
     }
     else if (strcmp(screen, "gallery") == 0) app.screen = SCREEN_GALLERY;
+    else if (strcmp(screen, "editor") == 0 || strcmp(screen, "exercise") == 0 || strcmp(screen, "tryit") == 0) {
+        // editor: free editor; exercise: lesson <index>, exercise <argv[5]> (1-based);
+        // tryit: the first runnable example of lesson <index>. INCREMENT_SHOT_RUN=1 runs the code first.
+        if (!AccountCurrent()) {
+            app.screen = SCREEN_MENU;
+        } else if (strcmp(screen, "editor") == 0) {
+            CodeOpenPlayground();
+            app.screen = SCREEN_CODE;
+        } else if (strcmp(screen, "exercise") == 0) {
+            int ex = argc > 5 ? atoi(argv[5]) - 1 : 0;
+            if (lessons.count && ex >= 0 && ex < lessons.items[index].exerciseCount) {
+                CodeOpenExercise(&lessons.items[index], ex);
+                app.screen = SCREEN_CODE;
+            }
+        } else if (lessons.count) {
+            Lesson *L = &lessons.items[index];
+            for (int b = 0; b < L->blockCount; b++) {
+                if (L->blocks[b].type == BLOCK_CODE && strstr(L->blocks[b].text, "main(")) {
+                    CodeOpenSnippet(TextFormat("Try it: %s", L->title), L->blocks[b].text, L->track == TRACK_CPP);
+                    app.screen = SCREEN_CODE;
+                    break;
+                }
+            }
+        }
+        app.codeReturn = SCREEN_MENU;
+        const char *runIt = getenv("INCREMENT_SHOT_RUN");
+        if (app.screen == SCREEN_CODE && runIt && runIt[0] == '1') CodeRunNow();
+    }
     else if (strcmp(screen, "register") == 0 || strcmp(screen, "reset") == 0) app.screen = SCREEN_LOGIN;
     else if (strcmp(screen, "recovery") == 0) app.screen = SCREEN_RECOVERY;
     else if (strcmp(screen, "settings") == 0 || strcmp(screen, "delete") == 0) {
@@ -657,6 +766,7 @@ int main(int argc, char **argv)
         case SCREEN_LOGIN:    ScreenLoginWrap();    break;
         case SCREEN_RECOVERY: ScreenRecoveryWrap(); break;
         case SCREEN_SETTINGS: ScreenSettingsWrap(); break;
+        case SCREEN_CODE:     ScreenCodeWrap();     break;
         case SCREEN_MENU:   ScreenMenu();   break;
         case SCREEN_LIST:   ScreenList();   break;
         case SCREEN_LESSON: ScreenLesson(); break;
@@ -664,7 +774,9 @@ int main(int argc, char **argv)
         case SCREEN_RESULT: ScreenResult(); break;
         }
 
-        if (shot.path && --shot.framesLeft == 0) {
+        if (shot.path && CodeBusy() && shot.framesLeft == 1 && shot.waited++ < 1800) {
+            // a shot of the code editor waits for the compile and run to finish (up to ~30 s)
+        } else if (shot.path && --shot.framesLeft == 0) {
             rlDrawRenderBatchActive(); // pending batched draws aren't in the framebuffer yet
             Image img = LoadImageFromScreen();
             ExportImage(img, shot.path);
@@ -675,6 +787,7 @@ int main(int argc, char **argv)
         UiEndFrame();
     }
 
+    CodeShutdown();
     LessonsUnload(&lessons);
     UiUnloadFonts();
     CloseWindow();

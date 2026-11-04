@@ -40,6 +40,7 @@ bool AccountDelete(const char *password, const char **err); // also deletes prog
 const char *AccountCurrent(void);       // display name, or NULL when logged out
 bool AccountHasRecovery(void);          // whether the logged-in user has a recovery code
 const char *AccountProgressPath(void);  // progress file for the current user
+const char *AccountCodeDir(void);       // folder for the current user's code editor drafts (created), or NULL
 const char *AccountLastUser(void);      // last user to log in, "" if none
 
 // The current user's settings; when logged out, the last user's (so the login screen

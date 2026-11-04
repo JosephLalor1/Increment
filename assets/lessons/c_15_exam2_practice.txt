@@ -152,13 +152,159 @@ apple vs banana: smaller
 
 # Your turn
 
-Write these without any [ ] indexing:
+The exercises below are the remaining lab functions. Write them without any [ ] indexing, as the lab requires. The lab's Part 2 moves on to linked lists, covered in the C++ track.
 
-- swap_chars(char *a, char *b): like swap_ints, but for characters
-- count_vowels(char *str): "OpenAI" has 3 vowels (O, e, A). Check both cases.
-- concat_strings(char *dest, char *src): move a pointer to the end of dest, then copy src from there
+> The lab's example says count_vowels("OpenAI") is 3 (O, e, A), but "OpenAI" has 4 vowels: O, e, A and I. The exercise below checks for 4.
 
-The lab's Part 2 moves on to linked lists, covered in the C++ track.
+@exercise swap_chars
+Swap the values of two characters using pointers, just like swap_ints but for char.
+
+```
+#include <stdio.h>
+
+void swap_chars(char *a, char *b) {
+    // TODO: swap the characters a and b point to
+}
+
+int main() {
+    char a = 'A', b = 'B';
+    swap_chars(&a, &b);
+    printf("a = %c, b = %c\n", a, b);
+    return 0;
+}
+```
+
+@expect
+```
+a = B, b = A
+```
+
+@solution
+```
+#include <stdio.h>
+
+void swap_chars(char *a, char *b) {
+    char temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int main() {
+    char a = 'A', b = 'B';
+    swap_chars(&a, &b);
+    printf("a = %c, b = %c\n", a, b);
+    return 0;
+}
+```
+
+@exercise count_vowels
+Count the vowels (a, e, i, o, u, in upper or lower case) in a string, walking it with a pointer until the null terminator.
+
+```
+#include <stdio.h>
+
+int count_vowels(char *str) {
+    int count = 0;
+    // TODO: walk str with a pointer and count the vowels
+    return count;
+}
+
+int main() {
+    printf("%d\n", count_vowels("OpenAI"));
+    printf("%d\n", count_vowels("rhythm"));
+    printf("%d\n", count_vowels("Programming in C"));
+    return 0;
+}
+```
+
+@expect
+```
+4
+0
+4
+```
+
+@solution
+```
+#include <stdio.h>
+
+int count_vowels(char *str) {
+    int count = 0;
+    for (char *p = str; *p != '\0'; p++) {
+        char c = *p;
+        if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';  // lower case
+        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
+            count++;
+        }
+    }
+    return count;
+}
+
+int main() {
+    printf("%d\n", count_vowels("OpenAI"));
+    printf("%d\n", count_vowels("rhythm"));
+    printf("%d\n", count_vowels("Programming in C"));
+    return 0;
+}
+```
+
+@exercise concat_strings
+Append src to the end of dest. Move a pointer to the terminator at the end of dest, then copy src from there, including its terminator. You can assume dest has enough space.
+
+```
+#include <stdio.h>
+
+void concat_strings(char *dest, char *src) {
+    // TODO: find the end of dest, then copy src there
+}
+
+int main() {
+    char dest[20] = "Hello, ";
+    concat_strings(dest, "World!");
+    printf("%s\n", dest);
+
+    char word[16] = "";
+    concat_strings(word, "abc");
+    concat_strings(word, "def");
+    printf("%s\n", word);
+    return 0;
+}
+```
+
+@expect
+```
+Hello, World!
+abcdef
+```
+
+@solution
+```
+#include <stdio.h>
+
+void concat_strings(char *dest, char *src) {
+    while (*dest != '\0') {
+        dest++;
+    }
+    while (*src != '\0') {
+        *dest = *src;
+        dest++;
+        src++;
+    }
+    *dest = '\0';
+}
+
+int main() {
+    char dest[20] = "Hello, ";
+    concat_strings(dest, "World!");
+    printf("%s\n", dest);
+
+    char word[16] = "";
+    concat_strings(word, "abc");
+    concat_strings(word, "def");
+    printf("%s\n", word);
+    return 0;
+}
+```
 
 @quiz
 ? In the lab, which loop condition walks a string without knowing its length?

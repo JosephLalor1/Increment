@@ -62,9 +62,41 @@ typedef struct {
     BlockType paraType;
     bool inCode;
     bool inQuiz;
+    bool inExercise;
+    char **fenceTarget;  // in an exercise: which field the next code block fills
+    StrBuf exDesc;       // description of the current exercise
+    bool exBlankLine;    // a paragraph break is pending in exDesc
     const char *file;
     int lineNo;
 } Parser;
+
+// Moves the collected description into the current exercise.
+static void FinishExercise(Parser *ps)
+{
+    Lesson *L = ps->lesson;
+    if (ps->inExercise && L->exerciseCount > 0) {
+        Exercise *ex = &L->exercises[L->exerciseCount - 1];
+        free(ex->description);
+        ex->description = SbTake(&ps->exDesc);
+    }
+    ps->inExercise = false;
+    ps->exBlankLine = false;
+}
+
+static void ParseExerciseLine(Parser *ps, const char *line)
+{
+    Exercise *ex = &ps->lesson->exercises[ps->lesson->exerciseCount - 1];
+    if (StartsWith(line, "@input"))    { ps->fenceTarget = &ex->input; return; }
+    if (StartsWith(line, "@expect"))   { ps->fenceTarget = &ex->expected; return; }
+    if (StartsWith(line, "@solution")) { ps->fenceTarget = &ex->solution; return; }
+    if (line[0] == '\0') {
+        if (ps->exDesc.len) ps->exBlankLine = true;
+        return;
+    }
+    if (ps->exDesc.len) SbAppend(&ps->exDesc, ps->exBlankLine ? "\n\n" : " ", ps->exBlankLine ? 2 : 1);
+    ps->exBlankLine = false;
+    SbAppend(&ps->exDesc, line, strlen(line));
+}
 
 static void AddBlock(Parser *ps, BlockType type, char *text)
 {
@@ -92,7 +124,12 @@ static void FlushCode(Parser *ps)
     char *code = SbTake(&ps->code);
 
     Lesson *L = ps->lesson;
-    if (ps->inQuiz && L->questionCount > 0) {
+    if (ps->inExercise) {
+        char **target = ps->fenceTarget ? ps->fenceTarget : &L->exercises[L->exerciseCount - 1].starter;
+        free(*target);
+        *target = code;
+        ps->fenceTarget = NULL;  // an unlabelled block is the starter code
+    } else if (ps->inQuiz && L->questionCount > 0) {
         Question *q = &L->questions[L->questionCount - 1];
         free(q->code);
         q->code = code;
@@ -177,10 +214,27 @@ static void ParseLine(Parser *ps, char *line)
     }
     if (StartsWith(line, "@quiz")) {
         FlushPara(ps);
+        FinishExercise(ps);
         ps->inQuiz = true;
         return;
     }
+    if (StartsWith(line, "@exercise")) {
+        FlushPara(ps);
+        FinishExercise(ps);
+        ps->inQuiz = false;
+        if (L->exerciseCount >= MAX_EXERCISES) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercises", ps->file, ps->lineNo);
+            return;
+        }
+        const char *title = line + 9;
+        while (*title == ' ') title++;
+        L->exercises[L->exerciseCount++].title = CopyStr(*title ? title : "Exercise");
+        ps->inExercise = true;
+        ps->fenceTarget = NULL;
+        return;
+    }
 
+    if (ps->inExercise) { ParseExerciseLine(ps, line); return; }
     if (ps->inQuiz) { ParseQuizLine(ps, line); return; }
 
     if (line[0] == '\0') { FlushPara(ps); return; }
@@ -237,9 +291,19 @@ static bool ParseLessonFile(const char *path, Lesson *L)
     }
     if (ps.inCode) FlushCode(&ps);
     FlushPara(&ps);
+    FinishExercise(&ps);
 
     free(ps.para.data);
     free(ps.code.data);
+    free(ps.exDesc.data);
+    for (int i = 0; i < L->exerciseCount; i++) {
+        Exercise *ex = &L->exercises[i];
+        if (!ex->starter) ex->starter = CopyStr("");
+        if (!ex->expected) {
+            TraceLog(LOG_WARNING, "LESSON: %s: exercise \"%s\" has no @expect output", path, ex->title);
+            ex->expected = CopyStr("");
+        }
+    }
     UnloadFileText(text);
 
     if (L->title[0] == '\0') CopyField(L->title, sizeof L->title, L->id);
@@ -256,6 +320,15 @@ static bool ParseLessonFile(const char *path, Lesson *L)
 static void FreeLesson(Lesson *L)
 {
     for (int i = 0; i < L->blockCount; i++) free(L->blocks[i].text);
+    for (int i = 0; i < L->exerciseCount; i++) {
+        Exercise *ex = &L->exercises[i];
+        free(ex->title);
+        free(ex->description);
+        free(ex->starter);
+        free(ex->input);
+        free(ex->expected);
+        free(ex->solution);
+    }
     for (int i = 0; i < L->questionCount; i++) {
         Question *q = &L->questions[i];
         free(q->prompt);

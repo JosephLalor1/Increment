@@ -6,6 +6,9 @@
 - Code: every code block containing main() is compiled (gcc -std=c11 for the C track,
   g++ -std=c++17 for C++) and run. If the block is followed by a paragraph "Output:" and
   then a code block, the program's stdout must match that block exactly.
+- Exercises: the starter code must compile but not already produce the expected output,
+  and the @solution must compile cleanly and produce it exactly (compared as the app
+  does: trailing spaces and blank lines ignored).
 
 Markers inside a code block (as comments) change what's expected:
   // does not compile   -> compilation must fail
@@ -29,9 +32,10 @@ MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 16, 6
 
 
 def parse(path):
-    """Returns (meta, blocks, questions). blocks: list of (type, text)."""
-    meta, blocks, questions = {}, [], []
+    """Returns (meta, blocks, questions, exercises). blocks: list of (type, text)."""
+    meta, blocks, questions, exercises = {}, [], [], []
     para, para_type, code, in_code, in_quiz = [], None, [], False, False
+    in_ex, target = False, None  # in an exercise; which field the next code block fills
 
     def flush():
         nonlocal para, para_type
@@ -44,7 +48,10 @@ def parse(path):
         if in_code:
             if line.startswith('```'):
                 text = '\n'.join(code)
-                if in_quiz and questions:
+                if in_ex:
+                    exercises[-1][target or 'starter'] = text
+                    target = None
+                elif in_quiz and questions:
                     questions[-1]['code'] = text
                 else:
                     blocks.append(('code', text))
@@ -62,7 +69,20 @@ def parse(path):
             continue
         if line.startswith('@quiz'):
             flush()
-            in_quiz = True
+            in_quiz, in_ex = True, False
+            continue
+        if line.startswith('@exercise'):
+            flush()
+            in_quiz, in_ex, target = False, True, None
+            exercises.append({'title': line[9:].strip(), 'desc': '', 'starter': None, 'input': None,
+                              'expected': None, 'solution': None, 'line': n})
+            continue
+        if in_ex:
+            m = re.match(r'@(input|expect|solution)\b', line)
+            if m:
+                target = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}[m.group(1)]
+            elif line.strip():
+                exercises[-1]['desc'] += ' ' + line
             continue
         if in_quiz:
             if line.startswith('? '):
@@ -93,10 +113,18 @@ def parse(path):
             para_type = t
             para.append(line[2:] if t == 'note' else line)
     flush()
-    return meta, blocks, questions
+    return meta, blocks, questions, exercises
 
 
-def compile_and_run(code, cpp, workdir, name):
+def normalize(text):
+    """Output as the app compares it: no '\\r', no trailing spaces, no trailing blank lines."""
+    lines = [l.expandtabs(8).rstrip() for l in (text or '').replace('\r', '').split('\n')]
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def compile_and_run(code, cpp, workdir, name, stdin=None):
     src = os.path.join(workdir, name + ('.cpp' if cpp else '.c'))
     exe = os.path.join(workdir, name + '.exe')
     with open(src, 'w', encoding='utf-8') as f:
@@ -107,8 +135,9 @@ def compile_and_run(code, cpp, workdir, name):
                         src, '-o', exe], capture_output=True, text=True)
     if r.returncode != 0:
         return False, r.stderr, None
-    m = re.search(r'//\s*stdin:\s*(.*)', code)
-    stdin = '\n'.join(m.group(1).split()) + '\n' if m else ''
+    if stdin is None:
+        m = re.search(r'//\s*stdin:\s*(.*)', code)
+        stdin = '\n'.join(m.group(1).split()) + '\n' if m else ''
     if 'undefined behaviour' in code:
         return True, r.stderr, None
     try:
@@ -121,8 +150,40 @@ def compile_and_run(code, cpp, workdir, name):
 def check(path, workdir):
     name = os.path.basename(path)
     problems = []
-    meta, blocks, questions = parse(path)
+    meta, blocks, questions, exercises = parse(path)
     cpp = meta.get('track') in ('C++', 'cpp')
+
+    # Exercises: the starter compiles but doesn't already pass; the solution passes.
+    for ei, ex in enumerate(exercises):
+        where = f'exercise "{ex["title"]}" (line {ex["line"]})'
+        if not ex['title']:
+            problems.append(f'{where}: no title')
+        if not ex['desc'].strip():
+            problems.append(f'{where}: no description')
+        if not ex['starter']:
+            problems.append(f'{where}: no starter code')
+            continue
+        if ex['expected'] is None:
+            problems.append(f'{where}: no @expect block')
+            continue
+        tag = f'{os.path.splitext(name)[0]}_ex{ei}'
+        stdin = (ex['input'] or '') + '\n'
+        ok, err, out = compile_and_run(ex['starter'], cpp, workdir, tag + '_starter', stdin)
+        if not ok:
+            problems.append(f'{where}: starter code does not compile:\n{err}')
+        elif out is not None and normalize(out) == normalize(ex['expected']):
+            problems.append(f'{where}: the starter code already produces the expected output')
+        if not ex['solution']:
+            problems.append(f'{where}: no @solution (needed to prove the exercise can be solved)')
+            continue
+        ok, err, out = compile_and_run(ex['solution'], cpp, workdir, tag + '_solution', stdin)
+        if not ok:
+            problems.append(f'{where}: solution does not compile:\n{err}')
+        elif err.strip():
+            problems.append(f'{where}: solution has warnings:\n{err}')
+        elif normalize(out) != normalize(ex['expected']):
+            problems.append(f'{where}: solution output differs.\n  expected: {normalize(ex["expected"])}\n'
+                            f'  actual:   {normalize(out)}')
 
     for key in ('id', 'title', 'track'):
         if key not in meta:
@@ -202,7 +263,7 @@ def check(path, workdir):
             problems.append(f'quiz snippet at line {q["line"]} failed to compile:\n{err}')
         elif out is not None and out.strip() != want:
             problems.append(f'quiz at line {q["line"]}: answer is {want!r} but the code prints {out.strip()!r}')
-    return problems, runs, len(questions)
+    return problems, runs, len(questions), len(exercises)
 
 
 def main():
@@ -211,9 +272,9 @@ def main():
     total = 0
     with tempfile.TemporaryDirectory() as work:
         for p in paths:
-            problems, runs, nq = check(p, work)
+            problems, runs, nq, nex = check(p, work)
             status = 'ok' if not problems else f'{len(problems)} problem(s)'
-            print(f'{os.path.basename(p)}: {runs} program(s), {nq} question(s): {status}')
+            print(f'{os.path.basename(p)}: {runs} program(s), {nq} question(s), {nex} exercise(s): {status}')
             for pr in problems:
                 print('  - ' + pr.replace('\n', '\n    '))
             total += len(problems)

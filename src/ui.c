@@ -76,8 +76,8 @@ const char *UiAccentName(int accent)
 static Rectangle clipRect;
 static bool clipOn;
 
-static char *focused;
-static char *frameFocus; // focus at the start of the frame; only it receives input
+static const void *focused;
+static const void *frameFocus; // focus at the start of the frame; only it receives input
 
 // ASCII, Latin-1, and the typographic punctuation people tend to paste in.
 static int *FontCodepoints(int *count)
@@ -160,6 +160,7 @@ void UiEndFrame(void)
 }
 
 void UiWantHand(void) { wantedCursor = MOUSE_CURSOR_POINTING_HAND; }
+void UiWantCursor(int cursor) { wantedCursor = cursor; }
 
 void UiSetClip(Rectangle r) { clipRect = r; clipOn = true; }
 void UiClearClip(void) { clipOn = false; }
@@ -262,8 +263,9 @@ bool UiLink(float x, float y, const char *text, float size)
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
-void UiFocus(char *buf) { focused = buf; }
-bool UiHasFocus(const char *buf) { return focused == buf; }
+void UiFocus(const void *id) { focused = id; }
+bool UiHasFocus(const void *id) { return focused == id; }
+bool UiTakesInput(const void *id) { return focused == id && frameFocus == id; }
 bool UiAnyFocus(void) { return focused != NULL; }
 
 static void InsertText(char *buf, int size, const char *text)
@@ -438,14 +440,13 @@ static void DrawToken(const char *s, int n, float *x, float y, float size, Color
     *x += MeasureTextEx(gFonts.mono, tmp, size, sp).x + sp;
 }
 
-// Draws one line of code; inBlockComment carries /* ... */ state across lines.
-static void DrawCodeLine(const char *s, int len, float x, float y, float size, bool *inBlockComment)
+int UiCodeTokens(const char *s, int len, bool *inBlockComment, UiCodeToken *out, int max)
 {
-    int i = 0;
+    int i = 0, count = 0;
     int firstNonSpace = 0;
     while (firstNonSpace < len && s[firstNonSpace] == ' ') firstNonSpace++;
 
-    while (i < len) {
+    while (i < len && count < max) {
         int start = i;
         Color c = SYN_DEFAULT;
 
@@ -486,11 +487,32 @@ static void DrawCodeLine(const char *s, int len, float x, float y, float size, b
                    && s[i] != '/' && s[i] != '#') i++;
             if (i == start) i++;
         }
-        DrawToken(s + start, i - start, &x, y, size, c);
+        out[count++] = (UiCodeToken){ start, i - start, c };
     }
+    return count;
 }
 
+// Draws one line of code; inBlockComment carries /* ... */ state across lines.
+static void DrawCodeLine(const char *s, int len, float x, float y, float size, bool *inBlockComment)
+{
+    UiCodeToken tokens[256];
+    int n = UiCodeTokens(s, len, inBlockComment, tokens, 256);
+    for (int t = 0; t < n; t++) DrawToken(s + tokens[t].start, tokens[t].len, &x, y, size, tokens[t].color);
+}
+
+static float Block(const char *code, Vector2 pos, float width, float size, bool draw, bool highlight);
+
 float UiCodeBlock(const char *code, Vector2 pos, float width, float size, bool draw)
+{
+    return Block(code, pos, width, size, draw, true);
+}
+
+float UiOutputBlock(const char *text, Vector2 pos, float width, float size, bool draw)
+{
+    return Block(text, pos, width, size, draw, false);
+}
+
+static float Block(const char *code, Vector2 pos, float width, float size, bool draw, bool highlight)
 {
     float pad = 16.0f;
     float lineH = size * 1.4f;
@@ -506,7 +528,12 @@ float UiCodeBlock(const char *code, Vector2 pos, float width, float size, bool d
     while (true) {
         const char *end = strchr(p, '\n');
         int len = end ? (int)(end - p) : (int)strlen(p);
-        DrawCodeLine(p, len, pos.x + pad, y, size, &inBlockComment);
+        if (highlight) {
+            DrawCodeLine(p, len, pos.x + pad, y, size, &inBlockComment);
+        } else {
+            float x = pos.x + pad;
+            DrawToken(p, len, &x, y, size, COL_TEXT);
+        }
         y += lineH;
         if (!end) break;
         p = end + 1;

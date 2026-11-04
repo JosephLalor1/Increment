@@ -143,6 +143,49 @@ Multiplication Table (5x5):
   5  10  15  20  25
 ```
 
+@exercise Count down to liftoff
+Read a number n with scanf, then print the numbers from n down to 1 on one line, separated by spaces, followed by Liftoff! on the next line. The Input box already contains 5; try other numbers too.
+
+```
+#include <stdio.h>
+
+int main() {
+    int n;
+    scanf("%d", &n);
+
+    // TODO: print n, n-1, ..., 1 on one line, then "Liftoff!"
+
+    return 0;
+}
+```
+
+@input
+```
+5
+```
+
+@expect
+```
+5 4 3 2 1
+Liftoff!
+```
+
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int n;
+    scanf("%d", &n);
+
+    for (int i = n; i >= 1; i--) {
+        printf("%d ", i);
+    }
+    printf("\nLiftoff!\n");
+    return 0;
+}
+```
+
 @quiz
 ? How many times does the body of this loop run?
 ```

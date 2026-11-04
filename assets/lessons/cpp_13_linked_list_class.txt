@@ -233,6 +233,183 @@ public:
 
 Every insert must now update links in both directions. When inserting a node between A and B, four pointers change: the new node's prevPointer and nextPointer, A's nextPointer and B's prevPointer.
 
+The exercise below is Part 2 with a test program: write the three inserts and run it.
+
+@exercise Lab Part 2: DoublyLinkedList
+Complete insertAtBeginning, insertAtEnd and insertAtPosition. The list keeps both a head and a tail pointer, and every insert must set links in both directions. printBackward walks from the tail using prevPointer, so it only prints correctly if every prevPointer is right.
+
+insertAtPosition(value, pos) puts the new node at index pos, where 0 is the front. A pos past the end inserts at the end.
+
+```
+#include <iostream>
+using namespace std;
+
+class DoublyLinkedNode {
+public:
+    int data;
+    DoublyLinkedNode *prevPointer;
+    DoublyLinkedNode *nextPointer;
+    DoublyLinkedNode(int value)
+        : data(value), prevPointer(nullptr),
+          nextPointer(nullptr) {}
+};
+
+class DoublyLinkedList {
+private:
+    DoublyLinkedNode *head;
+    DoublyLinkedNode *tail;
+
+public:
+    DoublyLinkedList() : head(nullptr), tail(nullptr) {}
+
+    ~DoublyLinkedList() {
+        DoublyLinkedNode *cur = head;
+        while (cur != nullptr) {
+            DoublyLinkedNode *next = cur->nextPointer;
+            delete cur;
+            cur = next;
+        }
+    }
+
+    void insertAtBeginning(int value) {
+        // TODO
+    }
+
+    void insertAtEnd(int value) {
+        // TODO
+    }
+
+    void insertAtPosition(int value, int pos) {
+        // TODO
+    }
+
+    void printForward() {
+        for (DoublyLinkedNode *cur = head; cur; cur = cur->nextPointer)
+            cout << cur->data << " ";
+        cout << endl;
+    }
+
+    void printBackward() {
+        for (DoublyLinkedNode *cur = tail; cur; cur = cur->prevPointer)
+            cout << cur->data << " ";
+        cout << endl;
+    }
+};
+
+int main() {
+    DoublyLinkedList list;
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    list.insertAtBeginning(10);
+    list.insertAtPosition(25, 2);
+    list.insertAtPosition(5, 0);
+    list.insertAtPosition(99, 100);
+    list.printForward();
+    list.printBackward();
+    return 0;
+}
+```
+
+@expect
+```
+5 10 20 25 30 99
+99 30 25 20 10 5
+```
+
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class DoublyLinkedNode {
+public:
+    int data;
+    DoublyLinkedNode *prevPointer;
+    DoublyLinkedNode *nextPointer;
+    DoublyLinkedNode(int value)
+        : data(value), prevPointer(nullptr),
+          nextPointer(nullptr) {}
+};
+
+class DoublyLinkedList {
+private:
+    DoublyLinkedNode *head;
+    DoublyLinkedNode *tail;
+
+public:
+    DoublyLinkedList() : head(nullptr), tail(nullptr) {}
+
+    ~DoublyLinkedList() {
+        DoublyLinkedNode *cur = head;
+        while (cur != nullptr) {
+            DoublyLinkedNode *next = cur->nextPointer;
+            delete cur;
+            cur = next;
+        }
+    }
+
+    void insertAtBeginning(int value) {
+        DoublyLinkedNode *node = new DoublyLinkedNode(value);
+        node->nextPointer = head;
+        if (head != nullptr) head->prevPointer = node;
+        else tail = node;  // the list was empty
+        head = node;
+    }
+
+    void insertAtEnd(int value) {
+        DoublyLinkedNode *node = new DoublyLinkedNode(value);
+        node->prevPointer = tail;
+        if (tail != nullptr) tail->nextPointer = node;
+        else head = node;  // the list was empty
+        tail = node;
+    }
+
+    void insertAtPosition(int value, int pos) {
+        if (pos <= 0 || head == nullptr) {
+            insertAtBeginning(value);
+            return;
+        }
+        // Find the node currently at index pos; the new node goes before it.
+        DoublyLinkedNode *cur = head;
+        for (int i = 0; i < pos && cur != nullptr; i++) cur = cur->nextPointer;
+        if (cur == nullptr) {
+            insertAtEnd(value);
+            return;
+        }
+        DoublyLinkedNode *node = new DoublyLinkedNode(value);
+        node->prevPointer = cur->prevPointer;
+        node->nextPointer = cur;
+        cur->prevPointer->nextPointer = node;
+        cur->prevPointer = node;
+    }
+
+    void printForward() {
+        for (DoublyLinkedNode *cur = head; cur; cur = cur->nextPointer)
+            cout << cur->data << " ";
+        cout << endl;
+    }
+
+    void printBackward() {
+        for (DoublyLinkedNode *cur = tail; cur; cur = cur->prevPointer)
+            cout << cur->data << " ";
+        cout << endl;
+    }
+};
+
+int main() {
+    DoublyLinkedList list;
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    list.insertAtBeginning(10);
+    list.insertAtPosition(25, 2);
+    list.insertAtPosition(5, 0);
+    list.insertAtPosition(99, 100);
+    list.printForward();
+    list.printBackward();
+    return 0;
+}
+```
+
 @quiz
 ? Why make head a private field of LinkedList?
 - Private fields are faster

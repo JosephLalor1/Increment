@@ -118,6 +118,49 @@ Student Exam1   Exam2   Exam3   Average
 
 > total / 3.0 divides by a double, so the average keeps its decimal part. total / 3 would be integer division.
 
+@exercise Find the smallest value
+Complete the loop so that min ends up holding the smallest value in the array. Like the "find the maximum" example, start with the first element and compare every other element against it.
+
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int min = values[0];
+
+    // TODO: loop over the rest of the array and update min
+
+    printf("Smallest: %d\n", min);
+    return 0;
+}
+```
+
+@expect
+```
+Smallest: 12
+```
+
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int min = values[0];
+
+    for (int i = 1; i < size; i++) {
+        if (values[i] < min) {
+            min = values[i];
+        }
+    }
+
+    printf("Smallest: %d\n", min);
+    return 0;
+}
+```
+
 @quiz
 ? What does numbers[2] hold?
 ```
