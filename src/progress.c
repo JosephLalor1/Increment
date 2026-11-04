@@ -76,3 +76,10 @@ void ProgressRecord(const char *id, int percent)
     if (percent > e->best) e->best = percent;
     ProgressSave();
 }
+
+bool ProgressExerciseDone(const char *lessonId, int index)
+{
+    char id[64];
+    snprintf(id, sizeof id, "%s#%d", lessonId, index + 1);
+    return ProgressBest(id) >= 100;
+}

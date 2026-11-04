@@ -9,6 +9,7 @@
 void ProgressLoad(const char *path);
 bool ProgressSave(void);
 int ProgressBest(const char *id);              // -1 if never attempted
+bool ProgressExerciseDone(const char *lessonId, int index); // zero-based exercise index
 void ProgressRecord(const char *id, int percent); // keeps the best score and saves
 
 #endif

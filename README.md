@@ -28,6 +28,29 @@ Manual roadmap checks:
 - Check light/dark themes and all text sizes at 900x640 and larger window sizes.
 - With a fully completed track, check the congratulations message and that all lessons remain accessible.
 
+## Learning progress dashboard (IN-7)
+
+Open **Progress dashboard** from the main menu. The scrollable dashboard includes overall lesson completion, completed coding exercises, separate C and C++ progress cards, quiz performance, revision suggestions, and clickable topic performance bars. Use the wheel, arrow keys, Page Up/Down, or Home/End to scroll. Opening a lesson and going Back returns to the dashboard at the previous scroll position.
+
+The dashboard presents a circular completion display and **Continue learning** action. Click either track card to open its first unfinished lesson (or revisit a completed track). Milestone badges celebrate the first completed lesson, five completed lessons, the first completed exercise, and completion of all lessons. These badges are derived from existing progress. Topic filters select all tracks, C, or C++, and all lessons, revision topics, unattempted lessons, or completed lessons. Filters remain selected when returning from a lesson and reset when entering from the main menu.
+
+All statistics come from the signed-in user's existing progress file; the dashboard does not save duplicate records. Lesson completion uses the existing 70% threshold. Exercises count as complete only when their existing `<lesson id>#<exercise number>` score is at least 100. Only lessons and exercises currently available in the application contribute to totals.
+
+Quiz statistics include only lessons containing quiz questions. The average is the arithmetic mean of saved best scores across attempted quiz lessons; unattempted lessons are excluded, while a recorded 0% is included. Highest score, passed quizzes, attempted quizzes below 70%, and unattempted quizzes are shown separately. Quiz-free lessons marked complete contribute to lesson progress, but not quiz performance. There is no attempt count or historical trend because those are not stored.
+
+The first unfinished lesson in each track is recommended in existing lesson order. Attempted quizzes below 70% appear separately as revision suggestions. Every recommendation and topic row opens its lesson without restrictions. Both themes and the text-size setting are supported; track cards stack when large text needs more room.
+
+Manual dashboard checks:
+
+- Open the dashboard from the menu; scroll through every section and open a lesson from a recommendation and from topic performance.
+- Return from the lesson, quiz results, and an exercise/editor session; check that dashboard navigation and scroll position are preserved.
+- Pass a quiz, return, and check completion, averages, and the next unfinished lesson. Retry with a lower score and check that the best score is preserved.
+- Complete a coding exercise and check the completed exercise count. An incomplete exercise must not count.
+- Check a new account, an account with partial progress, and a fully completed track. Sign out and switch accounts to confirm statistics stay separate.
+- Check light/dark themes and all text sizes, including 900x640. The menu dashboard button must remain visible.
+
+`test.bat` includes dashboard statistics tests using synthetic lessons and a temporary progress file. For a screenshot using the existing developer tool, run `build\increment.exe --shot build/dashboard.png dashboard`; set `INCREMENT_DATA_DIR` to a scratch directory for isolated previews.
+
 ## Accounts
 
 Each person on the computer can create a local account with their own saved progress and settings. Accounts live in `accounts.txt` next to the program, and passwords are stored only as salted PBKDF2-SHA256 hashes. Accounts keep everyone's progress separate, but they aren't strong security: anyone who can open the program's folder can read or edit the progress files directly.

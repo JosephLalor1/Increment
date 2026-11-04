@@ -5,6 +5,7 @@
 #include "account_screens.h"
 #include "brand.h"
 #include "code_screen.h"
+#include "dashboard.h"
 #include "email.h"
 #include "layout.h"
 #include "lesson.h"
@@ -19,7 +20,7 @@
 
 typedef enum {
     SCREEN_SPLASH, SCREEN_GALLERY, SCREEN_LOGIN, SCREEN_RECOVERY, SCREEN_VERIFY, SCREEN_SETTINGS, SCREEN_CODE,
-    SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT,
+    SCREEN_MENU, SCREEN_LIST, SCREEN_LESSON, SCREEN_QUIZ, SCREEN_RESULT, SCREEN_DASHBOARD,
 } Screen;
 
 static LessonSet lessons;
@@ -33,6 +34,9 @@ static struct {
     float listScroll;
     float listH;
     bool plainList;
+    float dashboardScroll;
+    float dashboardH;
+    Screen lessonReturn;
     int question;
     int picked;          // -1 until the current question is answered
     int correctCount;
@@ -74,6 +78,7 @@ static void Go(Screen s)
 static void OpenLesson(int index)
 {
     app.lesson = index;
+    app.track = lessons.items[index].track;
     Go(SCREEN_LESSON);
 }
 
@@ -254,14 +259,40 @@ static void ScreenMenu(void)
             Go(SCREEN_SETTINGS);
         }
     }
-    if (UiButtonIcon((Rectangle){ cx - 210, y + cardH + 80, 250, 46 }, ICON_CODE, "Open code editor", true)) {
+    if (UiButtonIcon((Rectangle){ cx - 390, y + cardH + 80, 250, 46 }, ICON_CODE, "Open code editor", true)) {
         CodeOpenPlayground();
         app.codeReturn = SCREEN_MENU;
         Go(SCREEN_CODE);
     }
-    if (UiButtonIconEx((Rectangle){ cx + 60, y + cardH + 80, 150, 46 }, ICON_POWER, "Quit", 20, COL_PANEL,
+    if (UiButtonIconEx((Rectangle){ cx + 240, y + cardH + 80, 150, 46 }, ICON_POWER, "Quit", 20, COL_PANEL,
                        COL_SECONDARY_HOVER, COL_TEXT, true)) {
         app.quit = true;
+    }
+    if (UiButtonIconEx((Rectangle){ cx - 120, y + cardH + 80, 340, 46 }, ICON_TROPHY,
+                       "Progress dashboard", 20, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        app.dashboardScroll = 0;
+        app.dashboardH = 0;
+        DashboardReset();
+        Go(SCREEN_DASHBOARD);
+    }
+}
+
+static void ScreenDashboard(void)
+{
+    if (TopBar("Learning Progress Dashboard")) {
+        Go(SCREEN_MENU);
+        return;
+    }
+    Rectangle view = ScrollView();
+    UpdateScroll(&app.dashboardScroll, app.dashboardH, view.height);
+    BeginView(view);
+    int clicked = DashboardDraw(&lessons, ContentX(), view.y + 24 - app.dashboardScroll,
+                                ContentWidth(), TextScale(), &app.dashboardH);
+    app.dashboardH += 24;
+    EndView();
+    if (clicked >= 0) {
+        app.lessonReturn = SCREEN_DASHBOARD;
+        OpenLesson(clicked);
     }
 }
 
@@ -299,6 +330,7 @@ static void ScreenCodeWrap(void)
 
 static void ScreenList(void)
 {
+    app.lessonReturn = SCREEN_LIST;
     if (TopBar(TextFormat("%s track", TrackName(app.track)))) {
         Go(SCREEN_MENU);
         return;
@@ -363,7 +395,7 @@ static void ScreenLesson(void)
 {
     Lesson *L = &lessons.items[app.lesson];
     if (TopBar(TextFormat("%s track", TrackName(L->track)))) {
-        Go(SCREEN_LIST);
+        Go(app.lessonReturn);
         return;
     }
 
@@ -554,7 +586,7 @@ static void ScreenResult(void)
 {
     Lesson *L = &lessons.items[app.lesson];
     if (TopBar(L->title)) {
-        Go(SCREEN_LIST);
+        Go(app.lessonReturn);
         return;
     }
 
@@ -591,10 +623,11 @@ static void ScreenResult(void)
         Go(SCREEN_LESSON);
     }
     if (UiButtonIconEx((Rectangle){ x0 + bw + gap, y, bw, bh }, L->questionCount ? ICON_RETRY : ICON_BACK,
-                       L->questionCount ? "Retry quiz" : "All lessons", 22, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT,
+                       L->questionCount ? "Retry quiz" : app.lessonReturn == SCREEN_DASHBOARD ? "Dashboard" : "All lessons",
+                       22, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT,
                        true)) {
         if (L->questionCount) StartQuiz();
-        else Go(SCREEN_LIST);
+        else Go(app.lessonReturn);
     }
     bool canNext = next >= 0;
     if (UiButtonIcon((Rectangle){ x0 + (bw + gap) * 2, y, bw, bh }, next >= 0 ? ICON_NEXT : ICON_TROPHY,
@@ -674,7 +707,7 @@ static void FindAssetDir(char *out, size_t size)
 
 // Dev aid: --shot out.png <screen> [lessonIndex] [scroll] renders one screen, saves it as a
 // PNG, and exits. Screens: splash gallery login register reset recovery settings delete menu
-// list lesson quiz answered result editor exercise tryit.
+// list dashboard lesson quiz answered result editor exercise tryit.
 typedef struct {
     const char *path;
     int framesLeft;
@@ -746,10 +779,11 @@ static Shot ParseShot(int argc, char **argv)
         app.screen = SCREEN_SETTINGS;
     }
     else if (strcmp(screen, "list") == 0) app.screen = SCREEN_LIST;
+    else if (strcmp(screen, "dashboard") == 0) app.screen = SCREEN_DASHBOARD;
     else if (strcmp(screen, "lesson") == 0) app.screen = SCREEN_LESSON;
     else if (strcmp(screen, "quiz") == 0 || strcmp(screen, "answered") == 0) app.screen = SCREEN_QUIZ;
     else if (strcmp(screen, "result") == 0) app.screen = SCREEN_RESULT;
-    if (app.screen > SCREEN_MENU && lessons.count == 0) app.screen = SCREEN_MENU;
+    if (app.screen > SCREEN_MENU && app.screen != SCREEN_DASHBOARD && lessons.count == 0) app.screen = SCREEN_MENU;
 
     app.picked = -1;
     if (strcmp(screen, "answered") == 0 && lessons.count && lessons.items[index].questionCount) {
@@ -759,6 +793,8 @@ static Shot ParseShot(int argc, char **argv)
     app.contentH = 100000; // let the requested scroll survive the first frame's clamp
     app.listScroll = app.scroll;
     app.listH = 100000;
+    app.dashboardScroll = app.scroll;
+    app.dashboardH = 100000;
     app.lastPercent = 75;
     app.correctCount = 3;
     AccountScreensDemo(screen);
@@ -794,6 +830,7 @@ int main(int argc, char **argv)
     EmailInit(emailDirs, 2);
 
     ShowLogin();
+    app.lessonReturn = SCREEN_LIST;
     app.screen = SCREEN_SPLASH;  // ShowLogin prepared the login form; show the splash first
     app.splashStart = GetTime();
     app.shotTime = -1;
@@ -814,6 +851,7 @@ int main(int argc, char **argv)
         case SCREEN_CODE:     ScreenCodeWrap();     break;
         case SCREEN_MENU:   ScreenMenu();   break;
         case SCREEN_LIST:   ScreenList();   break;
+        case SCREEN_DASHBOARD: ScreenDashboard(); break;
         case SCREEN_LESSON: ScreenLesson(); break;
         case SCREEN_QUIZ:   ScreenQuiz();   break;
         case SCREEN_RESULT: ScreenResult(); break;

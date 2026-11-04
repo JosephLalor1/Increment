@@ -189,7 +189,7 @@ void CodeOpenExercise(const Lesson *L, int index)
 
 bool CodeExerciseDone(const Lesson *L, int index)
 {
-    return ProgressBest(TextFormat("%s#%d", L->id, index + 1)) >= 100;
+    return ProgressExerciseDone(L->id, index);
 }
 
 void CodeClose(void)
