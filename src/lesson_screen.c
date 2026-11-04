@@ -1,6 +1,8 @@
 // A lesson's reading, quiz and result pages. See lesson_screen.h.
 #include "lesson_screen.h"
 #include "layout.h"
+#include "mascot.h"
+#include "mascot_events.h"
 #include "progress.h"
 #include "quiz_attempt.h"
 #include "roadmap_view.h"
@@ -20,12 +22,18 @@ static struct {
     int question;             // quiz: the current question
     QuizAttempt attempt;
     int lastPercent;          // result: the score just recorded
+    FoxMilestone milestone;
+    double celebrationStarted;
 } reader;
 
 static const Lesson *CurrentLesson(void) { return &reader.set->items[reader.lessonIndex]; }
 const Lesson *LessonScreenLesson(void) { return CurrentLesson(); }
 
-void LessonScreenClearAttempt(void) { QuizAttemptBegin(&reader.attempt, NULL); }
+void LessonScreenClearAttempt(void)
+{
+    QuizAttemptBegin(&reader.attempt, NULL);
+    reader.milestone = FOX_MILESTONE_NONE;
+}
 
 static void ShowPage(LessonPage page)
 {
@@ -39,8 +47,26 @@ void LessonScreenOpen(const LessonSet *set, int lessonIndex, const char *backLab
     reader.set = set;
     reader.lessonIndex = lessonIndex;
     reader.backLabel = backLabel;
+    reader.milestone = FOX_MILESTONE_NONE;
     QuizAttemptBegin(&reader.attempt, &set->items[lessonIndex]);
     ShowPage(LESSON_PAGE_READING);
+}
+
+// This is the only new milestone trigger: compare existing saved state immediately
+// around the normal score write. Merely opening a screen never calls it.
+static void RecordCompletion(int percent)
+{
+    const Lesson *lesson = CurrentLesson();
+    FoxProgressSnapshot before = FoxProgressCapture(reader.set, reader.lessonIndex);
+    ProgressRecord(lesson->id, percent);
+    reader.milestone = FoxProgressCompleted(reader.set, reader.lessonIndex, before);
+    reader.celebrationStarted = GetTime();
+    if (reader.milestone != FOX_MILESTONE_NONE) {
+        FoxEvent event = reader.milestone == FOX_MILESTONE_COURSE ? FOX_COURSE_COMPLETE : FOX_LESSON_COMPLETE;
+        MascotReact(FOX_CELEBRATION, event);
+        MascotReact(FOX_JOURNEY, reader.milestone == FOX_MILESTONE_COURSE ? FOX_COURSE_COMPLETE : FOX_STATION_COMPLETE);
+        ShowPage(LESSON_PAGE_CELEBRATION);
+    } else ShowPage(LESSON_PAGE_RESULT);
 }
 
 // The next lesson in the same track, or -1 after the last one.
@@ -59,10 +85,11 @@ static void StartQuiz(void)
     const Lesson *lesson = CurrentLesson();
     reader.question = 0;
     QuizAttemptBegin(&reader.attempt, lesson);
+    reader.milestone = FOX_MILESTONE_NONE;
+    MascotResetActor(FOX_QUIZ, FOX_THINKING);
     if (lesson->questionCount == 0) {
         reader.lastPercent = 100;
-        ProgressRecord(lesson->id, 100);
-        ShowPage(LESSON_PAGE_RESULT);
+        RecordCompletion(100);
     } else {
         ShowPage(LESSON_PAGE_QUIZ);
     }
@@ -70,10 +97,9 @@ static void StartQuiz(void)
 
 static void FinishQuiz(void)
 {
-    const Lesson *lesson = CurrentLesson();
     reader.lastPercent = QuizAttemptFinish(&reader.attempt);
-    ProgressRecord(lesson->id, reader.lastPercent);
-    ShowPage(LESSON_PAGE_RESULT);
+    MascotReact(FOX_RESULT, reader.lastPercent >= PASS_PERCENT ? FOX_CORRECT : FOX_INCORRECT);
+    RecordCompletion(reader.lastPercent);
 }
 
 void LessonScreenDemo(LessonPage page, float scroll, bool answered)
@@ -90,7 +116,15 @@ void LessonScreenDemo(LessonPage page, float scroll, bool answered)
             QuizAttemptPick(&reader.attempt, i, i % 2 && q->choiceCount > 1 ? (q->correct + 1) % q->choiceCount : q->correct);
         }
         reader.lastPercent = QuizAttemptFinish(&reader.attempt);
-    } else if (answered && page == LESSON_PAGE_QUIZ) QuizAttemptPick(&reader.attempt, 0, 0);
+    } else if (answered && page == LESSON_PAGE_QUIZ) {
+        QuizAttemptPick(&reader.attempt, 0, 0);
+        MascotReact(FOX_QUIZ, lesson->questions[0].correct == 0 ? FOX_CORRECT : FOX_INCORRECT);
+    }
+    if (page == LESSON_PAGE_CELEBRATION) {
+        reader.milestone = answered ? FOX_MILESTONE_COURSE : FOX_MILESTONE_LESSON;
+        reader.celebrationStarted = GetTime();
+        MascotReact(FOX_CELEBRATION, answered ? FOX_COURSE_COMPLETE : FOX_LESSON_COMPLETE);
+    }
     reader.scroll = scroll;
     reader.contentHeight = 100000;  // let the requested scroll survive the first frame's clamp
 }
@@ -202,6 +236,8 @@ static LessonAction ReadingPage(void)
     int openExercise = -1;
 
     y += UiWrappedText(gFonts.text, lesson->title, (Vector2){ x, y }, w, 44 * scale, COL_TEXT, true) + 16;
+    y += MascotCompanionActor(FOX_READING, x, y, w, 70, 18 * scale, FOX_IDEA,
+                              "Try tracing examples one line at a time before running them.") + 14;
     float preparationH = RoadmapViewPreparation(reader.set, lesson, x, y, w, 19 * scale, true);
     if (preparationH) y += preparationH + 24;
 
@@ -280,6 +316,9 @@ static LessonAction QuizPage(void)
     float scale = UiTextScale();
     float top = view.y + 32 - reader.scroll, y = top;
 
+    y += MascotCompanionActor(FOX_QUIZ, x, y, w, 72, 18 * scale, FOX_THINKING,
+                              "Take your time. Think through what the code does.") + 14;
+
     UiText(gFonts.text, TextFormat("Question %d of %d", reader.question + 1, lesson->questionCount), x, y, 20, COL_DIM);
     y += 32;
     ProgressBar((Rectangle){ x, y, w, 6 }, (float)reader.question / lesson->questionCount, COL_PANEL_HI, COL_ACCENT);
@@ -293,7 +332,8 @@ static LessonAction QuizPage(void)
         bool chosen;
         y += DrawChoice(q, i, answered, x, y, w, scale, &chosen) + 12;
         if (chosen) {
-            QuizAttemptPick(&reader.attempt, reader.question, i);
+            if (QuizAttemptPick(&reader.attempt, reader.question, i))
+                MascotReact(FOX_QUIZ, i == q->correct ? FOX_CORRECT : FOX_INCORRECT);
             answered = true;
         }
     }
@@ -304,6 +344,8 @@ static LessonAction QuizPage(void)
         UiIconText(right ? ICON_CHECK : ICON_CROSS, gFonts.bold, right ? "Correct!" : "Not quite.", x, y, 26,
                    right ? COL_GOOD : COL_BAD);
         y += 40;
+        y += MascotCompanionActor(FOX_QUIZ, x, y, w, 72, 18 * scale, FOX_THINKING,
+                                  right ? "That's correct! Great job!" : "Every mistake helps you learn!") + 14;
         if (q->explain) y += UiWrappedText(gFonts.text, q->explain, (Vector2){ x, y }, w, 21 * scale, COL_TEXT, true) + 16;
 
         bool lastQuestion = reader.question + 1 >= lesson->questionCount;
@@ -314,6 +356,7 @@ static LessonAction QuizPage(void)
             FinishQuiz();
         } else if (next) {
             reader.question++;
+            MascotResetActor(FOX_QUIZ, FOX_THINKING);
             reader.scroll = 0;
         }
         y += 50;
@@ -341,8 +384,14 @@ static LessonAction ResultPage(void)
     bool passed = reader.lastPercent >= PASS_PERCENT;
 
     // A trophy for a pass, an open book (go back and review) otherwise.
-    DrawCircleV((Vector2){ cx, y + 50 }, 50, passed ? COL_GOOD_BG : COL_BAD_BG);
-    IconDraw(passed ? ICON_TROPHY : ICON_BOOK, (Vector2){ cx, y + 50 }, 56, passed ? COL_GOOD : COL_BAD);
+    if (MascotAvailable()) {
+        MascotDrawActor(FOX_RESULT, (Rectangle){ cx - 70, y - 12, 140, 128 },
+                        passed ? (reader.lastPercent == 100 ? FOX_CELEBRATING : FOX_TROPHY) : FOX_DETERMINED);
+        IconDraw(passed ? ICON_TROPHY : ICON_BOOK, (Vector2){ cx + 86, y + 70 }, 30, passed ? COL_GOOD : COL_ACCENT);
+    } else {
+        DrawCircleV((Vector2){ cx, y + 50 }, 50, passed ? COL_GOOD_BG : COL_BAD_BG);
+        IconDraw(passed ? ICON_TROPHY : ICON_BOOK, (Vector2){ cx, y + 50 }, 56, passed ? COL_GOOD : COL_BAD);
+    }
     y += 124;
 
     if (lesson->questionCount == 0) {
@@ -354,8 +403,8 @@ static LessonAction ResultPage(void)
         UiTextCentered(gFonts.text, TextFormat("%d of %d correct", QuizAttemptCorrect(&reader.attempt), lesson->questionCount), cx, y,
                        26, COL_TEXT);
         y += 44;
-        const char *verdict = passed ? "Nice work. Lesson complete."
-                                     : TextFormat("You need %d%% to pass. Review the lesson and try again.", PASS_PERCENT);
+        const char *verdict = passed ? "Amazing work! Keep going!"
+                                     : TextFormat("Every mistake helps you improve! You need %d%% to pass.", PASS_PERCENT);
         UiTextCentered(gFonts.text, verdict, cx, y, 22, COL_DIM);
         y += 70;
     }
@@ -429,6 +478,7 @@ static LessonAction ReviewPage(void)
     float x = ContentX(), w = ContentWidth(), scale = UiTextScale();
     float top = view.y + 24 - reader.scroll, y = top;
     y += UiWrappedText(gFonts.text, lesson->title, (Vector2){ x, y }, w, 30 * scale, COL_TEXT, true) + 12;
+    y += MascotCompanionActor(FOX_REVIEW, x, y, w, 72, 18 * scale, FOX_THINKING, "Let's understand what happened!") + 14;
     y += UiWrappedText(gFonts.text, "This attempt's answers. Reviewing does not change your saved best score.",
                        (Vector2){ x, y }, w, 18 * scale, COL_DIM, true) + 24;
     for (int i = 0; i < lesson->questionCount; i++) {
@@ -450,12 +500,66 @@ static LessonAction ReviewPage(void)
     return action;
 }
 
+static LessonAction CelebrationPage(void)
+{
+    LessonAction action = { LESSON_STAY, NULL, 0 };
+    bool graduation = reader.milestone == FOX_MILESTONE_COURSE;
+    if (TopBar(graduation ? "Course Graduation" : "Lesson Complete")) {
+        reader.milestone = FOX_MILESTONE_NONE;
+        ShowPage(LESSON_PAGE_RESULT);
+        return action;
+    }
+    const Lesson *lesson = CurrentLesson();
+    Rectangle view = ScrollView();
+    view.height -= 88;
+    UpdateScroll(&reader.scroll, reader.contentHeight, view.height);
+    BeginView(view);
+    MascotConfetti(view, GetTime() - reader.celebrationStarted, graduation);
+    float x = ContentX(), w = ContentWidth(), scale = UiTextScale();
+    float top = view.y + 24 - reader.scroll, y = top;
+    y += UiWrappedText(gFonts.bold, graduation ? "CONGRATULATIONS!" : "LESSON COMPLETE!",
+                       (Vector2){ x, y }, w, 36 * scale, COL_GOOD, true) + 12;
+    if (graduation)
+        y += UiWrappedText(gFonts.text, TextFormat("You completed the %s programming course!", TrackName(lesson->track)),
+                           (Vector2){ x, y }, w, 27 * scale, COL_TEXT, true) + 10;
+    if (MascotAvailable()) {
+        MascotDrawActor(FOX_CELEBRATION, (Rectangle){ x + (w - 200) / 2, y, 200, 176 },
+                        graduation ? FOX_GRADUATION : FOX_TROPHY);
+    } else IconDraw(ICON_TROPHY, (Vector2){ x + w / 2, y + 88 }, 90, COL_GOOD);
+    y += 190;
+    y += UiWrappedText(gFonts.text, lesson->title, (Vector2){ x, y }, w, 26 * scale, COL_TEXT, true) + 12;
+    y += UiWrappedText(gFonts.text, graduation ? "You did it! Your coding journey has reached an amazing milestone!"
+                                               : "Fantastic work! Another step closer to becoming a programmer!",
+                       (Vector2){ x, y }, w, 20 * scale, COL_DIM, true) + 24;
+    reader.contentHeight = y - top + 24;
+    EndView();
+    float footer = GetScreenHeight() - 88.0f;
+    float bw = (w - 24) / 3;
+    if (UiButtonIconEx((Rectangle){ x, footer + 18, bw, 50 }, ICON_BACK, "Return to Roadmap", 18,
+                       COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        action.kind = LESSON_ROADMAP;
+        MascotReact(FOX_JOURNEY, graduation ? FOX_COURSE_COMPLETE : FOX_STATION_COMPLETE);
+    }
+    if (UiButtonIconEx((Rectangle){ x + bw + 12, footer + 18, bw, 50 }, ICON_TROPHY, "View Progress", 18,
+                       COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) action.kind = LESSON_PROGRESS;
+    if (UiButtonIcon((Rectangle){ x + 2 * (bw + 12), footer + 18, bw, 50 }, ICON_NEXT, "Continue", true)) {
+        reader.milestone = FOX_MILESTONE_NONE;
+        ShowPage(LESSON_PAGE_RESULT);
+    }
+    if (action.kind != LESSON_STAY) {
+        reader.milestone = FOX_MILESTONE_NONE;
+        ShowPage(LESSON_PAGE_RESULT);
+    }
+    return action;
+}
+
 LessonAction LessonScreen(void)
 {
     switch (reader.page) {
     case LESSON_PAGE_QUIZ:   return QuizPage();
     case LESSON_PAGE_RESULT: return ResultPage();
     case LESSON_PAGE_REVIEW: return ReviewPage();
+    case LESSON_PAGE_CELEBRATION: return CelebrationPage();
     default:                 return ReadingPage();
     }
 }

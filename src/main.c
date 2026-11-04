@@ -17,6 +17,7 @@
 #include "lesson.h"
 #include "lesson_screen.h"
 #include "menu_screen.h"
+#include "mascot.h"
 #include "progress.h"
 #include "splash.h"
 #include "track_screen.h"
@@ -66,6 +67,7 @@ static void OpenSettings(void)
 static void ShowLogin(void)
 {
     LessonScreenClearAttempt();
+    MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores from memory
     LoginReset();
     ApplyUserAppearance();
@@ -197,6 +199,16 @@ static void RunLesson(void)
     case LESSON_BACK:
         app.screen = app.lessonReturn;
         break;
+    case LESSON_ROADMAP:
+        DashboardOpen();
+        DashboardDemoTrack(lesson->track, false);
+        app.screen = SCREEN_DASHBOARD;
+        break;
+    case LESSON_PROGRESS:
+        DashboardOpen();
+        DashboardDemoTrack(lesson->track, true);
+        app.screen = SCREEN_DASHBOARD;
+        break;
     case LESSON_TRY_EXAMPLE:
         OpenCodeEditor(SCREEN_LESSON);
         CodeOpenSnippet(TextFormat("Try it: %s", lesson->title), action.exampleCode, lesson->track == TRACK_CPP);
@@ -277,6 +289,7 @@ int main(int argc, char **argv)
     char assetDir[1024];
     FindAssetDir(assetDir, sizeof assetDir);
     UiLoadFonts(assetDir);
+    MascotLoad(assetDir);
     LoadWindowIcons(assetDir);
     LessonsLoad(&lessons, TextFormat("%s/lessons", assetDir));
 
@@ -326,6 +339,7 @@ int main(int argc, char **argv)
     CodeShutdown();
     EmailShutdown();
     LessonsUnload(&lessons);
+    MascotUnload();
     UiUnloadFonts();
     CloseWindow();
     return 0;

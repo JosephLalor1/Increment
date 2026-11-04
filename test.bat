@@ -29,6 +29,10 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 build\test_quiz_attempt.exe
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_journey_view.c src\journey_view.c src\mascot.c src\mascot_state.c src\roadmap.c src\lesson.c src\progress.c src\ui.c src\icons.c -o build\test_journey_view.exe %LIBS%
+if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_mascot.c src\mascot_state.c src\mascot_events.c src\roadmap.c src\lesson.c src\progress.c -o build\test_mascot.exe %LIBS%
+if errorlevel 1 exit /b 1
 
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
 "%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c -o build\test_roadmap.exe %LIBS%
@@ -41,6 +45,10 @@ build\test_search.exe
 if errorlevel 1 set FAILED=1
 
 mkdir "%TESTDIR%"
+build\test_mascot.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_journey_view.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
 build\test_dashboard.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 

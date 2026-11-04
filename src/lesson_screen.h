@@ -14,6 +14,8 @@ typedef enum {
     LESSON_BACK,           // leave the lesson (to wherever it was opened from)
     LESSON_TRY_EXAMPLE,    // "Try it" on an example: open it in the code editor
     LESSON_OPEN_EXERCISE,  // open an exercise in the code editor
+    LESSON_ROADMAP,
+    LESSON_PROGRESS,
 } LessonActionKind;
 
 typedef struct {
@@ -22,7 +24,7 @@ typedef struct {
     int exerciseIndex;        // LESSON_OPEN_EXERCISE: zero-based
 } LessonAction;
 
-typedef enum { LESSON_PAGE_READING, LESSON_PAGE_QUIZ, LESSON_PAGE_RESULT, LESSON_PAGE_REVIEW } LessonPage;
+typedef enum { LESSON_PAGE_READING, LESSON_PAGE_QUIZ, LESSON_PAGE_RESULT, LESSON_PAGE_REVIEW, LESSON_PAGE_CELEBRATION } LessonPage;
 
 // Opens lesson `lessonIndex` of set on its reading page. backLabel names where Back goes
 // ("All lessons", "Dashboard"); the result page uses it on a button. set must outlive the screen.

@@ -74,8 +74,9 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;
     }
-    if (Is(name, "dashboard")) {
+    if (Is(name, "dashboard") || Is(name, "statistics")) {
         DashboardOpen();
+        DashboardDemoTrack(lessons->count ? lessons->items[lessonIndex].track : TRACK_C, Is(name, "statistics"));
         DashboardDemo(scroll);
         return SCREEN_DASHBOARD;
     }
@@ -98,10 +99,12 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                     : Is(name, "quiz") || Is(name, "answered")   ? LESSON_PAGE_QUIZ
                     : Is(name, "result")                         ? LESSON_PAGE_RESULT
                     : Is(name, "review")                         ? LESSON_PAGE_REVIEW
+                    : Is(name, "celebration") || Is(name, "graduation") ? LESSON_PAGE_CELEBRATION
                                                                  : (LessonPage)-1;
     if ((int)page < 0) return SCREEN_MENU;  // "menu", or a name we don't know
     LessonScreenOpen(lessons, lessonIndex, "All lessons");
-    LessonScreenDemo(page, scroll, Is(name, "answered"));
+    LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
+    if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
     return SCREEN_LESSON;
 }
 

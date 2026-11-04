@@ -1,8 +1,7 @@
-// A track's roadmap or lesson list, and lesson search. See track_screen.h.
+// Traditional sequential course lists and lesson search. See track_screen.h.
 #include "track_screen.h"
 #include "layout.h"
 #include "progress.h"
-#include "roadmap_view.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -10,8 +9,7 @@
 
 static struct {
     Track track;
-    bool plainList;           // the compact list instead of the roadmap
-    float listScroll;         // roadmap or list
+    float listScroll;
     float listHeight;         // measured last frame, for clamping the scroll
 
     char query[SEARCH_QUERY_MAX + 1];      // the search box (also its focus identity)
@@ -84,20 +82,14 @@ static int DrawLessonList(const LessonSet *set, float x, float y, float w)
     return clicked;
 }
 
-// The roadmap or the plain list, scrolling in view. Returns a clicked lesson or -1.
+// The original sequential lesson list, scrolling in view. Returns a clicked lesson or -1.
 static int DrawNavigation(const LessonSet *set, Rectangle view)
 {
     UpdateScroll(&page.listScroll, page.listHeight, view.height);
     BeginView(view);
     float x = ContentX(), w = ContentWidth();
     float y = view.y + 24 - page.listScroll;
-    int clicked;
-    if (page.plainList) {
-        clicked = DrawLessonList(set, x, y, w);
-    } else {
-        clicked = RoadmapViewDraw(set, page.track, x, y, w, &page.listHeight);
-        page.listHeight += 24;
-    }
+    int clicked = DrawLessonList(set, x, y, w);
     EndView();
     return clicked;
 }
@@ -208,7 +200,7 @@ static float DrawNoMatches(float x, float y, float w)
     return panel.height;
 }
 
-// Search results in place of the roadmap. Enter (submitted) opens the top result.
+// Search results in place of the course list. Enter (submitted) opens the top result.
 // Returns the lesson to open, or -1.
 static int DrawResults(const LessonSet *set, Rectangle view, bool submitted)
 {
@@ -253,7 +245,7 @@ static float DrawSearchBar(bool *submitted)
 
     Rectangle clear = { box.x + box.width - 44, box.y + 6, 36, 36 };
     if (page.query[0] && UiButtonIconEx(clear, ICON_CROSS, NULL, 18, COL_CODE_BG, COL_SECONDARY_HOVER, COL_DIM, true)) {
-        page.query[0] = '\0';  // back to the roadmap or list, where it was
+        page.query[0] = '\0';  // back to the course list, where it was
         UiFocus(page.query);
     }
     if (strcmp(page.query, page.lastQuery) != 0) {  // new query: results start at the top
@@ -274,16 +266,7 @@ static float DrawSearchBar(bool *submitted)
 
 int TrackScreen(const LessonSet *set)
 {
-    if (TopBar(TextFormat("%s track", TrackName(page.track)))) return PAGE_BACK;
-
-    bool searching = !SearchIsBlank(page.query);
-    Rectangle toggle = { GetScreenWidth() - 206.0f, 12, 190, 40 };
-    if (!searching && UiButtonEx(toggle, page.plainList ? "Show roadmap" : "Show lesson list", 18, COL_PANEL_HI,
-                                 COL_SECONDARY_HOVER, COL_TEXT, true)) {
-        page.plainList = !page.plainList;
-        page.listScroll = 0;
-        page.listHeight = 0;
-    }
+    if (TopBar(TextFormat("%s Course", TrackName(page.track)))) return PAGE_BACK;
 
     bool submitted;
     float contentTop = DrawSearchBar(&submitted);
