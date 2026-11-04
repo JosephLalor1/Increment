@@ -62,6 +62,14 @@ Each person on the computer can create a local account with their own saved prog
 
 ### Setting up email
 
+For local development, run `run-dev.bat` (or `.\run-dev.bat` in PowerShell). It enables email verification automatically using a local outbox; no API key or internet connection is needed. It builds the app if the executable is missing. After changing code, run `build.bat` first to rebuild it.
+
+The launcher uses separate test accounts in `build/email-test-data`. Create a test account, then open `build/email-test-outbox/<username>.txt` and enter its six-digit code. Password reset codes appear in `<username>_reset.txt` in the same folder. The verification screen includes **Copy outbox path** so you can paste the folder path into File Explorer. These messages are files, not real emails. The launcher overrides real sending for that run and does not change your terminal's environment or normal account data.
+
+Registration identifies the active mode: local development outbox, real email enabled, or email verification unavailable. Normal launching without either an outbox or real configuration still permits local accounts without email; it now explains this explicitly.
+
+For real email delivery, copy `email_config.example.txt` to `build/email_config.txt` and replace the placeholder with your own sending-only key. Launch the app normally with `INCREMENT_EMAIL_OUTBOX` unset; if you set it manually in PowerShell, remove it with `Remove-Item Env:INCREMENT_EMAIL_OUTBOX -ErrorAction SilentlyContinue`. The example file is safe to share; the real configuration stays ignored by Git.
+
 Emails are sent through [Resend](https://resend.com). The app reads its settings from `email_config.txt`, placed next to `increment.exe` (for example `build\email_config.txt`):
 
 ```

@@ -1,0 +1,7 @@
+# Example only: the app reads email_config.txt, not this file.
+# Copy to build/email_config.txt and replace the placeholder with your own
+# sending-only Resend API key. Never commit the real email_config.txt.
+# The test sender below only delivers to your Resend account's own address.
+# To deliver to other users, configure a verified domain and change the sender.
+api_key REPLACE_WITH_YOUR_SENDING_ONLY_KEY
+from Increment <onboarding@resend.dev>

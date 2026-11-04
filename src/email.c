@@ -114,6 +114,7 @@ void EmailInit(const char **dirs, int count)
 }
 
 bool EmailConfigured(void) { return em.outbox[0] || em.apiKey[0]; }
+const char *EmailOutboxPath(void) { return em.outbox; }
 
 // ---------------------------------------------------------------------------
 // Sending
