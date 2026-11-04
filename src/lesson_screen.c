@@ -2,6 +2,7 @@
 #include "lesson_screen.h"
 #include "layout.h"
 #include "progress.h"
+#include "quiz_attempt.h"
 #include "roadmap_view.h"
 #include "ui.h"
 
@@ -17,13 +18,14 @@ static struct {
     float contentHeight;      // measured last frame, for clamping the scroll
 
     int question;             // quiz: the current question
-    int picked;               // quiz: the chosen answer, or -1 until answered
-    int correctCount;         // quiz: right answers so far
+    QuizAttempt attempt;
     int lastPercent;          // result: the score just recorded
 } reader;
 
 static const Lesson *CurrentLesson(void) { return &reader.set->items[reader.lessonIndex]; }
 const Lesson *LessonScreenLesson(void) { return CurrentLesson(); }
+
+void LessonScreenClearAttempt(void) { QuizAttemptBegin(&reader.attempt, NULL); }
 
 static void ShowPage(LessonPage page)
 {
@@ -37,6 +39,7 @@ void LessonScreenOpen(const LessonSet *set, int lessonIndex, const char *backLab
     reader.set = set;
     reader.lessonIndex = lessonIndex;
     reader.backLabel = backLabel;
+    QuizAttemptBegin(&reader.attempt, &set->items[lessonIndex]);
     ShowPage(LESSON_PAGE_READING);
 }
 
@@ -55,8 +58,7 @@ static void StartQuiz(void)
 {
     const Lesson *lesson = CurrentLesson();
     reader.question = 0;
-    reader.picked = -1;
-    reader.correctCount = 0;
+    QuizAttemptBegin(&reader.attempt, lesson);
     if (lesson->questionCount == 0) {
         reader.lastPercent = 100;
         ProgressRecord(lesson->id, 100);
@@ -69,7 +71,7 @@ static void StartQuiz(void)
 static void FinishQuiz(void)
 {
     const Lesson *lesson = CurrentLesson();
-    reader.lastPercent = reader.correctCount * 100 / lesson->questionCount;
+    reader.lastPercent = QuizAttemptFinish(&reader.attempt);
     ProgressRecord(lesson->id, reader.lastPercent);
     ShowPage(LESSON_PAGE_RESULT);
 }
@@ -77,12 +79,18 @@ static void FinishQuiz(void)
 void LessonScreenDemo(LessonPage page, float scroll, bool answered)
 {
     const Lesson *lesson = CurrentLesson();
-    if (page == LESSON_PAGE_QUIZ && lesson->questionCount == 0) page = LESSON_PAGE_READING;
+    if ((page == LESSON_PAGE_QUIZ || page == LESSON_PAGE_REVIEW) && lesson->questionCount == 0) page = LESSON_PAGE_READING;
     reader.page = page;
     reader.question = 0;
-    reader.picked = answered && page == LESSON_PAGE_QUIZ ? 0 : -1;  // the first choice, right or wrong
-    reader.correctCount = 3;
-    reader.lastPercent = 75;
+    QuizAttemptBegin(&reader.attempt, lesson);
+    if (page == LESSON_PAGE_RESULT || page == LESSON_PAGE_REVIEW) {
+        // Synthetic, unsaved demo: alternate right/wrong answers, with the last unanswered.
+        for (int i = 0; i < lesson->questionCount - 1; i++) {
+            const Question *q = &lesson->questions[i];
+            QuizAttemptPick(&reader.attempt, i, i % 2 && q->choiceCount > 1 ? (q->correct + 1) % q->choiceCount : q->correct);
+        }
+        reader.lastPercent = QuizAttemptFinish(&reader.attempt);
+    } else if (answered && page == LESSON_PAGE_QUIZ) QuizAttemptPick(&reader.attempt, 0, 0);
     reader.scroll = scroll;
     reader.contentHeight = 100000;  // let the requested scroll survive the first frame's clamp
 }
@@ -207,6 +215,11 @@ static LessonAction ReadingPage(void)
     Icon icon = lesson->questionCount ? ICON_PLAY : ICON_CHECK;
     if (UiButtonIcon((Rectangle){ x, y, 340, 52 }, icon, label, true) || IsKeyPressed(KEY_ENTER)) StartQuiz();
     y += 52 + 48;
+    if (reader.attempt.completed) {
+        if (UiButtonIconEx((Rectangle){ x, y, 340, 48 }, ICON_BOOK, "Review Answers", 22,
+                           COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) ShowPage(LESSON_PAGE_REVIEW);
+        y += 64;
+    }
 
     reader.contentHeight = y - top + 32;
     EndView();
@@ -239,7 +252,7 @@ static float DrawChoice(const Question *q, int choice, bool answered, float x, f
     Color textColor = COL_TEXT;
     if (answered) {
         if (choice == q->correct) fill = COL_GOOD_BG;
-        else if (choice == reader.picked) fill = COL_BAD_BG;
+        else if (choice == reader.attempt.answers[reader.question]) fill = COL_BAD_BG;
         else textColor = COL_DIM;
     }
     UiRoundRect(r, 10, fill);
@@ -275,20 +288,19 @@ static LessonAction QuizPage(void)
     y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28 * scale, COL_TEXT, true) + 16;
     if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20 * scale, true) + 20;
 
-    bool answered = reader.picked >= 0;
+    bool answered = reader.attempt.answers[reader.question] >= 0;
     for (int i = 0; i < q->choiceCount; i++) {
         bool chosen;
         y += DrawChoice(q, i, answered, x, y, w, scale, &chosen) + 12;
         if (chosen) {
-            reader.picked = i;
-            if (i == q->correct) reader.correctCount++;
+            QuizAttemptPick(&reader.attempt, reader.question, i);
             answered = true;
         }
     }
 
     if (answered) {  // feedback, the explanation, then on to the next question or the result
         y += 8;
-        bool right = reader.picked == q->correct;
+        bool right = reader.attempt.answers[reader.question] == q->correct;
         UiIconText(right ? ICON_CHECK : ICON_CROSS, gFonts.bold, right ? "Correct!" : "Not quite.", x, y, 26,
                    right ? COL_GOOD : COL_BAD);
         y += 40;
@@ -302,7 +314,6 @@ static LessonAction QuizPage(void)
             FinishQuiz();
         } else if (next) {
             reader.question++;
-            reader.picked = -1;
             reader.scroll = 0;
         }
         y += 50;
@@ -340,7 +351,7 @@ static LessonAction ResultPage(void)
     } else {
         UiTextCentered(gFonts.text, TextFormat("%d%%", reader.lastPercent), cx, y, 96, passed ? COL_GOOD : COL_BAD);
         y += 120;
-        UiTextCentered(gFonts.text, TextFormat("%d of %d correct", reader.correctCount, lesson->questionCount), cx, y,
+        UiTextCentered(gFonts.text, TextFormat("%d of %d correct", QuizAttemptCorrect(&reader.attempt), lesson->questionCount), cx, y,
                        26, COL_TEXT);
         y += 44;
         const char *verdict = passed ? "Nice work. Lesson complete."
@@ -358,6 +369,10 @@ static LessonAction ResultPage(void)
         ShowPage(LESSON_PAGE_READING);
     }
     bool hasQuiz = lesson->questionCount > 0;
+    if (hasQuiz && reader.attempt.completed && UiButtonIconEx((Rectangle){ cx - 160, y + buttonH + 16, 320, 48 },
+            ICON_BOOK, "Review Answers", 22, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        ShowPage(LESSON_PAGE_REVIEW);
+    }
     if (UiButtonIconEx((Rectangle){ x0 + buttonW + gap, y, buttonW, buttonH }, hasQuiz ? ICON_RETRY : ICON_BACK,
                        hasQuiz ? "Retry quiz" : reader.backLabel, 22, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) {
         if (hasQuiz) StartQuiz();
@@ -374,11 +389,73 @@ static LessonAction ResultPage(void)
 
 // ---------------------------------------------------------------------------
 
+// One question's contents; the same wrapping pass measures the surrounding card.
+static float ReviewContents(const QuizReviewItem *item, int number, float x, float y, float w, float scale, bool draw)
+{
+    const Question *q = item->question;
+    float top = y;
+    Color state = item->correct ? COL_GOOD : COL_BAD;
+    const char *status = !item->answered ? "Not answered" : item->correct ? "Correct" : "Incorrect";
+    if (draw) UiIconText(item->correct ? ICON_CHECK : ICON_CROSS, gFonts.bold,
+                        TextFormat("Question %d - %s", number, status), x, y, 22 * scale, state);
+    y += 38 * scale;
+    y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 24 * scale, COL_TEXT, draw) + 16;
+    if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20 * scale, draw) + 16;
+    y += UiWrappedText(gFonts.text, "Your answer:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+    y += UiWrappedText(gFonts.text, item->selectedAnswer ? item->selectedAnswer : "Not answered",
+                       (Vector2){ x, y }, w, 22 * scale, state, draw) + 16;
+    y += UiWrappedText(gFonts.text, "Correct answer:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+    y += UiWrappedText(gFonts.text, item->correctAnswer ? item->correctAnswer : "Not available",
+                       (Vector2){ x, y }, w, 22 * scale, COL_GOOD, draw) + 16;
+    if (item->explanation) {
+        y += UiWrappedText(gFonts.text, "Explanation", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+        y += UiWrappedText(gFonts.text, item->explanation, (Vector2){ x, y }, w, 21 * scale, COL_TEXT, draw) + 12;
+    }
+    return y - top;
+}
+
+static LessonAction ReviewPage(void)
+{
+    LessonAction action = { LESSON_STAY, NULL, 0 };
+    if (TopBar("Quiz Review - Back to Results")) {
+        ShowPage(LESSON_PAGE_RESULT);
+        return action;
+    }
+    const Lesson *lesson = CurrentLesson();
+    Rectangle view = ScrollView();
+    view.height -= 84; // navigation stays visible while questions scroll
+    UpdateScroll(&reader.scroll, reader.contentHeight, view.height);
+    BeginView(view);
+    float x = ContentX(), w = ContentWidth(), scale = UiTextScale();
+    float top = view.y + 24 - reader.scroll, y = top;
+    y += UiWrappedText(gFonts.text, lesson->title, (Vector2){ x, y }, w, 30 * scale, COL_TEXT, true) + 12;
+    y += UiWrappedText(gFonts.text, "This attempt's answers. Reviewing does not change your saved best score.",
+                       (Vector2){ x, y }, w, 18 * scale, COL_DIM, true) + 24;
+    for (int i = 0; i < lesson->questionCount; i++) {
+        QuizReviewItem item;
+        if (!QuizAttemptReview(&reader.attempt, i, &item)) continue;
+        float h = ReviewContents(&item, i + 1, 0, 0, w - 40, scale, false) + 40;
+        UiRoundRect((Rectangle){ x, y, w, h }, 12, COL_PANEL);
+        ReviewContents(&item, i + 1, x + 20, y + 20, w - 40, scale, true);
+        y += h + 20;
+    }
+    reader.contentHeight = y - top + 24;
+    EndView();
+    float footerY = GetScreenHeight() - 84.0f;
+    DrawRectangle(0, (int)footerY, GetScreenWidth(), 84, COL_BG);
+    float bw = (w - 20) / 2;
+    if (UiButtonIconEx((Rectangle){ x, footerY + 16, bw, 50 }, ICON_BOOK, "Return to Lesson", 21,
+                       COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) ShowPage(LESSON_PAGE_READING);
+    if (UiButtonIcon((Rectangle){ x + bw + 20, footerY + 16, bw, 50 }, ICON_RETRY, "Retry Quiz", true)) StartQuiz();
+    return action;
+}
+
 LessonAction LessonScreen(void)
 {
     switch (reader.page) {
     case LESSON_PAGE_QUIZ:   return QuizPage();
     case LESSON_PAGE_RESULT: return ResultPage();
+    case LESSON_PAGE_REVIEW: return ReviewPage();
     default:                 return ReadingPage();
     }
 }
