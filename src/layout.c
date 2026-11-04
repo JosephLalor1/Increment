@@ -1,3 +1,4 @@
+// Page pieces shared by screens: content column, scroll views, top bar. See layout.h.
 #include "layout.h"
 #include "brand.h"
 #include "ui.h"

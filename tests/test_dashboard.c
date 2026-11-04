@@ -1,4 +1,4 @@
-#include "../src/dashboard.h"
+#include "../src/dashboard_stats.h"
 #include "../src/progress.h"
 #include <assert.h>
 #include <math.h>

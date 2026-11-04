@@ -1,4 +1,7 @@
+// Sends one-time codes through the Resend API on a background request, with retries and a
+// local test outbox. See email.h.
 #include "email.h"
+#include "email_address.h"
 #include "platform.h"
 #include "raylib.h"
 
@@ -25,21 +28,6 @@ static struct {
 
 // ---------------------------------------------------------------------------
 // Helpers
-
-bool EmailAddressValid(const char *a)
-{
-    size_t n = strlen(a);
-    if (n < 3 || n > 254) return false;
-    const char *at = strchr(a, '@');
-    if (!at || at == a || strchr(at + 1, '@')) return false;
-    const char *dot = strrchr(at, '.');
-    if (!dot || dot == at + 1 || dot[1] == '\0') return false;  // need name.tld after @
-    for (const char *p = a; *p; p++) {
-        unsigned char c = (unsigned char)*p;
-        if (c <= ' ' || c >= 127 || c == '"' || c == '\\' || c == '<' || c == '>' || c == ',') return false;
-    }
-    return true;
-}
 
 void EmailJsonEscape(const char *in, char *out, size_t size)
 {

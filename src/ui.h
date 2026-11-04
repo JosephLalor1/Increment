@@ -4,6 +4,7 @@
 #include "icons.h"
 #include "raylib.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 // The active palette. Switch it with UiSetTheme; COL_* names read from it.
 typedef struct {
@@ -39,6 +40,11 @@ extern UiTheme gTheme;
 void UiSetTheme(bool light, int accent);
 Color UiAccentSwatch(int accent, bool light);
 const char *UiAccentName(int accent);
+
+// Size multiplier for lesson and quiz text (the user's text size setting). Screens that show
+// lesson-sized text read it here, so they don't depend on where the setting is stored.
+void UiSetTextScale(float scale);
+float UiTextScale(void);  // 1.0 until set
 
 typedef struct {
     Font text;
@@ -94,6 +100,13 @@ bool UiAnyFocus(void);
 
 // Word-wrapped text. Returns the height used. Pass draw=false to only measure.
 float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float size, Color c, bool draw);
+
+// Shortens text in place until it fits maxWidth on one line, ending it with "..." when
+// anything was cut. capacity is the size of the text buffer (the "..." needs room).
+void UiFitText(char *text, size_t capacity, Font f, float size, float maxWidth);
+
+// Width of text on one line in font f at size, with the spacing UiText uses.
+float UiTextWidth(Font f, const char *text, float size);
 
 // One syntax-highlighting token: a run of characters [start, start + len) in one colour.
 typedef struct {

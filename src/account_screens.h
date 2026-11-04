@@ -3,8 +3,10 @@
 
 #include <stdbool.h>
 
-// Sign-in, email verification, recovery-code and settings screens. main.c owns
-// navigation and acts on the returned action.
+// The account screens: sign-in (login_screen.c), email verification (verify_screen.c),
+// recovery code (recovery_screen.c) and settings (settings_screen.c). They never navigate:
+// each returns an AccountAction and main.c decides where to go next.
+
 typedef enum {
     ACCOUNT_STAY,          // nothing to do
     ACCOUNT_SIGNED_IN,     // a user just signed in (check RecoveryPending for a new code to show)
@@ -16,6 +18,7 @@ typedef enum {
     ACCOUNT_QUIT,
 } AccountAction;
 
+// Sign-in
 void LoginReset(void);          // fresh sign-in form (call when showing the login screen)
 AccountAction LoginScreen(void);
 
@@ -26,17 +29,20 @@ void VerifySendTo(const char *email); // creates a code and starts emailing it
 bool VerifyChanging(void);
 AccountAction VerifyScreen(void);     // ACCOUNT_VERIFIED, ACCOUNT_SIGNED_OUT or ACCOUNT_BACK
 
-bool RecoveryPending(void);
-AccountAction RecoveryScreen(void); // ACCOUNT_BACK once the user has saved the code
+// Recovery code
+bool RecoveryPending(void);           // a new code is waiting to be shown
+AccountAction RecoveryScreen(void);   // ACCOUNT_BACK once the user has saved the code
 
+// Settings
 void SettingsOpen(void);        // clear the settings forms (call when entering or leaving)
 AccountAction SettingsScreen(void);
 
-void ApplySettings(void);       // apply the current user's theme
-float TextScale(void);          // lesson/quiz text size multiplier for the current user
+// Applies the current user's (or last user's) theme, accent and text size to the UI.
+// Call after signing in or out and whenever the settings change.
+void ApplyUserAppearance(void);
 
-// Dev aid for --shot: "register", "reset", "recovery", "delete", "verify" or
-// "addemail", "resetemail" or "resetcode" pre-fills demo state.
+// Dev aid for --shot: "register", "reset", "recovery", "delete", "verify", "addemail",
+// "resetemail" or "resetcode" pre-fills demo state on the matching screen.
 void AccountScreensDemo(const char *what);
 
 #endif

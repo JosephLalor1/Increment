@@ -1,3 +1,5 @@
+// Parses lesson files (assets/lessons/*.txt) into Lesson structs. The format is described
+// in CLAUDE.md.
 #include "lesson.h"
 #include "raylib.h"
 

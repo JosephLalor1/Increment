@@ -1,3 +1,4 @@
+// The launch animation. See splash.h.
 #include "splash.h"
 #include "brand.h"
 #include "ui.h"

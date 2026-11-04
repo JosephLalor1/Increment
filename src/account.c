@@ -1,5 +1,7 @@
+// Local accounts: the accounts file, password and recovery-code hashing, per-user files
+// (progress path, settings, email address and one-time codes). See account.h.
 #include "account.h"
-#include "email.h"
+#include "email_address.h"
 #include "platform.h"
 #include "raylib.h"
 

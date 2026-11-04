@@ -1,6 +1,6 @@
+// The code editor screen: editors for code, input and output, running programs with the
+// runner, exercise checking and per-user drafts. See code_screen.h.
 #include "code_screen.h"
-#include "account.h"
-#include "account_screens.h"
 #include "editor.h"
 #include "layout.h"
 #include "progress.h"
@@ -31,6 +31,7 @@ static const char *helloCpp =
     "}\n";
 
 static bool lastCpp;  // the free editor reopens in the language used last time
+static char draftFolder[600];  // where drafts are saved ("" = not saved); see CodeSetDraftFolder
 
 static struct {
     bool ready;        // editors initialised
@@ -40,7 +41,8 @@ static struct {
     char title[128];
 
     const Exercise *ex;
-    char progressId[48];   // "<lesson id>#<n>" for exercises
+    char lessonId[32];     // exercises: the lesson it belongs to ("" otherwise)
+    int exerciseIndex;     // exercises: zero-based index within the lesson
     char *original;        // what Reset restores: starter, snippet or template
 
     Editor code, input, output;
@@ -84,16 +86,15 @@ static void SaveDraft(void)
     fclose(f);
 }
 
-// Points cs.draftPath at <user code dir>/<key>.c(pp) and loads it if it exists.
+// Points cs.draftPath at <draft folder>/<key>.c(pp) and loads it if it exists.
 // Returns true if a draft was loaded into the editor.
 static bool UseDraft(const char *key)
 {
-    const char *dir = AccountCodeDir();
-    if (!dir) {
+    if (!draftFolder[0]) {
         cs.draftPath[0] = '\0';
         return false;
     }
-    snprintf(cs.draftPath, sizeof cs.draftPath, "%s/%s.%s", dir, key, cs.cpp ? "cpp" : "c");
+    snprintf(cs.draftPath, sizeof cs.draftPath, "%s/%s.%s", draftFolder, key, cs.cpp ? "cpp" : "c");
     if (!FileExists(cs.draftPath)) return false;
     char *text = LoadFileText(cs.draftPath);
     if (!text) return false;
@@ -120,7 +121,8 @@ static void Prepare(CodeMode mode, const char *title, bool cpp)
     cs.mode = mode;
     cs.cpp = cpp;
     cs.ex = NULL;
-    cs.progressId[0] = '\0';
+    cs.lessonId[0] = '\0';
+    cs.exerciseIndex = 0;
     cs.draftPath[0] = '\0';
     cs.checked = cs.passed = false;
     cs.warning[0] = '\0';
@@ -133,7 +135,7 @@ static void Prepare(CodeMode mode, const char *title, bool cpp)
     EditorSetText(&cs.output, "");
     EditorSetMarks(&cs.code, NULL, 0);
 
-    float size = 19 * TextScale();
+    float size = 19 * UiTextScale();
     cs.code.fontSize = size;
     cs.input.fontSize = size * 0.92f;
     cs.output.fontSize = size * 0.92f;
@@ -179,7 +181,8 @@ void CodeOpenExercise(const Lesson *L, int index)
     const Exercise *ex = &L->exercises[index];
     Prepare(CODE_EXERCISE, ex->title, L->track == TRACK_CPP);
     cs.ex = ex;
-    snprintf(cs.progressId, sizeof cs.progressId, "%s#%d", L->id, index + 1);
+    snprintf(cs.lessonId, sizeof cs.lessonId, "%s", L->id);
+    cs.exerciseIndex = index;
     SetOriginal(ex->starter);
     char key[64];
     snprintf(key, sizeof key, "%s_ex%d", L->id, index + 1);
@@ -187,9 +190,9 @@ void CodeOpenExercise(const Lesson *L, int index)
     if (ex->input) EditorSetText(&cs.input, ex->input);
 }
 
-bool CodeExerciseDone(const Lesson *L, int index)
+void CodeSetDraftFolder(const char *folder)
 {
-    return ProgressExerciseDone(L->id, index);
+    snprintf(draftFolder, sizeof draftFolder, "%s", folder ? folder : "");
 }
 
 void CodeClose(void)
@@ -277,7 +280,7 @@ static void RunFinished(void)
         cs.gotLines = CountLines(out);
         cs.wantLines = CountLines(cs.ex->expected);
         if (cs.passed) {
-            ProgressRecord(cs.progressId, 100);
+            ProgressRecordExercise(cs.lessonId, cs.exerciseIndex);
         } else {
             RunnerGetLine(cs.ex->expected, cs.badLine, cs.wantLine, sizeof cs.wantLine);
             RunnerGetLine(out, cs.badLine, cs.gotLine, sizeof cs.gotLine);
@@ -310,7 +313,7 @@ static void TaskPanel(Rectangle r)
     BeginScissorMode((int)r.x, (int)r.y + 4, (int)r.width, (int)r.height - 8);
     float x = r.x + 18, w = r.width - 36;
     float top = r.y + 14 - cs.taskScroll, y = top;
-    bool done = cs.progressId[0] && ProgressBest(cs.progressId) >= 100;
+    bool done = cs.lessonId[0] && ProgressExerciseDone(cs.lessonId, cs.exerciseIndex);
     UiIconText(done ? ICON_CHECK : ICON_TARGET, gFonts.bold, done ? "Task (done)" : "Task", x, y, 19,
                done ? COL_GOOD : COL_ACCENT);
     y += 34;

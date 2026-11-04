@@ -31,8 +31,7 @@ const char *EmailError(void);  // why the last send failed
 
 void EmailShutdown(void);
 
-// Exposed for tests.
-bool EmailAddressValid(const char *addr);
+// JSON helpers for the Resend request and response, exposed for tests.
 void EmailJsonEscape(const char *in, char *out, size_t size);
 void EmailJsonField(const char *json, const char *field, char *out, size_t size);
 

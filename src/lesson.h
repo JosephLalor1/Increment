@@ -1,6 +1,9 @@
 #ifndef LESSON_H
 #define LESSON_H
 
+// Lessons as loaded from assets/lessons: blocks of text and code, quiz questions and
+// coding exercises.
+
 #include <stdbool.h>
 
 #define MAX_BLOCKS    256

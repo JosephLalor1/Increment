@@ -1,3 +1,4 @@
+// Themes, fonts, immediate-mode widgets, word wrap and code blocks. See ui.h.
 #include "ui.h"
 
 #include <ctype.h>
@@ -70,6 +71,12 @@ const char *UiAccentName(int accent)
 {
     return (accent >= 0 && accent < UI_ACCENT_COUNT) ? accents[accent].name : "";
 }
+
+// Multiplier for lesson-sized text, set from the user's "Lesson text size" setting.
+static float textScale = 1.0f;
+
+void UiSetTextScale(float scale) { textScale = scale > 0 ? scale : 1.0f; }
+float UiTextScale(void) { return textScale; }
 
 // ---------------------------------------------------------------------------
 
@@ -339,6 +346,27 @@ bool UiTextBox(Rectangle r, char *buf, int size, const char *placeholder, bool p
         DrawRectangle((int)cx, (int)(r.y + 12), 2, (int)(r.height - 24), COL_TEXT);
     }
     return submitted;
+}
+
+float UiTextWidth(Font f, const char *text, float size)
+{
+    return MeasureTextEx(f, text, size, UiSpacing(f, size)).x;
+}
+
+void UiFitText(char *text, size_t capacity, Font f, float size, float maxWidth)
+{
+    if (UiTextWidth(f, text, size) <= maxWidth) return;
+    // Keep fewer characters each time (dropping spaces before the cut) until they fit with
+    // "..." after them. The kept part plus "..." and its terminator must fit in capacity.
+    int keep = (int)strlen(text);
+    int mostThatFits = (int)capacity - 4;
+    if (keep > mostThatFits + 1) keep = mostThatFits + 1;
+    while (keep > 0) {
+        keep--;
+        while (keep > 0 && text[keep - 1] == ' ') keep--;
+        memcpy(text + keep, "...", 4);
+        if (UiTextWidth(f, text, size) <= maxWidth) return;
+    }
 }
 
 float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float size, Color c, bool draw)

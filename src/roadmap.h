@@ -3,10 +3,18 @@
 
 #include "lesson.h"
 
-// Returns the first incomplete lesson's index, or -1. Never restricts access.
+#include <stdbool.h>
+#include <stddef.h>
+
+// The learning roadmap's data: where a learner is in a track and what each lesson builds on.
+// Suggestions only; no lesson is ever locked. Drawing lives in the screens that show it.
+
+// Counts the track's lessons (*total) and passed ones (*done). Returns the first lesson
+// not yet passed, in lesson order, or -1 when the track is complete or empty.
 int RoadmapNext(const LessonSet *set, Track track, int *done, int *total);
-// Draw inside the current scroll view. Returns a clicked lesson index or -1.
-int RoadmapDraw(const LessonSet *set, Track track, float x, float y, float w, float *height);
-float RoadmapPrerequisites(const LessonSet *set, const Lesson *lesson, float x, float y, float w, float size, bool draw);
+
+// Writes "Suggested preparation (optional): C: Arrays; C: Loops" for lessons that have
+// suggestions. Returns false (and writes "") when there are none.
+bool RoadmapPreparation(const LessonSet *set, const Lesson *lesson, char *out, size_t size);
 
 #endif

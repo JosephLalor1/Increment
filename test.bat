@@ -15,19 +15,19 @@ set FAILED=0
 
 if not exist build mkdir build
 
-"%CC%" %CFLAGS% tests\test_account.c src\account.c src\email.c src\platform.c -o build\test_account.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_account.c src\account.c src\email_address.c src\platform.c -o build\test_account.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_editor.c src\editor.c src\ui.c src\icons.c -o build\test_editor.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_runner.c src\runner.c src\platform.c -o build\test_runner.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_email.c src\email.c src\platform.c -o build\test_email.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_email.c src\email.c src\email_address.c src\platform.c -o build\test_email.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_dashboard.c src\dashboard_stats.c src\progress.c -o build\test_dashboard.exe %LIBS%
 if errorlevel 1 exit /b 1
 
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
-"%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c src\layout.c src\ui.c src\icons.c src\brand.c -o build\test_roadmap.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c -o build\test_roadmap.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_roadmap.exe
 if errorlevel 1 set FAILED=1

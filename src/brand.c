@@ -1,3 +1,4 @@
+// The Increment logo, drawn from shapes. See brand.h.
 #include "brand.h"
 
 static void RoundRect(Rectangle r, float radius, Color c)

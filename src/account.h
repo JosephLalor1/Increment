@@ -1,6 +1,11 @@
 #ifndef ACCOUNT_H
 #define ACCOUNT_H
 
+// Local user accounts: creating, signing in, passwords, recovery codes, email verification,
+// password reset by email, and per-user settings.
+
+#include "email_address.h"  // EMAIL_MAX
+
 #include <stdbool.h>
 
 #define USERNAME_MIN 3
@@ -39,7 +44,6 @@ bool AccountDelete(const char *password, const char **err); // also deletes prog
 
 // Email verification for the logged-in user. Codes are 6 digits, stored hashed, valid
 // for 15 minutes and 5 attempts. Sending the email is the caller's job (see email.h).
-#define EMAIL_MAX       254
 #define EMAIL_CODE_SIZE 7   // 6 digits + terminator
 bool AccountEmailVerified(void);          // has a verified address
 const char *AccountEmail(void);           // verified address, or ""

@@ -2,6 +2,7 @@
 // Set RESEND_LIVE_TEST=1 to also send one real email through Resend (to its simulated
 // delivered@resend.dev inbox) using build/email_config.txt.
 #include "../src/email.h"
+#include "../src/email_address.h"
 #include "raylib.h"
 
 #include <stdio.h>
@@ -44,6 +45,15 @@ int main(int argc, char **argv)
     CHECK(!EmailAddressValid("a da@example.com"));
     CHECK(!EmailAddressValid("ada@exa\"mple.com"));
     CHECK(!EmailAddressValid("Ada <ada@example.com>"));
+
+    // Address masking, for showing where a code went
+    char masked[64];
+    EmailAddressMask("ada.lovelace@example.com", masked, sizeof masked);
+    CHECK(strcmp(masked, "a***@example.com") == 0);
+    EmailAddressMask("not-an-address", masked, sizeof masked);
+    CHECK(strcmp(masked, "your email") == 0);
+    EmailAddressMask("@example.com", masked, sizeof masked);
+    CHECK(strcmp(masked, "your email") == 0);
 
     // JSON helpers
     char buf[128];

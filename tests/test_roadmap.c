@@ -3,9 +3,17 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-// Roadmap drawing is linked but these tests exercise the data logic without a window.
-float TextScale(void) { return 1.0f; }
+// The roadmap's data logic, on the real lessons: progress through a track and the
+// optional preparation suggestions.
+
+static const Lesson *FindLesson(const LessonSet *set, const char *id)
+{
+    for (int i = 0; i < set->count; i++)
+        if (strcmp(set->items[i].id, id) == 0) return &set->items[i];
+    return NULL;
+}
 
 int main(void)
 {
@@ -31,6 +39,13 @@ int main(void)
     for (int i = 0; i < set.count; i++)
         if (set.items[i].track == TRACK_C) ProgressRecord(set.items[i].id, 100);
     assert(RoadmapNext(&set, TRACK_C, &done, &total) == -1 && done == total);
+    char text[512];
+    const Lesson *arrays = FindLesson(&set, "c_07_arrays"), *hello = FindLesson(&set, "c_01_hello");
+    assert(arrays && hello);
+    assert(RoadmapPreparation(&set, arrays, text, sizeof text));
+    assert(strstr(text, "Suggested preparation (optional): C: ") == text);
+    assert(strstr(text, "; C: "));  // two suggestions, separated
+    assert(!RoadmapPreparation(&set, hello, text, sizeof text) && text[0] == 0);
     LessonSet empty = { 0 };
     assert(RoadmapNext(&empty, TRACK_CPP, &done, &total) == -1 && done == 0 && total == 0);
     ProgressLoad("");

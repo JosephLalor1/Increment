@@ -4,8 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_ENTRIES 512
+#define MAX_ENTRIES 512  // lessons plus exercises; far more than the course has
 
+// One stored score: a lesson id or an exercise id (see progress.h).
 typedef struct {
     char id[32];
     int best;
@@ -13,7 +14,7 @@ typedef struct {
 
 static Entry entries[MAX_ENTRIES];
 static int entryCount;
-static char savePath[1024];
+static char savePath[1024];  // where ProgressSave writes; "" when signed out
 
 static Entry *Find(const char *id)
 {
@@ -77,9 +78,27 @@ void ProgressRecord(const char *id, int percent)
     ProgressSave();
 }
 
-bool ProgressExerciseDone(const char *lessonId, int index)
+bool ProgressLessonPassed(const char *lessonId)
+{
+    return ProgressBest(lessonId) >= PASS_PERCENT;
+}
+
+// "<lesson id>#<n>" with n 1-based, the id an exercise's pass is stored under.
+static void ExerciseId(const char *lessonId, int exerciseIndex, char *out, size_t size)
+{
+    snprintf(out, size, "%s#%d", lessonId, exerciseIndex + 1);
+}
+
+bool ProgressExerciseDone(const char *lessonId, int exerciseIndex)
 {
     char id[64];
-    snprintf(id, sizeof id, "%s#%d", lessonId, index + 1);
+    ExerciseId(lessonId, exerciseIndex, id, sizeof id);
     return ProgressBest(id) >= 100;
+}
+
+void ProgressRecordExercise(const char *lessonId, int exerciseIndex)
+{
+    char id[64];
+    ExerciseId(lessonId, exerciseIndex, id, sizeof id);
+    ProgressRecord(id, 100);
 }

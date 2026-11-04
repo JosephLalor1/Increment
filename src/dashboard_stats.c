@@ -1,4 +1,5 @@
-#include "dashboard.h"
+// Progress statistics for the dashboard, from saved scores. See dashboard_stats.h.
+#include "dashboard_stats.h"
 #include "progress.h"
 
 DashboardStats DashboardCalculate(const LessonSet *set, Track track)
@@ -12,7 +13,7 @@ DashboardStats DashboardCalculate(const LessonSet *set, Track track)
         if (track != TRACK_COUNT && lesson->track != track) continue;
         stats.lessons++;
         int best = ProgressBest(lesson->id);
-        if (best >= PASS_PERCENT) stats.completed++;
+        if (ProgressLessonPassed(lesson->id)) stats.completed++;
         else if (stats.next < 0) stats.next = i;
         stats.exercises += lesson->exerciseCount;
         for (int e = 0; e < lesson->exerciseCount; e++)

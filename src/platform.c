@@ -1,3 +1,5 @@
+// Windows services (random bytes, PBKDF2, files, processes, HTTPS). The only file that
+// includes windows.h. See platform.h.
 #include "platform.h"
 
 #include <stdio.h>

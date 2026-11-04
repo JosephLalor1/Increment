@@ -1,3 +1,5 @@
+// Compiles and runs learners' programs in the background and interprets the results.
+// See runner.h.
 #include "runner.h"
 #include "platform.h"
 #include "raylib.h"

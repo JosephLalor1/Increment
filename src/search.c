@@ -1,3 +1,4 @@
+// Lesson search: matching, ordering and excerpts. See search.h.
 #include "search.h"
 
 #include <ctype.h>

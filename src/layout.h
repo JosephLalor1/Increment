@@ -8,6 +8,11 @@
 #define TOPBAR_H  64.0f
 #define MAX_WIDTH 880.0f
 
+// Screens that can open a lesson (track list, dashboard) return the lesson's index, or one
+// of these. main.c acts on the result; the screens never navigate themselves.
+#define PAGE_STAY (-1)  // nothing to do this frame
+#define PAGE_BACK (-2)  // the user asked to go back
+
 float ContentWidth(void);   // width of the centred content column
 float ContentX(void);       // left edge of the content column
 Rectangle ScrollView(void); // the area below the top bar
