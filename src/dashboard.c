@@ -418,7 +418,8 @@ static bool BarButton(Rectangle r, Icon icon, const char *label)
     return UiButtonIconEx(r, icon, label, 18, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
 }
 
-// The Journey / Statistics / Saved switch: one pill with the open view lit. right is its
+// The Journey / Statistics / Saved switch: one pill with the open view in the accent
+// colour, the bar's one highlighted button. right is its
 // right edge; returns its left edge.
 #define VIEW_SWITCH_W 356.0f  // the segment widths below plus the inset on both sides
 static float ViewSwitch(float right, float y, float h)
@@ -434,8 +435,8 @@ static float ViewSwitch(float right, float y, float h)
     for (int i = 0; i < HOME_VIEW_COUNT; i++) {
         bool open = page.view == (HomeView)i;
         Rectangle segment = { x, y + inset, widths[i], h - inset * 2 };
-        if (UiButtonIconEx(segment, icons[i], labels[i], 17, open ? COL_PANEL_HI : COL_BG, COL_SECONDARY_HOVER,
-                           open ? COL_ACCENT : COL_DIM, true)) {
+        if (UiButtonIconEx(segment, icons[i], labels[i], 17, open ? COL_ACCENT : COL_BG,
+                           open ? COL_ACCENT_HI : COL_SECONDARY_HOVER, open ? COL_ON_ACCENT : COL_DIM, true)) {
             page.view = (HomeView)i;
             SearchViewClear(&page.search);  // the switch means "show me this", not "filter the results"
         }
@@ -445,7 +446,8 @@ static float ViewSwitch(float right, float y, float h)
 }
 
 // The bar across the top: the logo, then (from the right) Quit, Log out, Settings, the
-// view switch, the code editor, and who is signed in when there's room. In a narrow
+// code editor, the view switch (lit in the accent colour, so the journey is the focus),
+// and who is signed in when there's room. In a narrow
 // window Log out, Settings and the code editor shrink to their icons.
 static HomeChoice HomeBar(void)
 {
@@ -468,12 +470,9 @@ static HomeChoice HomeBar(void)
     if (BarButton((Rectangle){ x, y, logOutW, h }, ICON_LOGOUT, compact ? NULL : "Log out")) choice = HOME_LOG_OUT;
     x -= gap + settingsW;
     if (BarButton((Rectangle){ x, y, settingsW, h }, ICON_GEAR, compact ? NULL : "Settings")) choice = HOME_SETTINGS;
-    x = ViewSwitch(x - gap, y, h);
     x -= gap + codeW;
-    if (UiButtonIconEx((Rectangle){ x, y, codeW, h }, ICON_CODE, compact ? NULL : "Code editor", 18, COL_ACCENT,
-                       COL_ACCENT_HI, COL_ON_ACCENT, true)) {
-        choice = HOME_CODE_EDITOR;
-    }
+    if (BarButton((Rectangle){ x, y, codeW, h }, ICON_CODE, compact ? NULL : "Code editor")) choice = HOME_CODE_EDITOR;
+    x = ViewSwitch(x - gap, y, h);
 
     const char *who = AccountCurrent();
     if (who) {
