@@ -2,6 +2,7 @@
 #include "dev_shot.h"
 #include "account.h"
 #include "account_screens.h"
+#include "bookmarks.h"
 #include "brand.h"
 #include "code_screen.h"
 #include "dashboard.h"
@@ -89,12 +90,16 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;
     }
-    if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics") || Is(name, "search")) {
+    if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics") || Is(name, "saved")
+        || Is(name, "search")) {
         // home: the journey of lesson <index>'s track; statistics: the statistics view;
-        // search: INCREMENT_SHOT_SEARCH typed into the box (even " ", which shows the
-        // empty-search hint) and INCREMENT_SHOT_FILTER.
+        // saved: the signed-in user's saved lessons; search: INCREMENT_SHOT_SEARCH typed
+        // into the box (even " ", which shows the empty-search hint) and INCREMENT_SHOT_FILTER.
+        HomeView view = Is(name, "statistics") ? HOME_VIEW_STATISTICS
+                      : Is(name, "saved")      ? HOME_VIEW_SAVED
+                                               : HOME_VIEW_JOURNEY;
         DashboardOpen();
-        DashboardShowJourney(lessons->count ? lessons->items[lessonIndex].track : TRACK_C, Is(name, "statistics"));
+        DashboardShow(view, lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
         DashboardDemo(scroll);
         if (Is(name, "search")) DashboardDemoSearch(getenv("INCREMENT_SHOT_SEARCH"), ShotSearchFilter());
         return SCREEN_HOME;
@@ -133,7 +138,10 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
     // Content screens normally require a login; shots may sign in to show a user's state.
     const char *user = getenv("INCREMENT_SHOT_USER"), *password = getenv("INCREMENT_SHOT_PASS");
     const char *err;
-    if (user && password && AccountLogin(user, password, &err)) ProgressLoad(AccountProgressPath());
+    if (user && password && AccountLogin(user, password, &err)) {
+        ProgressLoad(AccountProgressPath());
+        BookmarksLoad(AccountBookmarksPath());
+    }
     ApplyUserAppearance();
 
     shot.screen = PrepareScreen(name, lessons, lessonIndex, extra, &shot);

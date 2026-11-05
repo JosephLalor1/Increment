@@ -732,6 +732,7 @@ bool AccountDelete(const char *password, const char **err)
     remove(UserFile(removed.name, ".txt"));
     remove(UserFile(removed.name, ".settings.txt"));
     remove(UserFile(removed.name, ".email.txt"));
+    remove(UserFile(removed.name, ".bookmarks.txt"));
     PlatformRemoveDir(UserFile(removed.name, "_code"));  // code editor drafts
     memset(&mail, 0, sizeof mail);
     current = -1;
@@ -744,6 +745,14 @@ const char *AccountCurrent(void) { return current >= 0 ? accounts[current].name 
 bool AccountHasRecovery(void) { return current >= 0 && accounts[current].hasRecovery; }
 
 const char *AccountProgressPath(void) { return progressPath; }
+
+const char *AccountBookmarksPath(void)
+{
+    static char path[1100];
+    if (current < 0) return "";
+    snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".bookmarks.txt"));
+    return path;
+}
 
 const char *AccountCodeDir(void)
 {

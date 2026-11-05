@@ -5,7 +5,8 @@
 
 #include <stdbool.h>
 
-// One lesson: reading it (text, examples, exercises), its quiz, result and answer review.
+// One lesson: reading it (text, examples, exercises, and a Save button that bookmarks it),
+// its quiz, result and answer review.
 // Moving between the pages, and on to the next lesson, happens here; leaving
 // the lesson or opening the code editor is returned to main.c as an action.
 

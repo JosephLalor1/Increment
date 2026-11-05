@@ -7,8 +7,16 @@
 #include <stdbool.h>
 
 // The home screen, shown after signing in: the C and C++ learning journeys, detailed
-// statistics, and lesson search, under a home bar with the code editor, Settings, Log out
-// and Quit. It reads progress but never navigates: it returns what the user chose.
+// statistics, saved lessons and lesson search, under a home bar with the code editor,
+// Settings, Log out and Quit. It reads progress but never navigates: it returns what the
+// user chose.
+
+typedef enum {
+    HOME_VIEW_JOURNEY,     // a track's winding path of lessons
+    HOME_VIEW_STATISTICS,
+    HOME_VIEW_SAVED,       // bookmarked lessons from both tracks
+    HOME_VIEW_COUNT
+} HomeView;
 
 typedef enum {
     HOME_STAY,          // nothing to do
@@ -29,9 +37,9 @@ typedef struct {
 // the screen is kept as it was left.
 void DashboardOpen(void);
 
-// Shows a track's journey (or the statistics) with the search cleared, e.g. for a lesson's
-// "Return to Roadmap" button.
-void DashboardShowJourney(Track track, bool statistics);
+// Shows a view with the search cleared, e.g. for a lesson's "Return to Roadmap" button.
+// track picks the journey tab (for any view, so it's ready when the journey is shown).
+void DashboardShow(HomeView view, Track track);
 
 // Draws the screen and handles input.
 HomeAction DashboardScreen(const LessonSet *set);

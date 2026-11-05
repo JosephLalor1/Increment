@@ -17,6 +17,7 @@ bool ProgressSave(void);
 
 int ProgressBest(const char *lessonId);           // best quiz score, -1 if never attempted
 bool ProgressLessonPassed(const char *lessonId);  // best score >= PASS_PERCENT
+const char *ProgressScoreNote(const char *lessonId);  // "New" or "Best: 80%", for lesson rows (temporary string)
 void ProgressRecord(const char *lessonId, int percent);  // keeps the best score and saves
 
 bool ProgressExerciseDone(const char *lessonId, int exerciseIndex);  // zero-based index

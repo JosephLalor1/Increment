@@ -40,7 +40,7 @@ void AccountLogout(void);
 // These act on the logged-in user and require their current password.
 bool AccountChangePassword(const char *currentPassword, const char *newPassword, const char **err);
 bool AccountNewRecoveryCode(const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err);
-bool AccountDelete(const char *password, const char **err); // also deletes progress and settings; logs out
+bool AccountDelete(const char *password, const char **err); // also deletes progress, settings, bookmarks and drafts; logs out
 
 // Email verification for the logged-in user. Codes are 6 digits, stored hashed, valid
 // for 15 minutes and 5 attempts. Sending the email is the caller's job (see email.h).
@@ -64,6 +64,7 @@ void AccountSetClockForTests(long long unixTime);  // 0 = real clock
 const char *AccountCurrent(void);       // display name, or NULL when logged out
 bool AccountHasRecovery(void);          // whether the logged-in user has a recovery code
 const char *AccountProgressPath(void);  // progress file for the current user
+const char *AccountBookmarksPath(void); // saved-lessons file for the current user, "" when logged out
 const char *AccountCodeDir(void);       // folder for the current user's code editor drafts (created), or NULL
 const char *AccountLastUser(void);      // last user to log in, "" if none
 

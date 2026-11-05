@@ -69,6 +69,14 @@ void ProgressBar(Rectangle r, float t, Color track, Color fill)
     if (t > 0) UiRoundRect((Rectangle){ r.x, r.y, r.width * t, r.height }, r.height / 2, fill);
 }
 
+float TrackBadge(const char *trackName, float x, float y)
+{
+    float w = UiTextWidth(gFonts.bold, trackName, 17) + 22;
+    UiRoundRect((Rectangle){ x, y, w, 28 }, 14, COL_BG);
+    UiTextCentered(gFonts.bold, trackName, x + w / 2, y + 4, 17, COL_ACCENT);
+    return w;
+}
+
 void DrawLogoLockup(float cx, float top, float logoSize)
 {
     float textSize = logoSize * 0.84f;

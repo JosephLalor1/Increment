@@ -25,13 +25,6 @@ void SearchViewDemo(SearchView *s, const char *query, SearchFilter filter)
     s->filter = filter;
 }
 
-// "New" or "Best: 80%", the score note at the right of a lesson row.
-static const char *ScoreText(const Lesson *lesson)
-{
-    int best = ProgressBest(lesson->id);
-    return best < 0 ? "New" : TextFormat("Best: %d%%", best);
-}
-
 // ---------------------------------------------------------------------------
 // Results
 
@@ -68,13 +61,10 @@ static bool DrawResultRow(SearchView *s, const Lesson *lesson, float x, float y,
     if (over) UiWantHand();
     UiRoundRect(row, 10, over ? COL_PANEL_HI : COL_PANEL);
 
-    const char *trackName = TrackName(lesson->track);
-    float badgeW = UiTextWidth(gFonts.bold, trackName, 17) + 22;
-    UiRoundRect((Rectangle){ x + 20, y + 18, badgeW, 28 }, 14, COL_BG);
-    UiTextCentered(gFonts.bold, trackName, x + 20 + badgeW / 2, y + 22, 17, COL_ACCENT);
+    float badgeW = TrackBadge(TrackName(lesson->track), x + 20, y + 18);
 
     bool passed = ProgressLessonPassed(lesson->id);
-    const char *score = ScoreText(lesson);
+    const char *score = ProgressScoreNote(lesson->id);
     float scoreW = UiTextWidth(gFonts.text, score, 18);
     UiText(gFonts.text, score, x + w - scoreW - 24, y + 22, 18, passed ? COL_GOOD : COL_DIM);
     if (passed) IconDraw(ICON_CHECK, (Vector2){ x + w - scoreW - 44, y + 32 }, 18, COL_GOOD);

@@ -24,6 +24,10 @@ bool TopBar(const char *title);
 
 void ProgressBar(Rectangle r, float t, Color track, Color fill);
 
+// A pill naming a lesson's track ("C", "C++") at x, y, 28 high, for lesson rows.
+// Returns its width.
+float TrackBadge(const char *trackName, float x, float y);
+
 // The logo tile with the "Increment" wordmark beside it, centred on cx. Height is logoSize.
 void DrawLogoLockup(float cx, float top, float logoSize);
 

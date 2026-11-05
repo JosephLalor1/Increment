@@ -176,6 +176,17 @@ void IconDraw(Icon icon, Vector2 c, float size, Color col)
         float flap[] = { -0.33f, -0.2f, 0.0f, 0.06f, 0.33f, -0.2f };
         Poly(flap, 3);
     } break;
+    case ICON_BOOKMARK:
+    case ICON_BOOKMARK_FILLED: {
+        // A ribbon with a notch cut into its foot.
+        float ribbon[] = { -0.24f, -0.36f, 0.24f, -0.36f, 0.24f, 0.38f, 0.0f, 0.16f, -0.24f, 0.38f, -0.24f, -0.36f };
+        Poly(ribbon, 6);
+        if (icon == ICON_BOOKMARK_FILLED) {
+            FillBox(-0.24f, -0.36f, 0.48f, 0.52f, 0.0f);
+            Tri(-0.24f, 0.16f, 0.0f, 0.16f, -0.24f, 0.38f);
+            Tri(0.24f, 0.16f, 0.0f, 0.16f, 0.24f, 0.38f);
+        }
+    } break;
     case ICON_COUNT:
         break;
     }

@@ -230,6 +230,8 @@ static void TestDelete(void)
     const char *codeDir = AccountCodeDir();  // code editor drafts
     CHECK(codeDir && DirectoryExists(codeDir));
     WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
+    CHECK(strstr(AccountBookmarksPath(), "users/temp_user.bookmarks.txt") != NULL);
+    WriteFile(AccountBookmarksPath(), "c_01_hello\n");  // saved lessons
     int before = AccountCount();
 
     CHECK(!AccountDelete("wrong", &err));
@@ -242,6 +244,8 @@ static void TestDelete(void)
     CHECK(!FileExists(DataFile("users/temp_user.txt")));
     CHECK(!FileExists(DataFile("users/temp_user.settings.txt")));
     CHECK(!DirectoryExists(DataFile("users/temp_user_code")));
+    CHECK(!FileExists(DataFile("users/temp_user.bookmarks.txt")));
+    CHECK(strcmp(AccountBookmarksPath(), "") == 0);  // signed out: nowhere to save bookmarks
     CHECK(strcmp(AccountLastUser(), "") == 0);
     CHECK(AccountGetSettings().theme == THEME_DARK);
     CHECK(!AccountLogin("temp_user", "deleteme", &err));

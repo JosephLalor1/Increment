@@ -9,6 +9,7 @@
 #include "account.h"
 #include "account_screens.h"
 #include "app_screen.h"
+#include "bookmarks.h"
 #include "code_screen.h"
 #include "dashboard.h"
 #include "dev_shot.h"
@@ -65,7 +66,8 @@ static void ShowLogin(void)
 {
     LessonScreenClearAttempt();
     MascotResetInteractions();
-    ProgressLoad("");  // drop the previous user's scores from memory
+    ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
+    BookmarksLoad("");
     LoginReset();
     ApplyUserAppearance();
     app.screen = SCREEN_LOGIN;
@@ -92,6 +94,7 @@ static void EnterApp(void)
 static void SignedIn(void)
 {
     ProgressLoad(AccountProgressPath());
+    BookmarksLoad(AccountBookmarksPath());
     if (VerifyNeeded()) {  // the account isn't usable until its email is verified
         VerifyOpen(false);
         app.screen = SCREEN_VERIFY;
@@ -177,11 +180,11 @@ static void RunLesson(void)
         app.screen = SCREEN_HOME;
         break;
     case LESSON_ROADMAP:  // "Return to Roadmap": that track's journey
-        DashboardShowJourney(lesson->track, false);
+        DashboardShow(HOME_VIEW_JOURNEY, lesson->track);
         app.screen = SCREEN_HOME;
         break;
     case LESSON_PROGRESS:  // "View Progress": the statistics
-        DashboardShowJourney(lesson->track, true);
+        DashboardShow(HOME_VIEW_STATISTICS, lesson->track);
         app.screen = SCREEN_HOME;
         break;
     case LESSON_TRY_EXAMPLE:

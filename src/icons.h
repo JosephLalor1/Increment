@@ -26,6 +26,8 @@ typedef enum {
     ICON_TARGET,
     ICON_CODE,
     ICON_MAIL,
+    ICON_BOOKMARK,         // outline: not saved
+    ICON_BOOKMARK_FILLED,  // saved
     ICON_COUNT
 } Icon;
 

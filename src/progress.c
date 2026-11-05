@@ -70,6 +70,12 @@ int ProgressBest(const char *id)
     return e ? e->best : -1;
 }
 
+const char *ProgressScoreNote(const char *lessonId)
+{
+    int best = ProgressBest(lessonId);
+    return best < 0 ? "New" : TextFormat("Best: %d%%", best);
+}
+
 void ProgressRecord(const char *id, int percent)
 {
     Entry *e = FindOrAdd(id);

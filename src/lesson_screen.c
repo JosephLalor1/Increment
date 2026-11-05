@@ -1,5 +1,6 @@
 // A lesson's reading, quiz and result pages. See lesson_screen.h.
 #include "lesson_screen.h"
+#include "bookmarks.h"
 #include "layout.h"
 #include "mascot.h"
 #include "mascot_events.h"
@@ -216,6 +217,18 @@ static float DrawExercises(const Lesson *lesson, float x, float y, float w, floa
     return y - top;
 }
 
+// The bookmark toggle at the right of the reading page's top bar. "Saved", with a filled
+// bookmark in the accent colour, while the lesson is bookmarked; "Save lesson" otherwise.
+static void SaveButton(const Lesson *lesson)
+{
+    bool saved = BookmarkIsSet(lesson->id);
+    Rectangle button = { GetScreenWidth() - 16.0f - 160, 12, 160, 40 };
+    if (UiButtonIconEx(button, saved ? ICON_BOOKMARK_FILLED : ICON_BOOKMARK, saved ? "Saved" : "Save lesson", 18,
+                       COL_PANEL_HI, COL_SECONDARY_HOVER, saved ? COL_ACCENT : COL_TEXT, true)) {
+        BookmarkToggle(lesson->id);
+    }
+}
+
 static LessonAction ReadingPage(void)
 {
     const Lesson *lesson = CurrentLesson();
@@ -224,6 +237,7 @@ static LessonAction ReadingPage(void)
         action.kind = LESSON_BACK;
         return action;
     }
+    SaveButton(lesson);
 
     Rectangle view = ScrollView();
     UpdateScroll(&reader.scroll, reader.contentHeight, view.height);

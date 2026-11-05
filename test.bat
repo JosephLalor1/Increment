@@ -43,8 +43,12 @@ if errorlevel 1 set FAILED=1
 if errorlevel 1 exit /b 1
 build\test_search.exe
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_bookmarks.c src\bookmarks.c -o build\test_bookmarks.exe
+if errorlevel 1 exit /b 1
 
 mkdir "%TESTDIR%"
+build\test_bookmarks.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
 build\test_mascot.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_journey_view.exe "%TESTDIR%"

@@ -1,4 +1,4 @@
-// The home screen: learning journeys, statistics and lesson search. See dashboard.h.
+// The home screen: learning journeys, statistics, saved lessons and lesson search. See dashboard.h.
 #include "dashboard.h"
 #include "account.h"
 #include "brand.h"
@@ -8,6 +8,7 @@
 #include "search_view.h"
 #include "mascot.h"
 #include "progress.h"
+#include "saved_view.h"
 #include "ui.h"
 
 // ---------------------------------------------------------------------------
@@ -365,20 +366,22 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
 static struct {
     float scroll;                      // statistics view
     float contentHeight;               // measured last frame, for clamping the scroll
-    bool statistics;                   // showing statistics instead of a journey
+    HomeView view;                     // what shows below the search box
     Track journeyTrack;                // the journey tab that's open
     float journeyScroll[TRACK_COUNT];  // where each journey is drawn (eases towards the target)
     float journeyTarget[TRACK_COUNT];  // where each journey is scrolling to
     float journeyHeight[TRACK_COUNT];
     SearchView search;
+    SavedView saved;
 } page;
 
 void DashboardOpen(void)
 {
     page.scroll = 0;
     page.contentHeight = 0;
-    page.statistics = false;
+    page.view = HOME_VIEW_JOURNEY;
     page.journeyTrack = TRACK_C;
+    page.saved = (SavedView){ 0 };
     for (int i = 0; i < TRACK_COUNT; i++) {
         page.journeyScroll[i] = page.journeyTarget[i] = page.journeyHeight[i] = 0;
     }
@@ -387,10 +390,10 @@ void DashboardOpen(void)
     SearchViewClear(&page.search);
 }
 
-void DashboardShowJourney(Track track, bool statistics)
+void DashboardShow(HomeView view, Track track)
 {
     if (track >= 0 && track < TRACK_COUNT) page.journeyTrack = track;
-    page.statistics = statistics;
+    if (view >= 0 && view < HOME_VIEW_COUNT) page.view = view;
     SearchViewClear(&page.search);
 }
 
@@ -400,6 +403,8 @@ void DashboardDemo(float scroll)
     page.contentHeight = 100000;  // let the requested scroll survive the first frame's clamp
     page.journeyScroll[page.journeyTrack] = page.journeyTarget[page.journeyTrack] = scroll;
     page.journeyHeight[page.journeyTrack] = 100000;
+    page.saved.scroll = scroll;
+    page.saved.height = 100000;
 }
 
 void DashboardDemoSearch(const char *query, SearchFilter filter)
@@ -413,8 +418,35 @@ static bool BarButton(Rectangle r, Icon icon, const char *label)
     return UiButtonIconEx(r, icon, label, 18, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
 }
 
+// The Journey / Statistics / Saved switch: one pill with the open view lit. right is its
+// right edge; returns its left edge.
+#define VIEW_SWITCH_W 356.0f  // the segment widths below plus the inset on both sides
+static float ViewSwitch(float right, float y, float h)
+{
+    static const Icon icons[HOME_VIEW_COUNT] = { ICON_BOOK, ICON_TROPHY, ICON_BOOKMARK };
+    static const char *labels[HOME_VIEW_COUNT] = { "Journey", "Statistics", "Saved" };
+    static const float widths[HOME_VIEW_COUNT] = { 116, 132, 100 };
+    const float inset = 4;
+    float left = right - VIEW_SWITCH_W;
+    UiRoundRect((Rectangle){ left, y, VIEW_SWITCH_W, h }, 8, COL_BG);
+
+    float x = left + inset;
+    for (int i = 0; i < HOME_VIEW_COUNT; i++) {
+        bool open = page.view == (HomeView)i;
+        Rectangle segment = { x, y + inset, widths[i], h - inset * 2 };
+        if (UiButtonIconEx(segment, icons[i], labels[i], 17, open ? COL_PANEL_HI : COL_BG, COL_SECONDARY_HOVER,
+                           open ? COL_ACCENT : COL_DIM, true)) {
+            page.view = (HomeView)i;
+            SearchViewClear(&page.search);  // the switch means "show me this", not "filter the results"
+        }
+        x += widths[i];
+    }
+    return left;
+}
+
 // The bar across the top: the logo, then (from the right) Quit, Log out, Settings, the
-// Journey/Statistics switch, the code editor, and who is signed in when there's room.
+// view switch, the code editor, and who is signed in when there's room. In a narrow
+// window Log out, Settings and the code editor shrink to their icons.
 static HomeChoice HomeBar(void)
 {
     DrawRectangle(0, 0, GetScreenWidth(), (int)TOPBAR_H, COL_PANEL);
@@ -425,21 +457,21 @@ static HomeChoice HomeBar(void)
 
     HomeChoice choice = HOME_STAY;
     float x = GetScreenWidth() - 16.0f, y = 12, h = 40, gap = 10;
-    x -= 44;
-    if (BarButton((Rectangle){ x, y, 44, h }, ICON_POWER, NULL)) choice = HOME_QUIT;
-    x -= gap + 120;
-    if (BarButton((Rectangle){ x, y, 120, h }, ICON_LOGOUT, "Log out")) choice = HOME_LOG_OUT;
-    x -= gap + 120;
-    if (BarButton((Rectangle){ x, y, 120, h }, ICON_GEAR, "Settings")) choice = HOME_SETTINGS;
-    x -= gap + 140;
-    if (BarButton((Rectangle){ x, y, 140, h }, page.statistics ? ICON_BOOK : ICON_TROPHY,
-                  page.statistics ? "Journey" : "Statistics")) {
-        page.statistics = !page.statistics;
-        SearchViewClear(&page.search);  // the button means "show me this", not "filter the results"
-    }
-    x -= gap + 170;
-    if (UiButtonIconEx((Rectangle){ x, y, 170, h }, ICON_CODE, "Code editor", 18, COL_ACCENT, COL_ACCENT_HI,
-                       COL_ON_ACCENT, true)) {
+    const float iconOnly = 44;
+    float fullWidth = iconOnly + 120 + 120 + VIEW_SWITCH_W + 170 + gap * 4;
+    bool compact = x - fullWidth < wordmarkRight + 24;
+    float logOutW = compact ? iconOnly : 120, settingsW = compact ? iconOnly : 120, codeW = compact ? iconOnly : 170;
+
+    x -= iconOnly;
+    if (BarButton((Rectangle){ x, y, iconOnly, h }, ICON_POWER, NULL)) choice = HOME_QUIT;
+    x -= gap + logOutW;
+    if (BarButton((Rectangle){ x, y, logOutW, h }, ICON_LOGOUT, compact ? NULL : "Log out")) choice = HOME_LOG_OUT;
+    x -= gap + settingsW;
+    if (BarButton((Rectangle){ x, y, settingsW, h }, ICON_GEAR, compact ? NULL : "Settings")) choice = HOME_SETTINGS;
+    x = ViewSwitch(x - gap, y, h);
+    x -= gap + codeW;
+    if (UiButtonIconEx((Rectangle){ x, y, codeW, h }, ICON_CODE, compact ? NULL : "Code editor", 18, COL_ACCENT,
+                       COL_ACCENT_HI, COL_ON_ACCENT, true)) {
         choice = HOME_CODE_EDITOR;
     }
 
@@ -525,10 +557,11 @@ HomeAction DashboardScreen(const LessonSet *set)
     HomeAction action = { HOME_STAY, -1 };
     action.kind = HomeBar();
 
-    // Esc leaves the search box first, then clears the search.
+    // Esc leaves the search box first, then clears the search, then goes back to the journey.
     if (IsKeyPressed(KEY_ESCAPE)) {
         if (UiAnyFocus()) UiFocus(NULL);
         else if (SearchViewActive(&page.search)) SearchViewClear(&page.search);
+        else page.view = HOME_VIEW_JOURNEY;
     }
 
     bool submitted;
@@ -543,8 +576,13 @@ HomeAction DashboardScreen(const LessonSet *set)
         clicked = SearchViewResults(&page.search, set, (Rectangle){ 0, top, (float)GetScreenWidth(),
                                                                     GetScreenHeight() - top }, submitted);
         if (clicked >= 0) UiFocus(NULL);  // so Backspace in the lesson goes back, not into the box
-    } else if (page.statistics) {
+    } else if (page.view == HOME_VIEW_STATISTICS) {
         clicked = StatisticsView(set, top);
+    } else if (page.view == HOME_VIEW_SAVED) {
+        Rectangle view = { 0, top, (float)GetScreenWidth(), GetScreenHeight() - top };
+        SavedChoice saved = SavedViewDraw(&page.saved, set, view);
+        clicked = saved.openLesson;
+        if (saved.browse) page.view = HOME_VIEW_JOURNEY;
     } else {
         clicked = JourneyView(set, top);
     }

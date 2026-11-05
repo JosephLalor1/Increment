@@ -1,29 +1,21 @@
-# Professor's course notes: copyrighted course material, not ours to publish
 Class Material/
-
-# Development journals (personal coursework submissions with name and student number)
 journal/
 
-# Build output
 build/
 *.exe
 *.o
 *.obj
 *.pdb
 
-# Email sending config: holds the Resend API key. Never commit it.
 email_config.txt
 
-# Per-user data the app writes at runtime (accounts, password hashes, progress)
 progress.txt
 accounts.txt
 *.tmp
 users/
 
-# Screenshots from --shot runs in the project root
 /*.png
 
-# Editor and local tool settings
 .vscode/
 .vs/
 .claude/settings.local.json
