@@ -1,7 +1,11 @@
+// The home screen: learning journeys, statistics and lesson search. See dashboard.h.
 #include "dashboard.h"
+#include "account.h"
+#include "brand.h"
 #include "dashboard_stats.h"
-#include "layout.h"
 #include "journey_view.h"
+#include "layout.h"
+#include "search_view.h"
 #include "mascot.h"
 #include "progress.h"
 #include "ui.h"
@@ -359,13 +363,14 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
 // The screen
 
 static struct {
-    float scroll;
-    float contentHeight;  // measured last frame, for clamping the scroll
-    bool statistics;
-    Track journeyTrack;
-    float journeyScroll[TRACK_COUNT];
-    float journeyTarget[TRACK_COUNT];
+    float scroll;                      // statistics view
+    float contentHeight;               // measured last frame, for clamping the scroll
+    bool statistics;                   // showing statistics instead of a journey
+    Track journeyTrack;                // the journey tab that's open
+    float journeyScroll[TRACK_COUNT];  // where each journey is drawn (eases towards the target)
+    float journeyTarget[TRACK_COUNT];  // where each journey is scrolling to
     float journeyHeight[TRACK_COUNT];
+    SearchView search;
 } page;
 
 void DashboardOpen(void)
@@ -379,6 +384,14 @@ void DashboardOpen(void)
     }
     topics.track = TRACK_COUNT;
     topics.filter = TOPICS_ALL;
+    SearchViewClear(&page.search);
+}
+
+void DashboardShowJourney(Track track, bool statistics)
+{
+    if (track >= 0 && track < TRACK_COUNT) page.journeyTrack = track;
+    page.statistics = statistics;
+    SearchViewClear(&page.search);
 }
 
 void DashboardDemo(float scroll)
@@ -389,59 +402,156 @@ void DashboardDemo(float scroll)
     page.journeyHeight[page.journeyTrack] = 100000;
 }
 
-void DashboardDemoTrack(Track track, bool statistics)
+void DashboardDemoSearch(const char *query, SearchFilter filter)
 {
-    if (track >= 0 && track < TRACK_COUNT) page.journeyTrack = track;
-    page.statistics = statistics;
+    SearchViewDemo(&page.search, query, filter);
 }
 
-int DashboardScreen(const LessonSet *set)
+// An icon button in the home bar's style.
+static bool BarButton(Rectangle r, Icon icon, const char *label)
 {
-    if (TopBar(page.statistics ? "Learning Statistics" : "Your Learning Journey")) return PAGE_BACK;
-    if (UiButtonIconEx((Rectangle){ GetScreenWidth() - 194.0f, 12, 178, 40 },
-                       page.statistics ? ICON_BOOK : ICON_TROPHY, page.statistics ? "Journey" : "Statistics", 18,
-                       COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) page.statistics = !page.statistics;
+    return UiButtonIconEx(r, icon, label, 18, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
+}
 
-    if (!page.statistics) {
-        float x = ContentX(), w = ContentWidth();
-        for (int t = 0; t < TRACK_COUNT; t++) {
-            bool active = page.journeyTrack == (Track)t;
-            Rectangle tab = { x + t * (w / 2 + 6), TOPBAR_H + 12, w / 2 - 6, 42 };
-            if (UiButtonEx(tab, t == TRACK_C ? "C Journey" : "C++ Journey", 20,
-                           active ? COL_ACCENT : COL_PANEL, active ? COL_ACCENT_HI : COL_SECONDARY_HOVER,
-                           active ? COL_ON_ACCENT : COL_TEXT, true)) page.journeyTrack = (Track)t;
+// The bar across the top: the logo, then (from the right) Quit, Log out, Settings, the
+// Journey/Statistics switch, the code editor, and who is signed in when there's room.
+static HomeChoice HomeBar(void)
+{
+    DrawRectangle(0, 0, GetScreenWidth(), (int)TOPBAR_H, COL_PANEL);
+    DrawRectangle(0, (int)TOPBAR_H - 1, GetScreenWidth(), 1, COL_PANEL_HI);
+    BrandDrawLogo((Vector2){ 20, 14 }, 36, COL_BRAND, WHITE, LOGO_STATIC, false);
+    UiText(gFonts.bold, "Increment", 66, 17, 26, COL_TEXT);
+    float wordmarkRight = 66 + UiTextWidth(gFonts.bold, "Increment", 26);
+
+    HomeChoice choice = HOME_STAY;
+    float x = GetScreenWidth() - 16.0f, y = 12, h = 40, gap = 10;
+    x -= 44;
+    if (BarButton((Rectangle){ x, y, 44, h }, ICON_POWER, NULL)) choice = HOME_QUIT;
+    x -= gap + 120;
+    if (BarButton((Rectangle){ x, y, 120, h }, ICON_LOGOUT, "Log out")) choice = HOME_LOG_OUT;
+    x -= gap + 120;
+    if (BarButton((Rectangle){ x, y, 120, h }, ICON_GEAR, "Settings")) choice = HOME_SETTINGS;
+    x -= gap + 140;
+    if (BarButton((Rectangle){ x, y, 140, h }, page.statistics ? ICON_BOOK : ICON_TROPHY,
+                  page.statistics ? "Journey" : "Statistics")) {
+        page.statistics = !page.statistics;
+        SearchViewClear(&page.search);  // the button means "show me this", not "filter the results"
+    }
+    x -= gap + 170;
+    if (UiButtonIconEx((Rectangle){ x, y, 170, h }, ICON_CODE, "Code editor", 18, COL_ACCENT, COL_ACCENT_HI,
+                       COL_ON_ACCENT, true)) {
+        choice = HOME_CODE_EDITOR;
+    }
+
+    const char *who = AccountCurrent();
+    if (who) {
+        const char *label = TextFormat("Signed in as %s", who);
+        float labelW = 18 * 1.4f + UiTextWidth(gFonts.text, label, 18);  // icon + gap + text
+        float labelX = x - 18 - labelW;
+        if (labelX > wordmarkRight + 24) UiIconText(ICON_USER, gFonts.text, label, labelX, 22, 18, COL_DIM);
+    }
+    return choice;
+}
+
+// For accounts made before recovery codes existed: a reminder with a link to Settings.
+// Returns the y below it (unchanged when not shown); sets *openSettings when clicked.
+static float RecoveryReminder(float x, float y, bool *openSettings)
+{
+    if (!AccountCurrent() || AccountHasRecovery()) return y;
+    const char *message = "You don't have a recovery code yet.";
+    const char *link = "Make one in Settings";
+    float messageW = 18 * 1.4f + UiTextWidth(gFonts.text, message, 18);
+    UiIconText(ICON_KEY, gFonts.text, message, x, y, 18, COL_DIM);
+    if (UiLink(x + messageW + 8, y, link, 18)) *openSettings = true;
+    return y + 30;
+}
+
+// The C / C++ tabs, the track's progress and its winding path. Returns a clicked lesson or -1.
+static int JourneyView(const LessonSet *set, float top)
+{
+    float x = ContentX(), w = ContentWidth();
+    for (int t = 0; t < TRACK_COUNT; t++) {
+        bool active = page.journeyTrack == (Track)t;
+        Rectangle tab = { x + t * (w / 2 + 6), top, w / 2 - 6, 42 };
+        if (UiButtonEx(tab, t == TRACK_C ? "C Journey" : "C++ Journey", 20, active ? COL_ACCENT : COL_PANEL,
+                       active ? COL_ACCENT_HI : COL_SECONDARY_HOVER, active ? COL_ON_ACCENT : COL_TEXT, true)) {
+            page.journeyTrack = (Track)t;
         }
-        DashboardStats stats = DashboardCalculate(set, page.journeyTrack);
-        UiText(gFonts.text, TextFormat("%s  |  %d / %d lessons complete  |  %d%%", TrackName(page.journeyTrack),
-               stats.completed, stats.lessons, stats.lessons ? stats.completed * 100 / stats.lessons : 0),
-               x, TOPBAR_H + 68, 18, COL_TEXT);
-        ProgressBar((Rectangle){ x, TOPBAR_H + 98, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
-                     COL_PANEL_HI, COL_GOOD);
-        Rectangle journeyView = ScrollView();
-        journeyView.y = TOPBAR_H + 120;
-        journeyView.height = GetScreenHeight() - journeyView.y;
-        Track track = page.journeyTrack;
-        if (UiButtonEx((Rectangle){ x + w - 174, TOPBAR_H + 61, 174, 30 }, "Find my place", 16,
-                       COL_PANEL, COL_SECONDARY_HOVER, COL_ACCENT, true))
-            page.journeyTarget[track] = JourneyViewFocus(set, track);
-        UpdateScroll(&page.journeyTarget[track], page.journeyHeight[track], journeyView.height);
-        float blend = GetFrameTime() * 16;
-        if (blend > 1) blend = 1;
-        page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
-        BeginView(journeyView);
-        int clicked = JourneyViewDraw(set, track, x, journeyView.y + 8 - page.journeyScroll[track], w,
-                                      &page.journeyHeight[track]);
-        page.journeyHeight[track] += 8;
-        EndView();
-        return clicked >= 0 ? clicked : PAGE_STAY;
+    }
+    Track track = page.journeyTrack;
+    DashboardStats stats = DashboardCalculate(set, track);
+    int percent = stats.lessons ? stats.completed * 100 / stats.lessons : 0;
+    UiText(gFonts.text, TextFormat("%s  |  %d / %d lessons complete  |  %d%%", TrackName(track), stats.completed,
+                                   stats.lessons, percent),
+           x, top + 56, 18, COL_TEXT);
+    ProgressBar((Rectangle){ x, top + 86, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
+                COL_PANEL_HI, COL_GOOD);
+    if (UiButtonEx((Rectangle){ x + w - 174, top + 49, 174, 30 }, "Find my place", 16, COL_PANEL, COL_SECONDARY_HOVER,
+                   COL_ACCENT, true)) {
+        page.journeyTarget[track] = JourneyViewFocus(set, track);
     }
 
     Rectangle view = ScrollView();
+    view.y = top + 108;
+    view.height = GetScreenHeight() - view.y;
+    UpdateScroll(&page.journeyTarget[track], page.journeyHeight[track], view.height);
+    float blend = GetFrameTime() * 16;  // ease towards the target, so "Find my place" glides
+    if (blend > 1) blend = 1;
+    page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
+    BeginView(view);
+    int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
+    page.journeyHeight[track] += 8;
+    EndView();
+    return clicked;
+}
+
+// The statistics page, scrolling below top. Returns a clicked lesson or -1.
+static int StatisticsView(const LessonSet *set, float top)
+{
+    Rectangle view = ScrollView();
+    view.height -= top - view.y;
+    view.y = top;
     UpdateScroll(&page.scroll, page.contentHeight, view.height);
     BeginView(view);
-    int clicked = DrawPage(set, ContentX(), view.y + 24 - page.scroll, ContentWidth(), UiTextScale(),
+    int clicked = DrawPage(set, ContentX(), view.y + 12 - page.scroll, ContentWidth(), UiTextScale(),
                            &page.contentHeight);
     page.contentHeight += 24;
     EndView();
-    return clicked >= 0 ? clicked : PAGE_STAY;
+    return clicked;
+}
+
+HomeAction DashboardScreen(const LessonSet *set)
+{
+    HomeAction action = { HOME_STAY, -1 };
+    action.kind = HomeBar();
+
+    // Esc leaves the search box first, then clears the search.
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        if (UiAnyFocus()) UiFocus(NULL);
+        else if (SearchViewActive(&page.search)) SearchViewClear(&page.search);
+    }
+
+    bool submitted;
+    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth(), 46 };
+    float top = SearchViewBox(&page.search, box, &submitted);
+    bool openSettings = false;
+    top = RecoveryReminder(ContentX(), top, &openSettings);
+    if (openSettings) action.kind = HOME_SETTINGS;
+
+    int clicked;
+    if (SearchViewActive(&page.search)) {
+        clicked = SearchViewResults(&page.search, set, (Rectangle){ 0, top, (float)GetScreenWidth(),
+                                                                    GetScreenHeight() - top }, submitted);
+        if (clicked >= 0) UiFocus(NULL);  // so Backspace in the lesson goes back, not into the box
+    } else if (page.statistics) {
+        clicked = StatisticsView(set, top);
+    } else {
+        clicked = JourneyView(set, top);
+    }
+
+    if (clicked >= 0 && action.kind == HOME_STAY) {
+        action.kind = HOME_OPEN_LESSON;
+        action.lessonIndex = clicked;
+    }
+    return action;
 }

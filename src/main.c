@@ -16,11 +16,9 @@
 #include "layout.h"
 #include "lesson.h"
 #include "lesson_screen.h"
-#include "menu_screen.h"
 #include "mascot.h"
 #include "progress.h"
 #include "splash.h"
-#include "track_screen.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -31,7 +29,6 @@ static LessonSet lessons;
 
 static struct {
     AppScreen screen;
-    AppScreen lessonReturn;   // where Back from a lesson goes: the track screen or the dashboard
     AppScreen codeReturn;     // where the code editor goes back to
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
     double splashStart;       // GetTime() when the splash began
@@ -42,10 +39,10 @@ static struct {
 // ---------------------------------------------------------------------------
 // Opening screens
 
-static void OpenLesson(int lessonIndex, AppScreen returnTo)
+// Lessons are always opened from home, so Back from a lesson goes home.
+static void OpenLesson(int lessonIndex)
 {
-    app.lessonReturn = returnTo;
-    LessonScreenOpen(&lessons, lessonIndex, returnTo == SCREEN_DASHBOARD ? "Dashboard" : "All lessons");
+    LessonScreenOpen(&lessons, lessonIndex, "Home");
     app.screen = SCREEN_LESSON;
 }
 
@@ -80,14 +77,15 @@ static void LogOut(void)
     ShowLogin();
 }
 
-// After signing in (or verifying): show a new recovery code if there is one, then the menu.
+// After signing in (or verifying): show a new recovery code if there is one, then home.
 static void EnterApp(void)
 {
+    DashboardOpen();  // a fresh home for this user
     if (RecoveryPending()) {
-        app.afterRecovery = SCREEN_MENU;
+        app.afterRecovery = SCREEN_HOME;
         app.screen = SCREEN_RECOVERY;
     } else {
-        app.screen = SCREEN_MENU;
+        app.screen = SCREEN_HOME;
     }
 }
 
@@ -141,7 +139,7 @@ static void RunSettings(void)
 {
     AccountAction action = SettingsScreen();
     if (action == ACCOUNT_BACK) {
-        app.screen = SCREEN_MENU;
+        app.screen = SCREEN_HOME;
     } else if (action == ACCOUNT_SIGNED_OUT) {  // the account was deleted
         ShowLogin();
     } else if (action == ACCOUNT_SHOW_CODE) {
@@ -154,41 +152,20 @@ static void RunSettings(void)
     }
 }
 
-static void RunMenu(void)
+static void RunHome(void)
 {
-    Track track;
-    switch (MenuScreen(&lessons, &track)) {
-    case MENU_OPEN_TRACK:
-        TrackScreenOpen(track);
-        app.screen = SCREEN_TRACK;
-        break;
-    case MENU_CODE_EDITOR:
-        OpenCodeEditor(SCREEN_MENU);
+    HomeAction action = DashboardScreen(&lessons);
+    switch (action.kind) {
+    case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex); break;
+    case HOME_CODE_EDITOR:
+        OpenCodeEditor(SCREEN_HOME);
         CodeOpenPlayground();
         break;
-    case MENU_DASHBOARD:
-        DashboardOpen();
-        app.screen = SCREEN_DASHBOARD;
-        break;
-    case MENU_SETTINGS: OpenSettings(); break;
-    case MENU_LOG_OUT:  LogOut(); break;
-    case MENU_QUIT:     app.quit = true; break;
-    case MENU_STAY:     break;
+    case HOME_SETTINGS: OpenSettings(); break;
+    case HOME_LOG_OUT:  LogOut(); break;
+    case HOME_QUIT:     app.quit = true; break;
+    case HOME_STAY:     break;
     }
-}
-
-static void RunTrack(void)
-{
-    int result = TrackScreen(&lessons);
-    if (result == PAGE_BACK) app.screen = SCREEN_MENU;
-    else if (result >= 0) OpenLesson(result, SCREEN_TRACK);
-}
-
-static void RunDashboard(void)
-{
-    int result = DashboardScreen(&lessons);
-    if (result == PAGE_BACK) app.screen = SCREEN_MENU;
-    else if (result >= 0) OpenLesson(result, SCREEN_DASHBOARD);
 }
 
 static void RunLesson(void)
@@ -197,17 +174,15 @@ static void RunLesson(void)
     const Lesson *lesson = LessonScreenLesson();
     switch (action.kind) {
     case LESSON_BACK:
-        app.screen = app.lessonReturn;
+        app.screen = SCREEN_HOME;
         break;
-    case LESSON_ROADMAP:
-        DashboardOpen();
-        DashboardDemoTrack(lesson->track, false);
-        app.screen = SCREEN_DASHBOARD;
+    case LESSON_ROADMAP:  // "Return to Roadmap": that track's journey
+        DashboardShowJourney(lesson->track, false);
+        app.screen = SCREEN_HOME;
         break;
-    case LESSON_PROGRESS:
-        DashboardOpen();
-        DashboardDemoTrack(lesson->track, true);
-        app.screen = SCREEN_DASHBOARD;
+    case LESSON_PROGRESS:  // "View Progress": the statistics
+        DashboardShowJourney(lesson->track, true);
+        app.screen = SCREEN_HOME;
         break;
     case LESSON_TRY_EXAMPLE:
         OpenCodeEditor(SCREEN_LESSON);
@@ -301,8 +276,7 @@ int main(int argc, char **argv)
 
     ShowLogin();                   // prepares the login form...
     app.screen = SCREEN_SPLASH;    // ...which shows once the splash finishes
-    app.lessonReturn = SCREEN_TRACK;
-    app.codeReturn = SCREEN_MENU;
+    app.codeReturn = SCREEN_HOME;
     app.splashStart = GetTime();
     app.splashTime = -1;
 
@@ -310,9 +284,15 @@ int main(int argc, char **argv)
     if (shot.outputPath) {
         app.screen = shot.screen;
         app.splashTime = shot.splashTime;
+    } else {
+        // Open full screen. Borderless rather than exclusive full screen: it covers the
+        // monitor without changing its resolution, so Alt+Tab stays instant. Screenshots
+        // keep the fixed 1280x800 window so they stay comparable.
+        ToggleBorderlessWindowed();
     }
 
     while (!WindowShouldClose() && !app.quit) {
+        if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();  // F11 switches to a window and back
         UiBeginFrame();
         BeginDrawing();
         ClearBackground(COL_BG);
@@ -325,10 +305,8 @@ int main(int argc, char **argv)
         case SCREEN_VERIFY:    RunVerify();        break;
         case SCREEN_SETTINGS:  RunSettings();      break;
         case SCREEN_CODE:      RunCode();          break;
-        case SCREEN_MENU:      RunMenu();          break;
-        case SCREEN_TRACK:     RunTrack();         break;
+        case SCREEN_HOME:      RunHome();          break;
         case SCREEN_LESSON:    RunLesson();        break;
-        case SCREEN_DASHBOARD: RunDashboard();     break;
         }
 
         if (DevShotCapture(&shot)) app.quit = true;

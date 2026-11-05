@@ -154,12 +154,16 @@ float MascotCompanionActor(FoxSlot slot, float x, float y, float width, float si
     Rectangle bubble = { x + size + 16, y + (h - bubbleH) / 2, bubbleW, bubbleH };
     UiRoundRect(bubble, 12, COL_PANEL);
     UiWrappedText(gFonts.text, text, (Vector2){ bubble.x + 16, bubble.y + 14 }, bubbleW - 32, textSize, COL_TEXT, true);
-    if (slot == FOX_MENU && UiMouseOver(image)) {
-        UiWantHand();
-        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
-            MascotReact(slot, actors[slot].variation % 3 == 2 ? FOX_BREAK : FOX_TIP);
-    }
     return h;
+}
+
+void MascotOfferTip(FoxSlot slot, Rectangle image)
+{
+    if (slot < 0 || slot >= FOX_SLOT_COUNT || !MascotAvailable() || !UiMouseOver(image)) return;
+    UiWantHand();
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        MascotReact(slot, actors[slot].variation % 3 == 2 ? FOX_BREAK : FOX_TIP);
+    }
 }
 
 float MascotCompanion(float x, float y, float width, float size, float textSize, const char *message)

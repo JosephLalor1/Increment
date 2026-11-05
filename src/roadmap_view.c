@@ -1,4 +1,4 @@
-// Optional lesson preparation notes; course navigation lives in track_screen.c.
+// Optional lesson preparation notes; lesson navigation is the home screen's journeys (journey_view.c).
 #include "roadmap_view.h"
 #include "roadmap.h"
 #include "ui.h"

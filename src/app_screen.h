@@ -10,10 +10,8 @@ typedef enum {
     SCREEN_VERIFY,     // email verification
     SCREEN_SETTINGS,
     SCREEN_CODE,       // code editor
-    SCREEN_MENU,
-    SCREEN_TRACK,      // traditional sequential course list, with search
+    SCREEN_HOME,       // the dashboard: learning journeys, statistics and lesson search
     SCREEN_LESSON,     // reading a lesson, its quiz and its result
-    SCREEN_DASHBOARD,
 } AppScreen;
 
 #endif

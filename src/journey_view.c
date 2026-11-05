@@ -64,7 +64,25 @@ static void Guide(Vector2 station, float x, float width, float scale, int done, 
     Rectangle bubble = { bubbleX, station.y - (textH + 22) / 2, bubbleW, textH + 22 };
     UiRoundRect(bubble, 12, COL_PANEL);
     UiWrappedText(gFonts.text, message, (Vector2){ bubble.x + 12, bubble.y + 11 }, bubbleW - 24, 16 * scale, COL_TEXT, true);
-    MascotDrawActor(FOX_JOURNEY, (Rectangle){ guideX, station.y - size / 2 + 2, size, size }, emotion);
+    Rectangle fox = { guideX, station.y - size / 2 + 2, size, size };
+    MascotDrawActor(FOX_JOURNEY, fox, emotion);
+    MascotOfferTip(FOX_JOURNEY, fox);  // click the fox for a learning tip
+}
+
+// How hovered each station is, from 0 (not at all) to 1 (fully), by lesson index. It eases
+// towards the mouse's actual state over a few frames, so lifting and highlighting glide
+// instead of snapping.
+#define MAX_HOVER_STATIONS 512
+static float hoverAmount[MAX_HOVER_STATIONS];
+
+static float EaseHover(int lessonIndex, bool over)
+{
+    if (lessonIndex < 0 || lessonIndex >= MAX_HOVER_STATIONS) return over ? 1.0f : 0.0f;
+    float *amount = &hoverAmount[lessonIndex];
+    float step = 1.0f - expf(-GetFrameTime() * 14.0f);  // same feel at any frame rate
+    *amount += ((over ? 1.0f : 0.0f) - *amount) * step;
+    if (fabsf(*amount - (over ? 1.0f : 0.0f)) < 0.001f) *amount = over ? 1.0f : 0.0f;
+    return *amount;
 }
 
 int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height)
@@ -111,7 +129,10 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         Rectangle titleHit = { center.x - 144, titleY - 8, 288, titleH + 34 };
         bool over = (UiMouseOver(hit) && CheckCollisionPointCircle(GetMousePosition(), center, radius + 8)) || UiMouseOver(titleHit);
         if (over) UiWantHand();
-        float lift = over ? 5 : current ? 2 + sinf((float)GetTime() * 2.5f) * 2 : 0;
+        float hover = EaseHover(i, over);
+        float restingLift = current ? 2 + sinf((float)GetTime() * 2.5f) * 2 : 0;  // the current station bobs
+        float lift = restingLift + (6 - restingLift) * hover;
+        radius *= 1 + 0.04f * hover;  // a slight swell as it lifts
         Vector2 face = { center.x, center.y - lift };
 
         // Theme-derived lavender for the active station, green for completed topics.
@@ -126,7 +147,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         DrawCircleV((Vector2){ center.x, center.y + 9 }, radius + 3, COL_BG);
         DrawCircleV((Vector2){ center.x, center.y + 6 }, radius, passed ? ColorBrightness(COL_GOOD, -0.25f)
                                                                          : current ? ColorBrightness(currentColor, -0.25f) : COL_PANEL);
-        DrawCircleV(face, radius, over ? ColorBrightness(fill, 0.08f) : fill);
+        DrawCircleV(face, radius, ColorBrightness(fill, 0.08f * hover));
         DrawCircleV((Vector2){ face.x - radius * 0.2f, face.y - radius * 0.35f }, radius * 0.48f, Fade(WHITE, passed || current ? 0.09f : 0.025f));
         IconDraw(passed ? ICON_CHECK : lesson->practice ? ICON_TARGET : current ? ICON_PLAY : ICON_CODE,
                  (Vector2){ face.x, face.y - (current ? 9 : 0) }, 32 * scale, ink);
@@ -137,8 +158,9 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         UiTextCentered(gFonts.bold, TextFormat("%d", ordinal + 1), badge.x, badge.y - 9 * scale, 15 * scale,
                        passed ? COL_GOOD : current ? currentColor : COL_DIM);
 
-        // A quiet title plate keeps the connecting trail from crossing readable text.
-        UiRoundRect(titleHit, 12, over ? COL_PANEL_HI : COL_BG);
+        // The title plate is see-through, so the trail shows beneath it; hovering fades in a
+        // light tint.
+        if (hover > 0.01f) UiRoundRect(titleHit, 12, Fade(COL_PANEL_HI, 0.45f * hover));
         if (UiTextWidth(gFonts.text, lesson->title, 20 * scale) <= 264)
             UiTextCentered(gFonts.text, lesson->title, center.x, titleY, 20 * scale, COL_TEXT);
         else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale, COL_TEXT, true);

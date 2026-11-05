@@ -8,7 +8,6 @@
 #include "layout.h"
 #include "lesson_screen.h"
 #include "progress.h"
-#include "track_screen.h"
 #include "ui.h"
 
 #include "raylib.h"
@@ -18,6 +17,22 @@
 #include <string.h>
 
 static bool Is(const char *name, const char *wanted) { return strcmp(name, wanted) == 0; }
+
+// The fallback for shots that can't show what was asked: home, freshly opened.
+static AppScreen Home(void)
+{
+    DashboardOpen();
+    return SCREEN_HOME;
+}
+
+// INCREMENT_SHOT_FILTER: c, cpp, or unset for both tracks.
+static SearchFilter ShotSearchFilter(void)
+{
+    const char *name = getenv("INCREMENT_SHOT_FILTER");
+    if (name && Is(name, "cpp")) return SEARCH_CPP;
+    if (name && Is(name, "c")) return SEARCH_C;
+    return SEARCH_BOTH;
+}
 
 // Opens the code editor for the editor, exercise and tryit shots. Returns false when that
 // isn't possible (signed out, or no such exercise or example).
@@ -69,40 +84,32 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         return SCREEN_SETTINGS;
     }
     if (Is(name, "editor") || Is(name, "exercise") || Is(name, "tryit")) {
-        if (!PrepareCodeShot(name, lessons, lessonIndex, extra ? atoi(extra) : 1)) return SCREEN_MENU;
+        if (!PrepareCodeShot(name, lessons, lessonIndex, extra ? atoi(extra) : 1)) return Home();
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;
     }
-    if (Is(name, "dashboard") || Is(name, "statistics")) {
+    if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics") || Is(name, "search")) {
+        // home: the journey of lesson <index>'s track; statistics: the statistics view;
+        // search: INCREMENT_SHOT_SEARCH typed into the box (even " ", which shows the
+        // empty-search hint) and INCREMENT_SHOT_FILTER.
         DashboardOpen();
-        DashboardDemoTrack(lessons->count ? lessons->items[lessonIndex].track : TRACK_C, Is(name, "statistics"));
+        DashboardShowJourney(lessons->count ? lessons->items[lessonIndex].track : TRACK_C, Is(name, "statistics"));
         DashboardDemo(scroll);
-        return SCREEN_DASHBOARD;
+        if (Is(name, "search")) DashboardDemoSearch(getenv("INCREMENT_SHOT_SEARCH"), ShotSearchFilter());
+        return SCREEN_HOME;
     }
 
     // The rest show lesson content, so they need lessons.
-    if (lessons->count == 0) return SCREEN_MENU;
-    if (Is(name, "list")) {
-        // INCREMENT_SHOT_SEARCH types into the search box (even " " focuses it, for the
-        // empty-search hint); INCREMENT_SHOT_FILTER is c or cpp.
-        const char *filterName = getenv("INCREMENT_SHOT_FILTER");
-        SearchFilter filter = !filterName           ? SEARCH_BOTH
-                            : Is(filterName, "cpp") ? SEARCH_CPP
-                            : Is(filterName, "c")   ? SEARCH_C
-                                                    : SEARCH_BOTH;
-        TrackScreenOpen(lessons->items[lessonIndex].track);
-        TrackScreenDemo(getenv("INCREMENT_SHOT_SEARCH"), filter, scroll);
-        return SCREEN_TRACK;
-    }
+    if (lessons->count == 0) return Home();
     LessonPage page = Is(name, "lesson")                         ? LESSON_PAGE_READING
                     : Is(name, "quiz") || Is(name, "answered")   ? LESSON_PAGE_QUIZ
                     : Is(name, "result")                         ? LESSON_PAGE_RESULT
                     : Is(name, "review")                         ? LESSON_PAGE_REVIEW
                     : Is(name, "celebration") || Is(name, "graduation") ? LESSON_PAGE_CELEBRATION
                                                                  : (LessonPage)-1;
-    if ((int)page < 0) return SCREEN_MENU;  // "menu", or a name we don't know
-    LessonScreenOpen(lessons, lessonIndex, "All lessons");
+    if ((int)page < 0) return Home();  // a name we don't know
+    LessonScreenOpen(lessons, lessonIndex, "Home");
     LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
     if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
     return SCREEN_LESSON;
