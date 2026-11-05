@@ -32,11 +32,11 @@ bool SplashScreen(float t)
 
     float out = 1 - EaseOutCubic(Phase(t, SPLASH_DURATION - 0.45f, 0.45f));  // final fade to the login screen
 
-    // Tile springs in, then the two plus signs pop one after the other: the "step up".
+    // Tile springs in, the fox head pops up on it, then the fox opens its eyes.
     LogoAnim anim = {
         EaseOutBack(Phase(t, 0.00f, 0.55f)),
-        EaseOutBack(Phase(t, 0.35f, 0.35f)),
-        EaseOutBack(Phase(t, 0.55f, 0.40f)),
+        EaseOutBack(Phase(t, 0.35f, 0.40f)),
+        EaseOutCubic(Phase(t, 0.70f, 0.25f)),
     };
     float tileAlpha = Phase(t, 0, 0.2f) * out;
     float top = h / 2 - size * 0.95f;

@@ -58,7 +58,7 @@ void UiSetTheme(bool light, int accent)
     gTheme.accent = light ? accents[accent].light : accents[accent].dark;
     gTheme.accentHi = light ? accents[accent].lightHi : accents[accent].darkHi;
     gTheme.secondaryHover = ColorLerp(gTheme.panelHi, gTheme.accent, light ? 0.18f : 0.3f);
-    gTheme.brand = accents[accent].light;  // white pluses need the deeper shade for contrast
+    gTheme.brand = accents[accent].light;  // the white fox needs the deeper shade for contrast
 }
 
 Color UiAccentSwatch(int accent, bool light)

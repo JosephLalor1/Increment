@@ -3,17 +3,18 @@
 
 #include "raylib.h"
 
-// The Increment logo: a rounded tile holding two plus signs, the second larger and
-// stepping up and to the right, i.e. "++", improving one step at a time.
+// The Increment logo: a rounded tile holding a minimalist white fox head (the app's
+// mascot): pointed ears with softer inner ears, a face narrowing to the chin, and eyes
+// and nose cut out in the tile colour.
 // Drawn from shapes so it is sharp at any size and can take the user's accent colour.
 
 #define BRAND_BLUE (Color){ 59, 110, 246, 255 }  // default tile colour (app icon)
 
 // Animation state for the splash screen; all 1 for a static logo.
 typedef struct {
-    float tile;   // tile scale, 0..1 (may overshoot)
-    float plus1;  // first plus scale
-    float plus2;  // second plus scale
+    float tile;  // tile scale, 0..1 (may overshoot)
+    float head;  // fox head scale, 0..1 (may overshoot)
+    float face;  // eyes and nose, 0 (hidden) to 1 (shown)
 } LogoAnim;
 
 #define LOGO_STATIC (LogoAnim){ 1, 1, 1 }
