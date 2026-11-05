@@ -7,6 +7,7 @@
 #include "code_screen.h"
 #include "dashboard.h"
 #include "layout.h"
+#include "memory_view.h"
 #include "notes_panel.h"
 #include "lesson_screen.h"
 #include "progress.h"
@@ -118,6 +119,13 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
     NotesPanelSetFolder(AccountCurrent() ? AccountNotesDir() : NULL);
     LessonScreenOpen(lessons, lessonIndex, "Home");
     if (Is(name, "notes")) NotesPanelDemo(getenv("INCREMENT_SHOT_NOTES"));  // the user's saved notes if unset
+    // INCREMENT_SHOT_DIAGRAM="step[,box]": pointer diagrams start at that step (1-based),
+    // with that box (a cell index) selected.
+    const char *diagram = getenv("INCREMENT_SHOT_DIAGRAM");
+    if (diagram) {
+        const char *comma = strchr(diagram, ',');
+        MemoryViewDemo(atoi(diagram) - 1, comma ? atoi(comma + 1) : -1);
+    }
     LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
     if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
     return SCREEN_LESSON;

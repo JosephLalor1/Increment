@@ -34,6 +34,24 @@ ptr = &i;    // store the address of i in ptr
 
 After this code, i is 10. ptr is NOT storing the value of i; it stores where i lives.
 
+Step through it below. Click each line of code to run the program up to that line, and click any box to have it explained.
+
+```memory
+title Watch ptr point at i
+> int i = 5;
+var i int 5
+say i is an ordinary int. It is stored at an address in memory (1000 here) and holds 5.
+> int *ptr;    // declare a pointer to an int
+var ptr int* ?
+say ptr is a pointer to an int. It hasn't been given a value, so it holds a random address: never use *ptr until ptr points somewhere real.
+> ptr = &i;    // store the address of i in ptr
+set ptr &i
+say &i is the address of i, 1000. Storing it in ptr makes ptr point to i, which the arrow shows. ptr holds 1000, not 5.
+> *ptr = 10;   // change the contents at the address in ptr
+set *ptr 10
+say *ptr means "the int at the address stored in ptr". Follow the arrow and you reach i, so this line changes i to 10. ptr itself still holds 1000.
+```
+
 # The twin operators
 
 - & is the address-of operator. &j gives the address of j, so ptr = &j; makes ptr point to j.
@@ -89,6 +107,31 @@ Output:
 
 ```
 i = 3, j = -2
+```
+
+Watch the arrow move as ptr is pointed first at i, then at j:
+
+```memory
+title One pointer, two variables
+> int i = 5, j = 10;
+var i int 5
+var j int 10
+say Two ordinary ints, side by side in memory: i at 1000 and j at 1004 (an int takes 4 bytes).
+> int *ptr;
+var ptr int* ?
+say ptr is declared but not set, so it holds garbage: a random address.
+> ptr = &i;     // ptr points to i
+set ptr &i
+say ptr now holds 1000, the address of i. The arrow shows that ptr points to i.
+> *ptr = 3;     // i becomes 3
+set *ptr 3
+say *ptr = 3 follows the arrow and stores 3 at the end of it. ptr points to i, so i becomes 3.
+> ptr = &j;     // ptr now points to j
+set ptr &j
+say Assigning to ptr itself (no *) changes where it points. ptr now holds 1004, the address of j, and the arrow moves to j. i keeps its value 3.
+> *ptr = -2;    // j becomes -2
+set *ptr -2
+say The same statement as before, *ptr = ..., now changes j, because ptr points to j. That is the point of pointers: one name, any variable.
 ```
 
 # Initialise your pointers

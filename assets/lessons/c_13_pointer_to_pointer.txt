@@ -46,6 +46,46 @@ i = -2, j = 9
 
 The key line is **pptr = 9. pptr never changed, but ptr did, so following the chain now lands on j. And *pptr = &i changes ptr without ever naming it.
 
+Step through it and watch the two arrows. Click pptr at any step to see what *pptr and **pptr are.
+
+```memory
+title Two arrows: pptr to ptr to an int
+> int i = 5, j = 10;
+var i int 5
+var j int 10
+say Two ordinary ints.
+> int *ptr;
+var ptr int* ?
+say ptr is a pointer to an int, not yet set.
+> int **pptr;   // pointer to pointer to int
+var pptr int** ?
+say pptr is a pointer to a pointer to an int. It will hold the address of ptr, not of an int.
+> ptr = &i;
+set ptr &i
+say ptr points to i.
+> pptr = &ptr;  // pptr holds the address of ptr
+set pptr &ptr
+say pptr holds the address of ptr. Now there is a chain: pptr leads to ptr, and ptr leads to i.
+> *ptr = 3;     // i = 3
+set *ptr 3
+say One step along the chain from ptr: i becomes 3.
+> **pptr = 7;   // i = 7 (through both pointers)
+set **pptr 7
+say **pptr follows both arrows: pptr to ptr, then ptr to i. So i becomes 7.
+> ptr = &j;     // ptr now points to j
+set ptr &j
+say ptr is pointed at j. pptr hasn't changed: it still points to ptr.
+> **pptr = 9;   // j = 9: pptr still leads to ptr
+set **pptr 9
+say The same **pptr as before, but the second arrow now leads to j, so j becomes 9.
+> *pptr = &i;   // changes ptr itself: back to i
+set *pptr &i
+say *pptr is ptr itself. Storing &i in it points ptr back at i, without ever writing the name ptr.
+> *ptr = -2;    // i = -2
+set *ptr -2
+say ptr points to i again, so i becomes -2. The program prints i = -2, j = 9.
+```
+
 # Exercise
 
 Work out the values of i and j after each line, then check the final answer below.
@@ -90,6 +130,28 @@ Output:
 
 ```
 *p = 2
+```
+
+```memory
+title pointAt changes the caller's pointer
+> int a = 1, b = 2;
+var a int 1
+var b int 2
+say Two ints in main.
+> int *p = &a;
+var p int* &a
+say p points to a.
+> pointAt(&p, &b);
+frame pointAt
+var pp int** &p
+var target int* &b
+say pointAt gets the address of p (so pp points to main's pointer p) and the address of b.
+> *pp = target;   // changes the caller's pointer
+set *pp target
+say *pp is main's p. Storing target in it makes p point to b: the function has changed the caller's pointer.
+> }               // pointAt returns
+return
+say pointAt's frame disappears, but p still points to b, so *p is 2.
 ```
 
 @quiz

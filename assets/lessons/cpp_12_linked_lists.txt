@@ -191,6 +191,66 @@ Value not found in the list.
 
 This version of DeleteWithValue handles the head case by checking whether prev is still nullptr. It does the same job as the longer version above.
 
+Step through main below to watch the list being built and changed. The nodes live on the heap; only headPtr is in main.
+
+```memory
+title Building and changing the list
+struct Node data:int nextPtr:Node*
+> Node *headPtr = nullptr;  // start with an empty list
+var headPtr Node* nullptr
+say The list is just this one pointer. nullptr means the list is empty.
+> InsertAtEnd(&headPtr, 10);
+frame InsertAtEnd
+var ptrToHeadPtr Node** &headPtr
+var newData int 10
+say InsertAtEnd gets the address of headPtr, so ptrToHeadPtr points at main's head pointer. That is what lets it change headPtr.
+>     Node *newNode = new Node();
+heap first Node 0 nullptr
+var newNode Node* &first
+say new Node() makes a node on the heap, with data 0 and nextPtr nullptr. newNode points at it.
+>     newNode->data = newData;
+set newNode->data newData
+say -> follows the pointer and picks a field: the node's data becomes 10.
+>     *ptrToHeadPtr = newNode;  // the list was empty
+set *ptrToHeadPtr newNode
+say *ptrToHeadPtr is main's headPtr. It now points at the new node, which is the whole list so far.
+> }                           // InsertAtEnd returns
+return
+say The function's frame goes, but the node stays on the heap, reachable from headPtr.
+> InsertAtEnd(&headPtr, 20);  // walks to 10, links 20
+heap second Node 20 nullptr
+set first.nextPtr &second
+say This time the list isn't empty, so InsertAtEnd walks to the last node (10) and sets its nextPtr to the new node.
+> InsertAtEnd(&headPtr, 30);  // walks to 20, links 30
+heap third Node 30 nullptr
+set second.nextPtr &third
+say The walk follows nextPtr from 10 to 20, the last node, and links 30 after it. The list is 10, 20, 30.
+> DeleteWithValue(&headPtr, 20);
+frame DeleteWithValue
+var ptrToHeadPtr Node** &headPtr
+var cur Node* headPtr
+var prev Node* nullptr
+say cur starts at the head node; prev, the node before cur, starts as nullptr.
+>     prev = cur; cur = cur->nextPtr;  // 10 isn't 20
+set prev cur
+set cur cur->nextPtr
+say The first node holds 10, not 20, so both pointers move one node along: prev to 10, cur to 20.
+>     prev->nextPtr = cur->nextPtr;     // unlink 20
+set prev->nextPtr cur->nextPtr
+say The node before 20 now points past it, at 30. Node 20 is out of the list, but cur still points at it.
+>     delete cur;
+delete cur
+say Node 20 is deleted: its memory goes back to the heap. cur is dangling, but the function is about to end.
+> }                           // DeleteWithValue returns
+return
+say The list is now 10, 30.
+> FreeList(&headPtr);
+delete headPtr->nextPtr
+delete headPtr
+set headPtr nullptr
+say FreeList deletes every node, saving each nextPtr before deleting the node it belongs to, then sets headPtr back to nullptr. Nothing leaks.
+```
+
 > FreeList saves cur->nextPtr before deleting cur. After delete cur, reading cur->nextPtr would be using freed memory.
 
 @exercise InsertAtBeginning

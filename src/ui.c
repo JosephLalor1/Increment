@@ -528,6 +528,12 @@ static void DrawCodeLine(const char *s, int len, float x, float y, float size, b
     for (int t = 0; t < n; t++) DrawToken(s + tokens[t].start, tokens[t].len, &x, y, size, tokens[t].color);
 }
 
+void UiCodeLine(const char *line, float x, float y, float size)
+{
+    bool inBlockComment = false;
+    DrawCodeLine(line, (int)strlen(line), x, y, size, &inBlockComment);
+}
+
 static float Block(const char *code, Vector2 pos, float width, float size, bool draw, bool highlight);
 
 float UiCodeBlock(const char *code, Vector2 pos, float width, float size, bool draw)

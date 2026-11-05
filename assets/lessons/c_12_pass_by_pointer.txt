@@ -37,6 +37,35 @@ after g(&i): i = 5
 - f(i) passes a copy of the value 3. Changing j has no effect on i.
 - g(&i) passes the address of i. Inside g, ptr holds that address, so *ptr = 5 changes i itself.
 
+Step through both calls and watch each function's stack frame appear and disappear:
+
+```memory
+title A copy versus an address
+> int i = 3;
+var i int 3
+say main has one variable, i, holding 3.
+> f(i);          // f gets a copy of i
+frame f
+var j int i
+say Calling f(i) copies the value 3 into f's own variable j. j lives in f's stack frame at a different address from i, so the two are not connected.
+> j = 5;         // changes the copy only
+set j 5
+say Changing j changes f's copy. i in main is still 3.
+> }              // f returns
+return
+say When f returns, its frame and j disappear. i was never touched, so it is still 3.
+> g(&i);         // g gets the address of i
+frame g
+var ptr int* &i
+say Calling g(&i) passes the address of i. g's parameter ptr holds that address, so its arrow reaches out of g's frame and into main's.
+> *ptr = 5;      // changes the caller's variable
+set *ptr 5
+say *ptr follows the arrow out of g and into main, so i becomes 5. This is how a function changes its caller's variable.
+> }              // g returns
+return
+say g returns and ptr disappears, but the change made through the pointer stays: i is 5.
+```
+
 # Incrementing through a pointer
 
 ```
@@ -87,6 +116,31 @@ Output:
 
 ```
 x = 10, y = 5
+```
+
+```memory
+title Inside swap_ints
+> int x = 5, y = 10;
+var x int 5
+var y int 10
+say main's two variables, x and y.
+> swap_ints(&x, &y);
+frame swap_ints
+var a int* &x
+var b int* &y
+say The call passes two addresses. Inside swap_ints, a points to x and b points to y.
+> int temp = *a;
+var temp int *a
+say temp is a plain int. *a follows a's arrow to x, so temp gets a copy of x's value, 5.
+> *a = *b;
+set *a *b
+say *b follows b's arrow to y and reads 10. Storing it in *a puts 10 into x.
+> *b = temp;
+set *b temp
+say Storing temp in *b puts 5 into y. The two values have swapped.
+> }              // swap_ints returns
+return
+say swap_ints returns, and a, b and temp disappear with its frame. x and y keep their swapped values: x = 10, y = 5.
 ```
 
 # Returning more than one value

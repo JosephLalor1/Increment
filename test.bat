@@ -43,6 +43,10 @@ if errorlevel 1 set FAILED=1
 if errorlevel 1 exit /b 1
 build\test_search.exe
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_memory_model.c src\memory_model.c src\lesson.c -o build\test_memory_model.exe %LIBS%
+if errorlevel 1 exit /b 1
+build\test_memory_model.exe
+if errorlevel 1 set FAILED=1
 "%CC%" %CFLAGS% tests\test_bookmarks.c src\bookmarks.c -o build\test_bookmarks.exe
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_notes.c src\notes.c src\platform.c -o build\test_notes.exe %LIBS%

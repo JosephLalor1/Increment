@@ -44,8 +44,10 @@ static const char *FindNoCase(const char *hay, const char *needle)
 
 static bool InText(const Lesson *L, const char *word)
 {
-    for (int i = 0; i < L->blockCount; i++)
+    for (int i = 0; i < L->blockCount; i++) {
+        if (L->blocks[i].type == BLOCK_MEMORY) continue;  // diagram scripts aren't text the learner reads
         if (FindNoCase(L->blocks[i].text, word)) return true;
+    }
     for (int i = 0; i < L->exerciseCount; i++)
         if (FindNoCase(L->exercises[i].title, word) || FindNoCase(L->exercises[i].description, word)) return true;
     return false;
@@ -114,6 +116,7 @@ bool SearchSnippet(const Lesson *L, const char *query, char *out, int size, int 
     for (int i = 0; i < w.count && !hit; i++) {
         for (int pass = 0; pass < 2 && !hit; pass++) {
             for (int b = 0; b < L->blockCount && !hit; b++) {
+                if (L->blocks[b].type == BLOCK_MEMORY) continue;
                 if ((L->blocks[b].type == BLOCK_CODE) != (pass == 1)) continue;
                 const char *h = FindNoCase(L->blocks[b].text, w.text[i]);
                 if (h) { text = L->blocks[b].text; hit = h; }

@@ -35,6 +35,7 @@ def parse(path):
     """Returns (meta, blocks, questions, exercises). blocks: list of (type, text)."""
     meta, blocks, questions, exercises = {}, [], [], []
     para, para_type, code, in_code, in_quiz = [], None, [], False, False
+    is_memory = False  # the open fence is ```memory: a pointer diagram script, not code
     in_ex, target = False, None  # in an exercise; which field the next code block fills
 
     def flush():
@@ -54,7 +55,7 @@ def parse(path):
                 elif in_quiz and questions:
                     questions[-1]['code'] = text
                 else:
-                    blocks.append(('code', text))
+                    blocks.append(('memory' if is_memory else 'code', text))
                 in_code, code = False, []
             else:
                 code.append(line.replace('\t', '    '))
@@ -62,6 +63,7 @@ def parse(path):
         if line.startswith('```'):
             flush()
             in_code = True
+            is_memory = line.startswith('```memory') and not in_ex and not in_quiz
             continue
         m = re.match(r'@(title|id|track|kind) (.*)', line)
         if m:
@@ -213,6 +215,10 @@ def check(path, workdir):
             problems.append(f'{where}: duplicate choices')
 
     codes = [b[1] for b in blocks if b[0] == 'code'] + [q['code'] for q in questions if q['code']]
+    # In a pointer diagram only the "> code" lines are shown as code. (Whether the whole
+    # script is valid is checked by tests\test_memory_model.c, which uses the app's parser.)
+    codes += ['\n'.join(re.sub(r'^> ?', '', l.strip()) for l in b[1].split('\n') if l.strip().startswith('>'))
+              for b in blocks if b[0] == 'memory']
     for c in codes:
         for line in c.split('\n'):
             if len(line) > MAX_CODE_COLS:

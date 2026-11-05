@@ -35,6 +35,21 @@ int *getPtrToFive() {
 
 x is declared in the function's scope. As getPtrToFive() returns, x goes out of scope, so a dangling pointer is returned.
 
+```memory
+title Why returning &x goes wrong
+> int *p = getPtrToFive();   // main calls the function
+var p int* ?
+frame getPtrToFive
+say main is waiting for p's value. Calling getPtrToFive gives it a new stack frame of its own.
+> int x = 5;
+var x int 5
+say x is a local variable: it lives in getPtrToFive's frame, on the stack.
+> return &x;
+set p &x
+return
+say The address of x is returned and stored in p. But returning ends the function, and its frame disappears, taking x with it. p is left pointing at memory that no longer belongs to any variable: a dangling pointer, shown in red.
+```
+
 # The new operator
 
 new is another way to allocate memory. Memory from new stays allocated until you manually de-allocate it. new returns a pointer to the newly allocated memory, and the type tells it how much memory to allocate.
@@ -95,6 +110,32 @@ Output:
 
 ```
 5
+```
+
+Compare this with the broken version: the int is on the heap now, so it outlives the function.
+
+```memory
+title new keeps the int alive
+> int *p = getPtrToFive();   // main calls the function
+var p int* ?
+frame getPtrToFive
+say main is waiting for p's value. getPtrToFive gets a stack frame of its own.
+> int *x = new int;
+heap block int ?
+var x int* &block
+say new allocates an int on the heap, not in the function's frame. x, a local pointer, holds its address.
+> *x = 5;
+set *x 5
+say Through x, the heap int becomes 5.
+> return x;
+set p x
+return
+say The address in x is copied into p. The frame disappears with x, but the heap int stays: heap memory lasts until it is deleted. p is a valid pointer.
+> cout << *p << endl;
+say *p follows p's arrow to the heap int and prints 5.
+> delete p;
+delete p
+say delete gives the heap int back. p still holds the old address, so it is now dangling: don't use *p again.
 ```
 
 Here is another short example of the same idea:

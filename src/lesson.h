@@ -13,7 +13,10 @@
 
 typedef enum { TRACK_C, TRACK_CPP, TRACK_COUNT } Track;
 
-typedef enum { BLOCK_HEADING, BLOCK_TEXT, BLOCK_CODE, BLOCK_NOTE, BLOCK_BULLET } BlockType;
+typedef enum {
+    BLOCK_HEADING, BLOCK_TEXT, BLOCK_CODE, BLOCK_NOTE, BLOCK_BULLET,
+    BLOCK_MEMORY,  // a ```memory fence: a script for an interactive pointer diagram (memory_model.h)
+} BlockType;
 
 typedef struct {
     BlockType type;

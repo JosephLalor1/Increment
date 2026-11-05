@@ -7,6 +7,7 @@ Learn C and C++, one step at a time. Increment is a desktop app with short lesso
 - **Two learning tracks.** A C track (from your first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists).
 - **Learning journeys.** Each track is a winding path of lessons. Completed lessons are ticked off, the next one is highlighted, and **Find my place** jumps straight to it. Any lesson can be opened at any time.
 - **Quizzes.** Each lesson ends with a quiz; 70% passes. Afterwards, **Review Answers** shows each question with your answer, the correct one and an explanation. Your best score is kept.
+- **Pointer diagrams.** The pointer, pass-by-pointer, pointer arithmetic, malloc/free, new/delete and linked list lessons step through their examples visually: click a line of code to run up to it and watch arrows glide to what each pointer points at, or click any box to have it explained. Dangling pointers, freed memory and leaks show up in red.
 - **A built-in code editor.** Run any example from a lesson with **Try it**, solve exercises that check your program's output, or write your own code. Programs are compiled with gcc/g++, compiler errors are marked on their lines, and crashes are explained in plain English.
 - **Search.** Search every lesson's title and text, filtered by C, C++ or both.
 - **Notes.** Every lesson has a notes panel for explanations and reminders in your own words. Notes save as you type and are private to your account.

@@ -18,6 +18,7 @@
 #include "lesson.h"
 #include "lesson_screen.h"
 #include "mascot.h"
+#include "memory_view.h"
 #include "notes_panel.h"
 #include "progress.h"
 #include "splash.h"
@@ -324,6 +325,7 @@ int main(int argc, char **argv)
 
     CodeShutdown();
     NotesPanelShutdown();  // saves notes typed just before the window was closed
+    MemoryViewShutdown();
     EmailShutdown();
     LessonsUnload(&lessons);
     MascotUnload();

@@ -75,6 +75,27 @@ Array elements: 0 10 20 30 40
 
 > size could come from the user at run time. That is the big advantage over int arr[5], whose size is fixed when you write the program.
 
+```memory
+title An array on the heap
+> int size = 5;
+var size int 5
+say An ordinary int on the stack.
+> int *arr = (int*)malloc(size * sizeof(int));
+heaparray block int ? ? ? ? ?
+var arr int* &block
+say malloc returns the address of 5 ints' worth of heap memory (20 bytes), and arr holds it. The new memory hasn't been set yet, so it holds garbage.
+> arr[i] = i * 10;   // the loop, for i = 0 to 4
+set arr[0] 0
+set arr[1] 10
+set arr[2] 20
+set arr[3] 30
+set arr[4] 40
+say arr[i] counts i elements on from where arr points, exactly as with an ordinary array. The loop fills the heap block.
+> free(arr);
+free arr
+say free hands the whole block back. arr still holds its address, so it is now a dangling pointer, shown in red.
+```
+
 # Key points to remember
 
 - Always check whether malloc returned NULL: allocation can fail.
@@ -88,6 +109,25 @@ free(arr);
 arr = NULL;   // arr no longer looks like a valid pointer
 ```
 
+Here is the whole life of a heap int, from malloc to NULL. Click ptr after free to see why it is dangerous:
+
+```memory
+title malloc, use, free, then NULL
+> int *ptr = (int*)malloc(sizeof(int));
+heap block int ?
+var ptr int* &block
+say malloc finds 4 bytes on the heap and returns their address. ptr, an ordinary variable on the stack, holds it. The heap int has no name of its own: ptr is the only way to reach it.
+> *ptr = 42;  // use the allocated memory
+set *ptr 42
+say Follow the arrow from ptr into the heap and store 42 there.
+> free(ptr);  // free the memory when done
+free ptr
+say free gives the memory back, so it is greyed out: the program may reuse it at any time. ptr still holds the old address, so it is now a dangling pointer, shown in red.
+> ptr = NULL;
+set ptr NULL
+say Setting ptr to NULL makes it clearly empty, so a check like if (ptr != NULL) catches any later mistake.
+```
+
 # Memory leaks
 
 A leak happens when you lose the only pointer to some allocated memory before freeing it. The memory stays allocated until the program ends, and nothing can use it.
@@ -96,6 +136,21 @@ A leak happens when you lose the only pointer to some allocated memory before fr
 int *p = (int*)malloc(sizeof(int));
 p = (int*)malloc(sizeof(int));  // the first block is now lost
 free(p);                        // only frees the second block
+```
+
+```memory
+title How the first block leaks
+> int *p = (int*)malloc(sizeof(int));
+heap first int ?
+var p int* &first
+say p points to a new int on the heap.
+> p = (int*)malloc(sizeof(int));  // the first block is now lost
+heap second int ?
+set p &second
+say p now points to a second block. Nothing holds the first block's address any more, so it can never be freed. Click the first block to see.
+> free(p);                        // only frees the second block
+free p
+say free(p) frees the block p points to, the second one. The first block stays allocated, unreachable, until the program ends: a memory leak.
 ```
 
 > malloc in C corresponds to new in C++, and free corresponds to delete. The C++ track covers those in detail.

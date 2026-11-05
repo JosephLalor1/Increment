@@ -63,6 +63,7 @@ typedef struct {
     StrBuf code;
     BlockType paraType;
     bool inCode;
+    bool codeIsMemory;   // the open fence is ```memory: a pointer diagram script, not code
     bool inQuiz;
     bool inExercise;
     char **fenceTarget;  // in an exercise: which field the next code block fills
@@ -136,7 +137,7 @@ static void FlushCode(Parser *ps)
         free(q->code);
         q->code = code;
     } else {
-        AddBlock(ps, BLOCK_CODE, code);
+        AddBlock(ps, ps->codeIsMemory ? BLOCK_MEMORY : BLOCK_CODE, code);
     }
 }
 
@@ -199,6 +200,7 @@ static void ParseLine(Parser *ps, char *line)
     if (StartsWith(line, "```")) {
         FlushPara(ps);
         ps->inCode = true;
+        ps->codeIsMemory = StartsWith(line, "```memory") && !ps->inExercise && !ps->inQuiz;
         ps->code.len = 0;
         return;
     }

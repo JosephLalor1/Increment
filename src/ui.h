@@ -118,6 +118,9 @@ typedef struct {
 // between lines. Returns the number of tokens written to out.
 int UiCodeTokens(const char *line, int len, bool *inBlockComment, UiCodeToken *out, int max);
 
+// One syntax-highlighted line of code in the mono font, with no box around it.
+void UiCodeLine(const char *line, float x, float y, float size);
+
 // Syntax-highlighted code block. Returns the height used.
 float UiCodeBlock(const char *code, Vector2 pos, float width, float size, bool draw);
 // The same box in plain text, for program output.

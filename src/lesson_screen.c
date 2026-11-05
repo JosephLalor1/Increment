@@ -4,6 +4,7 @@
 #include "layout.h"
 #include "mascot.h"
 #include "mascot_events.h"
+#include "memory_view.h"
 #include "notes_panel.h"
 #include "progress.h"
 #include "quiz_attempt.h"
@@ -185,6 +186,9 @@ static float DrawBlock(const Lesson *lesson, int index, float x, float y, float 
         }
         return h + 16;
     }
+
+    case BLOCK_MEMORY:  // an interactive pointer diagram
+        return MemoryViewDraw(block->text, x, y, w, scale);
 
     case BLOCK_BULLET: {
         float size = 22 * scale;
