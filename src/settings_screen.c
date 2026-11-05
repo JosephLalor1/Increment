@@ -1,11 +1,12 @@
-// The settings screen (appearance, email, password, recovery code, delete account) and
-// applying the user's appearance settings to the UI.
+// The settings screen (appearance, window, email, password, recovery code, delete account)
+// and applying the user's appearance settings to the UI.
 #include "account_screens.h"
 #include "account_screens_shared.h"
 #include "account.h"
 #include "email.h"
 #include "layout.h"
 #include "ui.h"
+#include "window_mode.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -22,6 +23,7 @@ static struct {
     bool passwordChanged;                       // ... and whether it worked (green) or not (red)
     const char *recoveryMessage;                // why a new recovery code failed, or NULL
     const char *deleteMessage;                  // why deleting failed, or NULL
+    const char *windowMessage;                  // why the window setting couldn't be saved, or NULL
     float scroll;
     float contentH;                             // measured last frame, for clamping the scroll
 } settings;
@@ -49,7 +51,7 @@ void SettingsOpen(void)
     WIPE(settings.recoveryPassword);
     WIPE(settings.deletePassword);
     settings.confirmingDelete = false;
-    settings.passwordMessage = settings.recoveryMessage = settings.deleteMessage = NULL;
+    settings.passwordMessage = settings.recoveryMessage = settings.deleteMessage = settings.windowMessage = NULL;
     settings.scroll = settings.contentH = 0;
     UiFocus(NULL);
 }
@@ -102,11 +104,13 @@ static bool DangerButton(Rectangle r, const char *label)
 // ---------------------------------------------------------------------------
 // Sections. Each draws from y and returns the y below it.
 
-// Theme, accent colour and lesson text size, with a preview. Changes apply and save at once.
+// Theme, accent colour, lesson text size (with a preview) and window mode. Changes apply
+// and save at once.
 static float AppearanceSection(float x, float y, float w)
 {
     static const char *themes[] = { "Dark", "Light" };
     static const char *sizes[] = { "Small", "Medium", "Large" };
+    static const char *windows[WINDOW_MODE_COUNT] = { "Maximised", "Full screen", "Window" };  // by WindowMode
     AccountSettings s = AccountGetSettings(), before = s;
     float cx = x + 220; // control column
 
@@ -137,16 +141,27 @@ static float AppearanceSection(float x, float y, float w)
     s.textSize = (TextSize)Segmented(cx, y, 110, sizes, 3, s.textSize);
     y += 56;
 
+    // Preview of lesson text at the chosen size, under the text size buttons.
+    float scale = UiTextScale();
+    UiRoundRect((Rectangle){ cx, y, w - 220, 22 * scale * 1.35f + 28 }, 8, COL_PANEL);
+    UiText(gFonts.text, "Lessons will look like this.", cx + 16, y + 14, 22 * scale, COL_TEXT);
+    y += 22 * scale * 1.35f + 28 + 20;
+
     if (memcmp(&s, &before, sizeof s) != 0) {
         AccountSetSettings(s);
         ApplyUserAppearance();
     }
 
-    // Preview of lesson text at the chosen size, under the controls.
-    float scale = UiTextScale();
-    UiRoundRect((Rectangle){ cx, y, w - 220, 22 * scale * 1.35f + 28 }, 8, COL_PANEL);
-    UiText(gFonts.text, "Lessons will look like this.", cx + 16, y + 14, 22 * scale, COL_TEXT);
-    y += 22 * scale * 1.35f + 28;
+    // The window mode belongs to this computer, not the account (see window_mode.h).
+    UiText(gFonts.text, "Window", x, y + 9, 20, COL_TEXT);
+    WindowMode window = WindowModeGet();
+    WindowMode chosen = (WindowMode)Segmented(cx, y, 140, windows, WINDOW_MODE_COUNT, window);
+    if (chosen != window && !WindowModeSet(chosen)) settings.windowMessage = "Couldn't save the window setting.";
+    y += 48;
+    UiText(gFonts.text, "How Increment opens on this computer. F11 switches full screen on and off.", cx, y, 17,
+           COL_DIM);
+    y += 28;
+    if (settings.windowMessage) Message(settings.windowMessage, false, cx, &y);
     return y;
 }
 

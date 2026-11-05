@@ -10,6 +10,7 @@
 
 float ContentWidth(void);   // width of the centred content column
 float ContentX(void);       // left edge of the content column
+float ContentWidthIn(float areaWidth);  // the column's width in a narrower area (centre it yourself)
 Rectangle ScrollView(void); // the area below the top bar
 
 // Wheel/keyboard scrolling clamped to contentH (measured on the previous frame).

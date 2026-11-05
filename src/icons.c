@@ -187,6 +187,12 @@ void IconDraw(Icon icon, Vector2 c, float size, Color col)
             Tri(0.24f, 0.16f, 0.0f, 0.16f, 0.24f, 0.38f);
         }
     } break;
+    case ICON_NOTE:
+        Box(-0.3f, -0.38f, 0.6f, 0.76f, 0.07f);
+        Line(-0.15f, -0.18f, 0.15f, -0.18f);
+        Line(-0.15f, 0.0f, 0.15f, 0.0f);
+        Line(-0.15f, 0.18f, 0.05f, 0.18f);
+        break;
     case ICON_COUNT:
         break;
     }

@@ -5,11 +5,13 @@
 
 #include <stddef.h>
 
-float ContentWidth(void)
+float ContentWidthIn(float areaWidth)
 {
-    float w = GetScreenWidth() - 80.0f;
+    float w = areaWidth - 80.0f;
     return w > MAX_WIDTH ? MAX_WIDTH : w;
 }
+
+float ContentWidth(void) { return ContentWidthIn((float)GetScreenWidth()); }
 
 float ContentX(void) { return (GetScreenWidth() - ContentWidth()) / 2.0f; }
 

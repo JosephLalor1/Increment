@@ -273,8 +273,7 @@ static AccountSettings LoadSettings(const char *name)
     while (fscanf(f, "%31s %d", key, &value) == 2) {
         if (strcmp(key, "theme") == 0 && (value == THEME_DARK || value == THEME_LIGHT)) s.theme = (ThemeMode)value;
         else if (strcmp(key, "accent") == 0 && value >= 0 && value < 16) s.accent = value;
-        else if (strcmp(key, "text") == 0 && value >= 0 && value < TEXT_SIZE_COUNT) s.textSize = (TextSize)value;
-    }
+        else if (strcmp(key, "text") == 0 && value >= 0 && value < TEXT_SIZE_COUNT) s.textSize = (TextSize)value;    }
     fclose(f);
     return s;
 }
@@ -733,7 +732,8 @@ bool AccountDelete(const char *password, const char **err)
     remove(UserFile(removed.name, ".settings.txt"));
     remove(UserFile(removed.name, ".email.txt"));
     remove(UserFile(removed.name, ".bookmarks.txt"));
-    PlatformRemoveDir(UserFile(removed.name, "_code"));  // code editor drafts
+    PlatformRemoveDir(UserFile(removed.name, "_code"));   // code editor drafts
+    PlatformRemoveDir(UserFile(removed.name, "_notes"));  // lesson notes
     memset(&mail, 0, sizeof mail);
     current = -1;
     settings = defaultSettings;
@@ -752,6 +752,15 @@ const char *AccountBookmarksPath(void)
     if (current < 0) return "";
     snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".bookmarks.txt"));
     return path;
+}
+
+const char *AccountNotesDir(void)
+{
+    static char dir[1100];
+    if (current < 0) return NULL;
+    snprintf(dir, sizeof dir, "%s", UserFile(accounts[current].name, "_notes"));
+    if (!DirectoryExists(dir)) MakeDirectory(dir);
+    return dir;
 }
 
 const char *AccountCodeDir(void)

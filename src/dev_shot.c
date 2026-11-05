@@ -7,6 +7,7 @@
 #include "code_screen.h"
 #include "dashboard.h"
 #include "layout.h"
+#include "notes_panel.h"
 #include "lesson_screen.h"
 #include "progress.h"
 #include "ui.h"
@@ -107,14 +108,16 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
 
     // The rest show lesson content, so they need lessons.
     if (lessons->count == 0) return Home();
-    LessonPage page = Is(name, "lesson")                         ? LESSON_PAGE_READING
+    LessonPage page = Is(name, "lesson") || Is(name, "notes")    ? LESSON_PAGE_READING
                     : Is(name, "quiz") || Is(name, "answered")   ? LESSON_PAGE_QUIZ
                     : Is(name, "result")                         ? LESSON_PAGE_RESULT
                     : Is(name, "review")                         ? LESSON_PAGE_REVIEW
                     : Is(name, "celebration") || Is(name, "graduation") ? LESSON_PAGE_CELEBRATION
                                                                  : (LessonPage)-1;
     if ((int)page < 0) return Home();  // a name we don't know
+    NotesPanelSetFolder(AccountCurrent() ? AccountNotesDir() : NULL);
     LessonScreenOpen(lessons, lessonIndex, "Home");
+    if (Is(name, "notes")) NotesPanelDemo(getenv("INCREMENT_SHOT_NOTES"));  // the user's saved notes if unset
     LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
     if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
     return SCREEN_LESSON;

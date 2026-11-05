@@ -18,8 +18,10 @@
 #include "lesson.h"
 #include "lesson_screen.h"
 #include "mascot.h"
+#include "notes_panel.h"
 #include "progress.h"
 #include "splash.h"
+#include "window_mode.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -40,9 +42,11 @@ static struct {
 // ---------------------------------------------------------------------------
 // Opening screens
 
-// Lessons are always opened from home, so Back from a lesson goes home.
+// Lessons are always opened from home, so Back from a lesson goes home. The notes folder
+// is set here, so the lesson screen doesn't depend on accounts.
 static void OpenLesson(int lessonIndex)
 {
+    NotesPanelSetFolder(AccountNotesDir());
     LessonScreenOpen(&lessons, lessonIndex, "Home");
     app.screen = SCREEN_LESSON;
 }
@@ -68,6 +72,7 @@ static void ShowLogin(void)
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
+    NotesPanelSetFolder(NULL);  // the next user mustn't see (or save into) these notes
     LoginReset();
     ApplyUserAppearance();
     app.screen = SCREEN_LOGIN;
@@ -274,6 +279,7 @@ int main(int argc, char **argv)
     char dataDir[1024];
     FindDataDir(dataDir, sizeof dataDir);
     AccountsInit(dataDir);
+    WindowModeInit(dataDir);  // the saved window mode, applied once we know this isn't a --shot run
     const char *emailConfigDirs[] = { GetApplicationDirectory(), dataDir };  // where email_config.txt may live
     EmailInit(emailConfigDirs, 2);
 
@@ -288,14 +294,13 @@ int main(int argc, char **argv)
         app.screen = shot.screen;
         app.splashTime = shot.splashTime;
     } else {
-        // Open full screen. Borderless rather than exclusive full screen: it covers the
-        // monitor without changing its resolution, so Alt+Tab stays instant. Screenshots
+        // Open the window in the saved mode (maximised by default). Screenshots
         // keep the fixed 1280x800 window so they stay comparable.
-        ToggleBorderlessWindowed();
+        WindowModeEnable();
     }
 
     while (!WindowShouldClose() && !app.quit) {
-        if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();  // F11 switches to a window and back
+        if (IsKeyPressed(KEY_F11)) WindowModeToggleFullScreen();  // does nothing in --shot runs
         UiBeginFrame();
         BeginDrawing();
         ClearBackground(COL_BG);
@@ -318,6 +323,7 @@ int main(int argc, char **argv)
     }
 
     CodeShutdown();
+    NotesPanelShutdown();  // saves notes typed just before the window was closed
     EmailShutdown();
     LessonsUnload(&lessons);
     MascotUnload();

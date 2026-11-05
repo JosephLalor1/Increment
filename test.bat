@@ -45,9 +45,17 @@ build\test_search.exe
 if errorlevel 1 set FAILED=1
 "%CC%" %CFLAGS% tests\test_bookmarks.c src\bookmarks.c -o build\test_bookmarks.exe
 if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_notes.c src\notes.c src\platform.c -o build\test_notes.exe %LIBS%
+if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_window_mode.c src\window_mode.c -o build\test_window_mode.exe %LIBS%
+if errorlevel 1 exit /b 1
 
 mkdir "%TESTDIR%"
 build\test_bookmarks.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_notes.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_window_mode.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_mascot.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

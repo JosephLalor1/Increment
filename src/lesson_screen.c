@@ -4,6 +4,7 @@
 #include "layout.h"
 #include "mascot.h"
 #include "mascot_events.h"
+#include "notes_panel.h"
 #include "progress.h"
 #include "quiz_attempt.h"
 #include "roadmap_view.h"
@@ -50,6 +51,7 @@ void LessonScreenOpen(const LessonSet *set, int lessonIndex, const char *backLab
     reader.backLabel = backLabel;
     reader.milestone = FOX_MILESTONE_NONE;
     QuizAttemptBegin(&reader.attempt, &set->items[lessonIndex]);
+    NotesPanelOpenLesson(set->items[lessonIndex].id);  // saves the previous lesson's notes first
     ShowPage(LESSON_PAGE_READING);
 }
 
@@ -229,6 +231,19 @@ static void SaveButton(const Lesson *lesson)
     }
 }
 
+// "Notes", left of the Save button: opens or closes the notes panel. A dot marks a lesson
+// that has notes, so they're easy to find again with the panel closed.
+static void NotesButton(void)
+{
+    bool shown = NotesPanelShown();
+    Rectangle button = { GetScreenWidth() - 16.0f - 160 - 10 - 120, 12, 120, 40 };
+    if (UiButtonIconEx(button, ICON_NOTE, "Notes", 18, COL_PANEL_HI, COL_SECONDARY_HOVER,
+                       shown ? COL_ACCENT : COL_TEXT, true)) {
+        NotesPanelShow(!shown);
+    }
+    if (NotesPanelHasNotes()) DrawCircleV((Vector2){ button.x + button.width - 12, button.y + 10 }, 4, COL_ACCENT);
+}
+
 static LessonAction ReadingPage(void)
 {
     const Lesson *lesson = CurrentLesson();
@@ -238,12 +253,19 @@ static LessonAction ReadingPage(void)
         return action;
     }
     SaveButton(lesson);
+    NotesButton();
 
+    // With the notes panel open, the lesson moves over to make room for it on the right.
+    float screenW = (float)GetScreenWidth();
+    float panelW = NotesPanelShown() ? NotesPanelWidth(screenW) : 0;
     Rectangle view = ScrollView();
-    UpdateScroll(&reader.scroll, reader.contentHeight, view.height);
+    view.width -= panelW;
+    Rectangle panel = { view.x + view.width, view.y, panelW, view.height };
+    bool overPanel = panelW > 0 && UiMouseOver(panel);
+    if (!overPanel) UpdateScroll(&reader.scroll, reader.contentHeight, view.height);  // the wheel scrolls the notes there
     BeginView(view);
 
-    float x = ContentX(), w = ContentWidth();
+    float w = ContentWidthIn(view.width), x = (view.width - w) / 2;
     float scale = UiTextScale();
     float top = view.y + 32 - reader.scroll, y = top;
     const char *tryExample = NULL;  // acted on after the view is closed
@@ -263,7 +285,8 @@ static LessonAction ReadingPage(void)
         ? TextFormat("Start quiz (%d question%s)", lesson->questionCount, lesson->questionCount == 1 ? "" : "s")
         : "Mark as complete";
     Icon icon = lesson->questionCount ? ICON_PLAY : ICON_CHECK;
-    if (UiButtonIcon((Rectangle){ x, y, 340, 52 }, icon, label, true) || IsKeyPressed(KEY_ENTER)) StartQuiz();
+    bool enterKey = IsKeyPressed(KEY_ENTER) && !UiAnyFocus();  // Enter in the notes is a new line, not "start"
+    if (UiButtonIcon((Rectangle){ x, y, 340, 52 }, icon, label, true) || enterKey) StartQuiz();
     y += 52 + 48;
     if (reader.attempt.completed) {
         if (UiButtonIconEx((Rectangle){ x, y, 340, 48 }, ICON_BOOK, "Review Answers", 22,
@@ -273,6 +296,7 @@ static LessonAction ReadingPage(void)
 
     reader.contentHeight = y - top + 32;
     EndView();
+    if (panelW > 0) NotesPanelDraw(panel);
 
     if (tryExample) {
         action.kind = LESSON_TRY_EXAMPLE;
@@ -567,7 +591,7 @@ static LessonAction CelebrationPage(void)
     return action;
 }
 
-LessonAction LessonScreen(void)
+static LessonAction CurrentPage(void)
 {
     switch (reader.page) {
     case LESSON_PAGE_QUIZ:   return QuizPage();
@@ -576,4 +600,17 @@ LessonAction LessonScreen(void)
     case LESSON_PAGE_CELEBRATION: return CelebrationPage();
     default:                 return ReadingPage();
     }
+}
+
+LessonAction LessonScreen(void)
+{
+    bool wasReading = reader.page == LESSON_PAGE_READING;
+    LessonAction action = CurrentPage();
+    // Leaving the reading page (for the quiz, the editor or home) saves the notes now
+    // rather than waiting for the autosave.
+    if (wasReading && (reader.page != LESSON_PAGE_READING || action.kind != LESSON_STAY)) {
+        NotesPanelFlush();
+        UiFocus(NULL);  // the notes box is gone: let Esc and Backspace navigate again
+    }
+    return action;
 }

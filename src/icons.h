@@ -28,6 +28,7 @@ typedef enum {
     ICON_MAIL,
     ICON_BOOKMARK,         // outline: not saved
     ICON_BOOKMARK_FILLED,  // saved
+    ICON_NOTE,             // a page of writing: lesson notes
     ICON_COUNT
 } Icon;
 

@@ -232,6 +232,9 @@ static void TestDelete(void)
     WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
     CHECK(strstr(AccountBookmarksPath(), "users/temp_user.bookmarks.txt") != NULL);
     WriteFile(AccountBookmarksPath(), "c_01_hello\n");  // saved lessons
+    const char *notesDir = AccountNotesDir();          // lesson notes
+    CHECK(notesDir && DirectoryExists(notesDir) && strstr(notesDir, "users/temp_user_notes"));
+    WriteFile(DataFile("users/temp_user_notes/c_01_hello.txt"), "my notes\n");
     int before = AccountCount();
 
     CHECK(!AccountDelete("wrong", &err));
@@ -245,6 +248,8 @@ static void TestDelete(void)
     CHECK(!FileExists(DataFile("users/temp_user.settings.txt")));
     CHECK(!DirectoryExists(DataFile("users/temp_user_code")));
     CHECK(!FileExists(DataFile("users/temp_user.bookmarks.txt")));
+    CHECK(!DirectoryExists(DataFile("users/temp_user_notes")));
+    CHECK(AccountNotesDir() == NULL);  // signed out: no notes folder
     CHECK(strcmp(AccountBookmarksPath(), "") == 0);  // signed out: nowhere to save bookmarks
     CHECK(strcmp(AccountLastUser(), "") == 0);
     CHECK(AccountGetSettings().theme == THEME_DARK);
