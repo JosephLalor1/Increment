@@ -43,6 +43,18 @@ from Increment <onboarding@resend.dev>
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
 
+## Gradual exercise hints
+
+Exercises with optional clues show **Show hint** in the task panel's fixed header. Each click reveals exactly one numbered hint, then the button changes to **Show next hint**. Earlier clues remain in the panel; scroll over the instructions/hints to reread them. The panel brings each new clue into view. After the last hint, the button is disabled and reads **All hints revealed**. Exercises without hints keep their existing layout and have no hint button.
+
+Hints do not edit your program, reveal the separate solution, run code, or change scores/completion. They stay revealed while editing, running, checking output, or resetting code in the current exercise. Opening another exercise (or reopening an exercise after leaving it) starts with no clues revealed. Hint usage is not saved between sessions. When mascot art is available, revealing a clue briefly changes the editor fox to its idea expression; hints also work without the mascot.
+
+Lesson authors can add up to eight `@hint Your clue here` lines inside an `@exercise`, outside code fences. Their file order is their reveal order. Each hint occupies one source line and wraps automatically in the UI. Existing exercise files need no changes. Empty and excess hint lines are ignored with parser warnings; the lesson checker reports them as content problems.
+
+Initial hints cover **Count down to liftoff**, **Find the smallest value**, **swap_chars**, **count_vowels**, **concat_strings**, **InsertAtBeginning**, and **Lab Part 2: DoublyLinkedList**. Each has three clues progressing from a general concept to a more specific approach without supplying a complete implementation.
+
+Manual checks: reveal one clue per click in a C and C++ exercise; reread earlier clues by scrolling, and reach the disabled final button. Edit, run, and reset code to check that revealed clues remain. Switch exercises and confirm the old hint state is cleared. Open an exercise without hints and confirm no hint button appears. Check light/dark themes and 900x640 with large text. Developer exercise screenshots can set `INCREMENT_SHOT_HINTS=1` (or another count) to preview revealed clues without changing progress.
+
 ## Controls
 
 - Mouse to click, wheel or arrow keys / Page Up / Page Down to scroll

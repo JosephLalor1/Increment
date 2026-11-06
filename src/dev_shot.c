@@ -53,6 +53,8 @@ static bool PrepareCodeShot(const char *name, const LessonSet *lessons, int less
         int exercise = exerciseNumber - 1;
         if (exercise < 0 || exercise >= lesson->exerciseCount) return false;
         CodeOpenExercise(lesson, exercise);
+        const char *hints = getenv("INCREMENT_SHOT_HINTS");
+        if (hints) CodeHintsDemo(atoi(hints));
         return true;
     }
     for (int b = 0; b < lesson->blockCount; b++) {  // tryit: the lesson's first runnable example

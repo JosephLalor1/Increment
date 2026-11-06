@@ -121,6 +121,10 @@ Student Exam1   Exam2   Exam3   Average
 @exercise Find the smallest value
 Complete the loop so that min ends up holding the smallest value in the array. Like the "find the maximum" example, start with the first element and compare every other element against it.
 
+@hint Keep track of the smallest value seen so far as you visit the array elements.
+@hint min already holds the first element, so begin comparing at index 1 and stop before size.
+@hint Inside the loop, update min only when the current array element is smaller than the value it already holds.
+
 ```
 #include <stdio.h>
 

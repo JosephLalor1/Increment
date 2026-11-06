@@ -159,6 +159,10 @@ The exercises below are the remaining lab functions. Write them without any [ ] 
 @exercise swap_chars
 Swap the values of two characters using pointers, just like swap_ints but for char.
 
+@hint The pointers identify the caller's characters. Changing a pointer itself would not swap those characters.
+@hint Dereference each pointer to read or change its character. Save one character before overwriting it.
+@hint Use a temporary char to preserve the original value reached through a, then move the other character into that location before using the saved value.
+
 ```
 #include <stdio.h>
 
@@ -199,6 +203,10 @@ int main() {
 
 @exercise count_vowels
 Count the vowels (a, e, i, o, u, in upper or lower case) in a string, walking it with a pointer until the null terminator.
+
+@hint Visit one character at a time, stopping when you reach the string's null terminator.
+@hint Advance a char pointer after each character. Check both uppercase and lowercase vowels, or convert uppercase letters before testing.
+@hint Increase the count once when the current character is one of the five vowels. You do not need array indexing.
 
 ```
 #include <stdio.h>
@@ -250,6 +258,10 @@ int main() {
 
 @exercise concat_strings
 Append src to the end of dest. Move a pointer to the terminator at the end of dest, then copy src from there, including its terminator. You can assume dest has enough space.
+
+@hint Separate the task into finding the end of the destination and copying the source.
+@hint Move the destination pointer until it reaches its null terminator. This is where the appended text should begin.
+@hint Copy characters while advancing both pointers, and make sure the resulting destination string ends with a null terminator, even when the source is empty.
 
 ```
 #include <stdio.h>

@@ -89,6 +89,8 @@ Plain lines form paragraphs; a blank line ends one.
 
 @exercise Title           (optional, before @quiz; up to 8)
 Plain lines are the task description.
+@hint A gentle clue       (optional; one nonempty line per hint, up to 8, in reveal order)
+@hint A more specific clue
 (first unlabelled code block: starter code, including a test main())
 @input                    (optional: the next code block is stdin)
 @expect                   (the next code block is the expected output)
@@ -103,7 +105,7 @@ Plain lines are the task description.
 ```
 
 - Keep lesson text ASCII where possible. Fonts include Latin-1 and common typographic punctuation, nothing else.
-- Limits: 256 blocks, 16 questions, 6 choices per question, 8 exercises, 1023 chars per line.
+- Limits: 256 blocks, 16 questions, 6 choices per question, 8 exercises, 8 hints per exercise, 1023 chars per line.
 - Exercises: the checker requires the starter to compile but not already pass, and the solution to produce the expected output exactly (trailing spaces and blank lines ignored, as in the app).
 - A code block after a paragraph ending "output:" is drawn as plain text, not syntax-highlighted.
 - Code samples must be correct and compile. Quiz answers must be unambiguous.

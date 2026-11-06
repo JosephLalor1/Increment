@@ -10,6 +10,7 @@
 #define MAX_QUESTIONS 16
 #define MAX_CHOICES   6
 #define MAX_EXERCISES 8
+#define MAX_EXERCISE_HINTS 8
 
 typedef enum { TRACK_C, TRACK_CPP, TRACK_COUNT } Track;
 
@@ -41,6 +42,8 @@ typedef struct {
     char *input;        // stdin, may be NULL
     char *expected;     // expected stdout
     char *solution;     // reference solution, may be NULL
+    char *hints[MAX_EXERCISE_HINTS]; // optional clues, in reveal order
+    int hintCount;
 } Exercise;
 
 typedef struct {

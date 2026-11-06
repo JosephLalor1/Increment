@@ -89,6 +89,16 @@ static void FinishExercise(Parser *ps)
 static void ParseExerciseLine(Parser *ps, const char *line)
 {
     Exercise *ex = &ps->lesson->exercises[ps->lesson->exerciseCount - 1];
+    if (strcmp(line, "@hint") == 0 || StartsWith(line, "@hint ") || StartsWith(line, "@hint\t")) {
+        const char *text = line + 5;
+        while (*text == ' ' || *text == '\t') text++;
+        if (!*text) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: empty exercise hint ignored", ps->file, ps->lineNo);
+        } else if (ex->hintCount >= MAX_EXERCISE_HINTS) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercise hints, ignoring extra hint", ps->file, ps->lineNo);
+        } else ex->hints[ex->hintCount++] = CopyStr(text);
+        return;
+    }
     if (StartsWith(line, "@input"))    { ps->fenceTarget = &ex->input; return; }
     if (StartsWith(line, "@expect"))   { ps->fenceTarget = &ex->expected; return; }
     if (StartsWith(line, "@solution")) { ps->fenceTarget = &ex->solution; return; }
@@ -332,6 +342,7 @@ static void FreeLesson(Lesson *L)
         free(ex->input);
         free(ex->expected);
         free(ex->solution);
+        for (int h = 0; h < ex->hintCount; h++) free(ex->hints[h]);
     }
     for (int i = 0; i < L->questionCount; i++) {
         Question *q = &L->questions[i];

@@ -3,6 +3,7 @@
 #include "code_screen.h"
 #include "mascot.h"
 #include "editor.h"
+#include "exercise_hints.h"
 #include "layout.h"
 #include "progress.h"
 #include "runner.h"
@@ -59,6 +60,7 @@ static struct {
     char warning[220];     // first compiler warning, shown under the status
 
     float taskScroll, taskH;
+    ExerciseHints hints;
 } cs;
 
 static char *CopyStr(const char *s)
@@ -122,12 +124,14 @@ static void Prepare(CodeMode mode, const char *title, bool cpp)
     cs.mode = mode;
     cs.cpp = cpp;
     cs.ex = NULL;
+    ExerciseHintsOpen(&cs.hints, NULL);
     cs.lessonId[0] = '\0';
     cs.exerciseIndex = 0;
     cs.draftPath[0] = '\0';
     cs.checked = cs.passed = false;
     cs.warning[0] = '\0';
     cs.taskScroll = 0;
+    cs.taskH = 0;
     cs.wasBusy = false;
     snprintf(cs.title, sizeof cs.title, "%s", title);
     cs.runner.phase = RUN_IDLE;
@@ -182,6 +186,7 @@ void CodeOpenExercise(const Lesson *L, int index)
     const Exercise *ex = &L->exercises[index];
     Prepare(CODE_EXERCISE, ex->title, L->track == TRACK_CPP);
     cs.ex = ex;
+    ExerciseHintsOpen(&cs.hints, ex);
     snprintf(cs.lessonId, sizeof cs.lessonId, "%s", L->id);
     cs.exerciseIndex = index;
     SetOriginal(ex->starter);
@@ -194,6 +199,12 @@ void CodeOpenExercise(const Lesson *L, int index)
 void CodeSetDraftFolder(const char *folder)
 {
     snprintf(draftFolder, sizeof draftFolder, "%s", folder ? folder : "");
+}
+
+void CodeHintsDemo(int count)
+{
+    while (cs.hints.revealed < count && ExerciseHintsReveal(&cs.hints)) {}
+    if (cs.hints.revealed) cs.taskScroll = cs.taskH = 100000; // settle at the revealed clues on the next frame
 }
 
 void CodeClose(void)
@@ -306,27 +317,61 @@ static float Label(const char *text, float x, float y)
 static void TaskPanel(Rectangle r)
 {
     UiRoundRect(r, 10, COL_PANEL);
-    if (UiMouseOver(r)) cs.taskScroll -= GetMouseWheelMove() * 40;
-    float maxScroll = cs.taskH - r.height + 16;
+    bool hasHints = cs.ex->hintCount > 0;
+    bool revealedNow = false;
+    bool done = cs.lessonId[0] && ProgressExerciseDone(cs.lessonId, cs.exerciseIndex);
+    Rectangle body = r;
+    if (hasHints) {
+        UiIconText(done ? ICON_CHECK : ICON_TARGET, gFonts.bold, done ? "Task (done)" : "Task",
+                   r.x + 18, r.y + 14, 19, done ? COL_GOOD : COL_ACCENT);
+        const char *label = !ExerciseHintsAvailable(&cs.hints) ? "All hints revealed"
+                          : cs.hints.revealed ? "Show next hint" : "Show hint";
+        if (UiButtonIconEx((Rectangle){ r.x + r.width - 180, r.y + 8, 162, 32 }, ICON_INFO, label, 15,
+                           COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, ExerciseHintsAvailable(&cs.hints))) {
+            revealedNow = ExerciseHintsReveal(&cs.hints);
+            if (revealedNow) MascotReact(FOX_EDITOR, FOX_TIP);
+        }
+        body.y += 44;
+        body.height -= 44;
+    }
+    if (UiMouseOver(body)) cs.taskScroll -= GetMouseWheelMove() * 40;
+    float maxScroll = cs.taskH - body.height + 16;
     if (cs.taskScroll > maxScroll) cs.taskScroll = maxScroll;
     if (cs.taskScroll < 0) cs.taskScroll = 0;
 
-    BeginScissorMode((int)r.x, (int)r.y + 4, (int)r.width, (int)r.height - 8);
+    BeginScissorMode((int)body.x, (int)body.y + 4, (int)body.width, (int)body.height - 8);
     float x = r.x + 18, w = r.width - 36;
-    float top = r.y + 14 - cs.taskScroll, y = top;
-    bool done = cs.lessonId[0] && ProgressExerciseDone(cs.lessonId, cs.exerciseIndex);
-    UiIconText(done ? ICON_CHECK : ICON_TARGET, gFonts.bold, done ? "Task (done)" : "Task", x, y, 19,
-               done ? COL_GOOD : COL_ACCENT);
-    y += 34;
+    float top = body.y + 14 - cs.taskScroll, y = top;
+    if (!hasHints) {
+        UiIconText(done ? ICON_CHECK : ICON_TARGET, gFonts.bold, done ? "Task (done)" : "Task", x, y, 19,
+                   done ? COL_GOOD : COL_ACCENT);
+        y += 34;
+    }
     if (cs.ex->description) {
         y += UiWrappedText(gFonts.text, cs.ex->description, (Vector2){ x, y }, w, 18, COL_TEXT, true) + 12;
     }
     y = Label("Expected output", x, y);
     y += UiOutputBlock(cs.ex->expected, (Vector2){ x, y }, w, 16, true) + 10;
+    for (int i = 0; i < cs.hints.revealed; i++) {
+        const char *hint = ExerciseHintsGet(&cs.hints, i);
+        if (!hint) continue;
+        float size = 18 * UiTextScale();
+        float textH = UiWrappedText(gFonts.text, hint, (Vector2){ 0, 0 }, w - 24, size, COL_TEXT, false);
+        float h = 30 + textH + 20;
+        UiRoundRect((Rectangle){ x, y, w, h }, 8, COL_NOTE_BG);
+        UiText(gFonts.bold, TextFormat("Hint %d", i + 1), x + 12, y + 10, 16, COL_ACCENT);
+        UiWrappedText(gFonts.text, hint, (Vector2){ x + 12, y + 30 }, w - 24, size, COL_TEXT, true);
+        y += h + 10;
+    }
     cs.taskH = y - top;
     EndScissorMode();
+    if (revealedNow) {
+        // Bring the newly added clue into view without replacing earlier hints.
+        cs.taskScroll = cs.taskH - body.height + 16;
+        if (cs.taskScroll < 0) cs.taskScroll = 0;
+    }
 
-    if (cs.taskH > r.height - 8 && cs.taskScroll < maxScroll - 1) {  // more below: say so
+    if (cs.taskH > body.height - 8 && cs.taskScroll < maxScroll - 1) {  // more below: say so
         const char *more = "Scroll for more";
         float mw = MeasureTextEx(gFonts.text, more, 15, 0).x;
         UiRoundRect((Rectangle){ r.x + r.width - mw - 30, r.y + r.height - 30, mw + 20, 24 }, 12, COL_PANEL_HI);

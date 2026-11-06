@@ -240,6 +240,10 @@ Complete insertAtBeginning, insertAtEnd and insertAtPosition. The list keeps bot
 
 insertAtPosition(value, pos) puts the new node at index pos, where 0 is the front. A pos past the end inserts at the end.
 
+@hint Work on front and back insertion first. Consider the empty list separately because head and tail must then identify the same node.
+@hint Each neighbouring pair needs links in both directions. Updating nextPointer alone will not make printBackward work.
+@hint For a middle insertion, locate the nodes on either side of the target position and connect both of them to the new node. Delegate front and past-the-end cases to the inserts you already implemented.
+
 ```
 #include <iostream>
 using namespace std;

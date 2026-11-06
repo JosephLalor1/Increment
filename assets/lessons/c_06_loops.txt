@@ -146,6 +146,10 @@ Multiplication Table (5x5):
 @exercise Count down to liftoff
 Read a number n with scanf, then print the numbers from n down to 1 on one line, separated by spaces, followed by Liftoff! on the next line. The Input box already contains 5; try other numbers too.
 
+@hint Think about a loop whose counter gets smaller each time it runs.
+@hint Start the counter at the number read from input, and keep looping while it is at least 1.
+@hint Print the counter and a space inside the loop. Print a newline and the launch message after the loop has finished.
+
 ```
 #include <stdio.h>
 

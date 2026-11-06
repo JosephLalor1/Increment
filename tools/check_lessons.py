@@ -9,6 +9,8 @@
 - Exercises: the starter code must compile but not already produce the expected output,
   and the @solution must compile cleanly and produce it exactly (compared as the app
   does: trailing spaces and blank lines ignored).
+- Optional exercise @hint lines are kept separate from descriptions and checked for
+  empty clues and the same eight-hint limit as the app.
 
 Markers inside a code block (as comments) change what's expected:
   // does not compile   -> compilation must fail
@@ -29,6 +31,7 @@ LESSONS = os.path.join(ROOT, 'assets', 'lessons')
 BIN = os.path.join(os.environ.get('RAYLIB_DIR', r'C:\raylib'), 'w64devkit', 'bin')
 MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many columns
 MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 16, 6
+MAX_EXERCISE_HINTS = 8
 
 
 def parse(path):
@@ -77,9 +80,12 @@ def parse(path):
             flush()
             in_quiz, in_ex, target = False, True, None
             exercises.append({'title': line[9:].strip(), 'desc': '', 'starter': None, 'input': None,
-                              'expected': None, 'solution': None, 'line': n})
+                              'expected': None, 'solution': None, 'hints': [], 'line': n})
             continue
         if in_ex:
+            if re.match(r'@hint(?:\s|$)', line):
+                exercises[-1]['hints'].append(line[5:].strip())
+                continue
             m = re.match(r'@(input|expect|solution)\b', line)
             if m:
                 target = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}[m.group(1)]
@@ -157,6 +163,10 @@ def check(path, workdir):
 
     # Exercises: the starter compiles but doesn't already pass; the solution passes.
     for ei, ex in enumerate(exercises):
+        if len(ex['hints']) > MAX_EXERCISE_HINTS:
+            problems.append(f'exercise {ei + 1}: too many hints (max {MAX_EXERCISE_HINTS})')
+        if any(not hint for hint in ex['hints']):
+            problems.append(f'exercise {ei + 1}: empty hint')
         where = f'exercise "{ex["title"]}" (line {ex["line"]})'
         if not ex['title']:
             problems.append(f'{where}: no title')

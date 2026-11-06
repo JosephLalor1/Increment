@@ -27,5 +27,7 @@ void CodeShutdown(void);  // frees everything, at exit
 // Dev aid for --shot: start running immediately; CodeBusy says when it has finished.
 void CodeRunNow(void);
 bool CodeBusy(void);
+// Dev aid: reveal up to count hints for the open exercise, without editing code or progress.
+void CodeHintsDemo(int count);
 
 #endif

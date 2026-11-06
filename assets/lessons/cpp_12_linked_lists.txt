@@ -256,6 +256,10 @@ say FreeList deletes every node, saving each nextPtr before deleting the node it
 @exercise InsertAtBeginning
 Write InsertAtBeginning, which adds a node at the front of the list. It is shorter than InsertAtEnd: no walking the list. Create the node, point its nextPtr at the current head, then make it the new head. It takes Node ** for the same reason InsertAtEnd does.
 
+@hint Inserting at the front does not require visiting the existing nodes.
+@hint Allocate a new Node and fill its data. The head pointer in the caller is reached by dereferencing ptrToHeadPtr.
+@hint Connect the new node to the old head before updating the caller's head pointer. The same ordering works for an empty list because its old head is nullptr.
+
 ```
 #include <iostream>
 using namespace std;
