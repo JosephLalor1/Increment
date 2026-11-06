@@ -5,6 +5,8 @@
 #include "bookmarks.h"
 #include "brand.h"
 #include "code_screen.h"
+#include "practice_screen.h"
+#include "courses_screen.h"
 #include "dashboard.h"
 #include "layout.h"
 #include "memory_view.h"
@@ -72,6 +74,17 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                                DevShot *shot)
 {
     float scroll = extra ? (float)atof(extra) : 0;
+
+    if (Is(name, "practice") || Is(name, "practice-question") || Is(name, "practice-results") || Is(name, "practice-review")) {
+        PracticeScreenOpen(lessons);
+        PracticeScreenDemo(lessons->count ? lessons->items[lessonIndex].track : TRACK_C,
+                           Is(name, "practice-question") ? 1 : Is(name, "practice-results") ? 2 : Is(name, "practice-review") ? 3 : 0);
+        return SCREEN_PRACTICE;
+    }
+    if (Is(name, "courses")) {
+        CoursesScreenOpen(lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
+        return SCREEN_COURSES;
+    }
 
     if (Is(name, "splash")) {
         shot->splashTime = (extra ? (float)atof(extra) : 1500) / 1000.0f;

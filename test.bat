@@ -15,6 +15,9 @@ set FAILED=0
 
 if not exist build mkdir build
 
+"%CC%" %CFLAGS% tests\test_practice.c src\practice.c src\quiz_attempt.c src\lesson.c src\progress.c -o build\test_practice.exe %LIBS%
+if errorlevel 1 exit /b 1
+
 "%CC%" %CFLAGS% tests\test_exercise_hints.c src\exercise_hints.c src\lesson.c src\progress.c -o build\test_exercise_hints.exe %LIBS%
 if errorlevel 1 exit /b 1
 
@@ -58,6 +61,8 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 
 mkdir "%TESTDIR%"
+build\test_practice.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
 build\test_exercise_hints.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_bookmarks.exe "%TESTDIR%"

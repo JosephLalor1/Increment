@@ -2,6 +2,25 @@
 
 #include <string.h>
 
+bool QuizChoiceValid(const Question *q, int choice)
+{
+    return q && choice >= 0 && choice < q->choiceCount && choice < MAX_CHOICES && q->choices[choice];
+}
+
+bool QuizAnswerCorrect(const Question *q, int choice) { return QuizChoiceValid(q, choice) && choice == q->correct; }
+
+void QuizQuestionReview(const Question *q, int choice, QuizReviewItem *item)
+{
+    memset(item, 0, sizeof *item);
+    if (!q) return;
+    item->question = q;
+    item->answered = QuizChoiceValid(q, choice);
+    item->selectedAnswer = item->answered ? q->choices[choice] : NULL;
+    item->correctAnswer = QuizChoiceValid(q, q->correct) ? q->choices[q->correct] : NULL;
+    item->correct = QuizAnswerCorrect(q, choice);
+    item->explanation = q->explain && q->explain[0] ? q->explain : NULL;
+}
+
 void QuizAttemptBegin(QuizAttempt *attempt, const Lesson *lesson)
 {
     attempt->lesson = lesson;
@@ -18,7 +37,7 @@ bool QuizAttemptPick(QuizAttempt *attempt, int question, int choice)
 {
     if (attempt->completed || !ValidQuestion(attempt, question) || attempt->answers[question] >= 0) return false;
     const Question *q = &attempt->lesson->questions[question];
-    if (choice < 0 || choice >= q->choiceCount || choice >= MAX_CHOICES) return false;
+    if (!QuizChoiceValid(q, choice)) return false;
     attempt->answers[question] = choice;
     return true;
 }
@@ -28,7 +47,7 @@ int QuizAttemptCorrect(const QuizAttempt *attempt)
     int correct = 0;
     for (int i = 0; ValidQuestion(attempt, i); i++) {
         const Question *q = &attempt->lesson->questions[i];
-        if (attempt->answers[i] >= 0 && attempt->answers[i] == q->correct) correct++;
+        if (QuizAnswerCorrect(q, attempt->answers[i])) correct++;
     }
     return correct;
 }
@@ -44,13 +63,6 @@ bool QuizAttemptReview(const QuizAttempt *attempt, int question, QuizReviewItem 
     memset(item, 0, sizeof *item);
     if (!attempt->completed || !ValidQuestion(attempt, question)) return false;
     const Question *q = &attempt->lesson->questions[question];
-    item->question = q;
-    int selected = attempt->answers[question];
-    item->answered = selected >= 0 && selected < q->choiceCount && selected < MAX_CHOICES;
-    item->selectedAnswer = item->answered ? q->choices[selected] : NULL;
-    bool validCorrect = q->correct >= 0 && q->correct < q->choiceCount && q->correct < MAX_CHOICES;
-    item->correctAnswer = validCorrect ? q->choices[q->correct] : NULL;
-    item->correct = item->answered && validCorrect && selected == q->correct;
-    item->explanation = q->explain && q->explain[0] ? q->explain : NULL;
+    QuizQuestionReview(q, attempt->answers[question], item);
     return true;
 }

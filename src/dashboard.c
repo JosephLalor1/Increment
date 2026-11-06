@@ -564,8 +564,10 @@ HomeAction DashboardScreen(const LessonSet *set)
     }
 
     bool submitted;
-    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth(), 46 };
+    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 296, 46 };
     float top = SearchViewBox(&page.search, box, &submitted);
+    if (BarButton((Rectangle){ box.x + box.width + 12, box.y, 160, 46 }, ICON_TARGET, "Practice Quiz")) action.kind = HOME_PRACTICE;
+    if (BarButton((Rectangle){ box.x + box.width + 184, box.y, 112, 46 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
     bool openSettings = false;
     top = RecoveryReminder(ContentX(), top, &openSettings);
     if (openSettings) action.kind = HOME_SETTINGS;

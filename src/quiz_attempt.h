@@ -19,6 +19,11 @@ typedef struct {
     bool correct;
 } QuizReviewItem;
 
+// Shared read-only answer rules for normal lesson quizzes and revision sessions.
+bool QuizChoiceValid(const Question *question, int choice);
+bool QuizAnswerCorrect(const Question *question, int choice);
+void QuizQuestionReview(const Question *question, int choice, QuizReviewItem *item);
+
 void QuizAttemptBegin(QuizAttempt *attempt, const Lesson *lesson);
 bool QuizAttemptPick(QuizAttempt *attempt, int question, int choice);
 int QuizAttemptCorrect(const QuizAttempt *attempt);

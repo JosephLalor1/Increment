@@ -11,6 +11,8 @@
 #include "app_screen.h"
 #include "bookmarks.h"
 #include "code_screen.h"
+#include "courses_screen.h"
+#include "practice_screen.h"
 #include "dashboard.h"
 #include "dev_shot.h"
 #include "email.h"
@@ -33,6 +35,7 @@ static LessonSet lessons;
 
 static struct {
     AppScreen screen;
+    AppScreen lessonReturn;
     AppScreen codeReturn;     // where the code editor goes back to
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
     double splashStart;       // GetTime() when the splash began
@@ -43,12 +46,13 @@ static struct {
 // ---------------------------------------------------------------------------
 // Opening screens
 
-// Lessons are always opened from home, so Back from a lesson goes home. The notes folder
-// is set here, so the lesson screen doesn't depend on accounts.
-static void OpenLesson(int lessonIndex)
+// Remember the originating browser, so Back returns to Home or Courses. Setting the
+// notes folder here keeps the lesson screen independent of accounts.
+static void OpenLesson(int lessonIndex, AppScreen origin)
 {
+    app.lessonReturn = origin;
     NotesPanelSetFolder(AccountNotesDir());
-    LessonScreenOpen(&lessons, lessonIndex, "Home");
+    LessonScreenOpen(&lessons, lessonIndex, origin == SCREEN_COURSES ? "Courses" : "Home");
     app.screen = SCREEN_LESSON;
 }
 
@@ -70,6 +74,7 @@ static void OpenSettings(void)
 static void ShowLogin(void)
 {
     LessonScreenClearAttempt();
+    PracticeScreenFree();
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
@@ -165,7 +170,15 @@ static void RunHome(void)
 {
     HomeAction action = DashboardScreen(&lessons);
     switch (action.kind) {
-    case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex); break;
+    case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex, SCREEN_HOME); break;
+    case HOME_PRACTICE:
+        PracticeScreenOpen(&lessons);
+        app.screen = SCREEN_PRACTICE;
+        break;
+    case HOME_COURSES:
+        CoursesScreenOpen(TRACK_C);
+        app.screen = SCREEN_COURSES;
+        break;
     case HOME_CODE_EDITOR:
         OpenCodeEditor(SCREEN_HOME);
         CodeOpenPlayground();
@@ -183,7 +196,7 @@ static void RunLesson(void)
     const Lesson *lesson = LessonScreenLesson();
     switch (action.kind) {
     case LESSON_BACK:
-        app.screen = SCREEN_HOME;
+        app.screen = app.lessonReturn;
         break;
     case LESSON_ROADMAP:  // "Return to Roadmap": that track's journey
         DashboardShow(HOME_VIEW_JOURNEY, lesson->track);
@@ -210,6 +223,23 @@ static void RunCode(void)
 {
     // Back to the menu or the lesson; the lesson screen keeps its own scroll position.
     if (CodeScreen()) app.screen = app.codeReturn;
+}
+
+static void RunCourses(void)
+{
+    int lesson = CoursesScreen(&lessons);
+    if (lesson == COURSES_BACK) app.screen = SCREEN_HOME;
+    else if (lesson >= 0) OpenLesson(lesson, SCREEN_COURSES);
+}
+
+static void RunPractice(void)
+{
+    PracticeAction action = PracticeScreen();
+    if (action == PRACTICE_HOME) app.screen = SCREEN_HOME;
+    else if (action == PRACTICE_LESSONS) {
+        CoursesScreenOpen(PracticeScreenTrack());
+        app.screen = SCREEN_COURSES;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -287,6 +317,7 @@ int main(int argc, char **argv)
     ShowLogin();                   // prepares the login form...
     app.screen = SCREEN_SPLASH;    // ...which shows once the splash finishes
     app.codeReturn = SCREEN_HOME;
+    app.lessonReturn = SCREEN_HOME;
     app.splashStart = GetTime();
     app.splashTime = -1;
 
@@ -316,6 +347,8 @@ int main(int argc, char **argv)
         case SCREEN_CODE:      RunCode();          break;
         case SCREEN_HOME:      RunHome();          break;
         case SCREEN_LESSON:    RunLesson();        break;
+        case SCREEN_PRACTICE: RunPractice(); break;
+        case SCREEN_COURSES: RunCourses(); break;
         }
 
         if (DevShotCapture(&shot)) app.quit = true;
@@ -324,6 +357,7 @@ int main(int argc, char **argv)
     }
 
     CodeShutdown();
+    PracticeScreenFree();
     NotesPanelShutdown();  // saves notes typed just before the window was closed
     MemoryViewShutdown();
     EmailShutdown();

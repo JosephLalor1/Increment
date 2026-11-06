@@ -22,6 +22,8 @@ typedef enum {
     HOME_STAY,          // nothing to do
     HOME_OPEN_LESSON,   // open HomeAction.lessonIndex
     HOME_CODE_EDITOR,
+    HOME_PRACTICE,
+    HOME_COURSES,
     HOME_SETTINGS,
     HOME_LOG_OUT,
     HOME_QUIT,

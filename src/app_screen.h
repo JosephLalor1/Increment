@@ -12,6 +12,8 @@ typedef enum {
     SCREEN_CODE,       // code editor
     SCREEN_HOME,       // the dashboard: learning journeys, statistics and lesson search
     SCREEN_LESSON,     // reading a lesson, its quiz and its result
+    SCREEN_PRACTICE,
+    SCREEN_COURSES,
 } AppScreen;
 
 #endif

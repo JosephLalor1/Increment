@@ -6,7 +6,7 @@
 #include "mascot_state.h"
 
 typedef enum { FOX_QUIZ, FOX_RESULT, FOX_JOURNEY, FOX_EDITOR, FOX_REVIEW, FOX_READING,
-               FOX_DASHBOARD, FOX_CELEBRATION, FOX_SLOT_COUNT } FoxSlot;
+               FOX_DASHBOARD, FOX_CELEBRATION, FOX_PRACTICE, FOX_SLOT_COUNT } FoxSlot;
 
 // Load once after InitWindow, using the same resolved assets folder as lessons/fonts.
 // Missing or invalid images leave the mascot unavailable; drawing is then a no-op.

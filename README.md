@@ -7,6 +7,8 @@ Learn C and C++, one step at a time. Increment is a desktop app with short lesso
 - **Two learning tracks.** A C track (from your first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists).
 - **Learning journeys.** Each track is a winding path of lessons. Completed lessons are ticked off, the next one is highlighted, and **Find my place** jumps straight to it. Any lesson can be opened at any time.
 - **Quizzes.** Each lesson ends with a quiz; 70% passes. Afterwards, **Review Answers** shows each question with your answer, the correct one and an explanation. Your best score is kept.
+- **Custom practice quizzes.** Pick lessons from one track, choose a question count, and revise a random mix without changing lesson scores. Each question and review card identifies its source lesson.
+- **Courses.** A traditional sequential lesson browser, separate from the winding learning journey.
 - **Pointer diagrams.** The pointer, pass-by-pointer, pointer arithmetic, malloc/free, new/delete and linked list lessons step through their examples visually: click a line of code to run up to it and watch arrows glide to what each pointer points at, or click any box to have it explained. Dangling pointers, freed memory and leaks show up in red.
 - **A built-in code editor.** Run any example from a lesson with **Try it**, solve exercises that check your program's output, or write your own code. Programs are compiled with gcc/g++, compiler errors are marked on their lines, and crashes are explained in plain English.
 - **Search.** Search every lesson's title and text, filtered by C, C++ or both.
@@ -42,6 +44,20 @@ from Increment <onboarding@resend.dev>
 ```
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
+
+## Custom practice quizzes
+
+Click **Practice Quiz** beside the home search box. Choose C or C++, select any lessons with questions (or use **Select All**), and use **-**, **+**, or **All** to set the session size. The count is clamped to the current pool; clearing the selection disables Start. Lessons with no quiz questions are labelled and cannot be selected. Track changes clear the previous lesson selection.
+
+**Start Practice** shuffles eligible question references with Fisher-Yates, taking the requested number without replacement. Identical prompt/code/answer content is deduplicated, including copies with reordered choices; merely similar questions remain distinct. Original lesson data is never reordered. Each question shows the source track and lesson title. Answers use the same checking and immediate feedback rules as normal lesson quizzes. The fixed Next/Submit button is enabled after selecting an answer; Back exits practice without saving a result.
+
+Practice results show question totals, correct/incorrect answers, percentage, and encouragement. **Review Answers** reuses the normal review layout and explanation data, adding source lesson labels. **Practice Again** returns to setup with the previous choices preserved; the next session is reshuffled and avoids the identical consecutive selection/order when the pool has more than one question. With a one-question pool, repeating that question is unavoidable. **Return to Lessons** opens the sequential **Courses** screen for the selected track, never the gamified journey. Courses is also accessible beside Practice Quiz on Home; Back from a course lesson returns to its list.
+
+Practice has no calls to progress saving, lesson completion, or milestone celebrations. Scores and answers exist only in memory; there is no practice history. Signing out clears the session and selections. The fox's practice expressions are isolated from normal quizzes and never trigger lesson trophies or graduation. The loaded lesson set remains valid throughout a session; renamed/reordered content is picked up on the next application load.
+
+Manual checks: select several lessons in each track, change the count and selection, complete a session, review right/wrong answers and their source labels, then use Practice Again. Exit halfway through and restart setup. Confirm Return to Lessons opens the simple course list, normal quizzes still update progress, and practice does not. Check both themes and 900x640, including long question/code/explanation scrolling and the fixed footer buttons.
+
+Developer screenshots: `--shot build/practice.png practice`, `practice-question`, `practice-results`, `practice-review`, and `courses`. A C++ lesson index chooses the C++ track. Preview sessions use synthetic answers without saving any progress.
 
 ## Gradual exercise hints
 
