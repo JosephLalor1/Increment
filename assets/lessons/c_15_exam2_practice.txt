@@ -1,5 +1,6 @@
 @id c_15_exam2_practice
 @track C
+@speed pointers pass_by_pointer pointer_to_pointer pointer_arithmetic
 @kind practice
 @title Exam 2 Practice: Pointer Functions
 
@@ -380,3 +381,62 @@ printf("%c%s", *p, p);
 - bc
 - ab
 ! After p++ it points at 'b', and as a string it is "bc".
+
+?code reverse_array should turn 1 2 3 4 5 into 5 4 3 2 1, but it prints 5 1 2 3 4. Find the missing line.
+@hint Watch right: does it ever move?
+@hint After each swap, left moves forward and right should move back.
+```
+#include <stdio.h>
+
+void reverse_array(int *arr, int size) {
+    int *left = arr;
+    int *right = arr + size - 1;
+    while (left < right) {
+        int temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+    }
+}
+
+int main() {
+    int arr[] = { 1, 2, 3, 4, 5 };
+    reverse_array(arr, 5);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+5 4 3 2 1
+```
+@solution
+```
+#include <stdio.h>
+
+void reverse_array(int *arr, int size) {
+    int *left = arr;
+    int *right = arr + size - 1;
+    while (left < right) {
+        int temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+        right--;
+    }
+}
+
+int main() {
+    int arr[] = { 1, 2, 3, 4, 5 };
+    reverse_array(arr, 5);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+! The two pointers have to walk towards each other. Without right--, every element is swapped with the last one, which drags the 5 to the front and shifts the rest along.

@@ -11,6 +11,9 @@
   does: trailing spaces and blank lines ignored).
 - Optional exercise @hint lines are kept separate from descriptions and checked for
   empty clues and the same eight-hint limit as the app.
+- Quiz coding questions ("?code Prompt", then starter code, @expect, @solution and
+  optional @input/@hint lines, like an exercise) are checked the same way as exercises.
+  Every lesson's quiz must have at least one.
 
 Markers inside a code block (as comments) change what's expected:
   // does not compile   -> compilation must fail
@@ -32,6 +35,28 @@ BIN = os.path.join(os.environ.get('RAYLIB_DIR', r'C:\raylib'), 'w64devkit', 'bin
 MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many columns
 MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 16, 6
 MAX_EXERCISE_HINTS = 8
+# The skill names an "@speed" line may use (src/speed_round.c generates their questions).
+SPEED_SKILLS = ('arithmetic', 'loops', 'arrays', 'pointers', 'pointer_to_pointer', 'pass_by_pointer',
+                'pointer_arithmetic', 'references')
+
+
+TASK_FIELDS = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}
+
+
+def new_task(title, line, desc=''):
+    """An exercise, or a quiz coding question's program (whose prompt is its description)."""
+    return {'title': title, 'desc': desc, 'starter': None, 'input': None, 'expected': None,
+            'solution': None, 'hints': [], 'line': line}
+
+
+def parse_task_line(task, line):
+    """An exercise or coding question's @hint/@input/@expect/@solution line. Returns the
+    field the next code block fills, '' for a hint, or None if line is something else."""
+    if re.match(r'@hint(?:\s|$)', line):
+        task['hints'].append(line[5:].strip())
+        return ''
+    m = re.match(r'@(input|expect|solution)\b', line)
+    return TASK_FIELDS[m.group(1)] if m else None
 
 
 def parse(path):
@@ -55,6 +80,9 @@ def parse(path):
                 if in_ex:
                     exercises[-1][target or 'starter'] = text
                     target = None
+                elif in_quiz and questions and questions[-1]['task']:
+                    questions[-1]['task'][target or 'starter'] = text
+                    target = None
                 elif in_quiz and questions:
                     questions[-1]['code'] = text
                 else:
@@ -68,7 +96,7 @@ def parse(path):
             in_code = True
             is_memory = line.startswith('```memory') and not in_ex and not in_quiz
             continue
-        m = re.match(r'@(title|id|track|kind) (.*)', line)
+        m = re.match(r'@(title|id|track|kind|speed) (.*)', line)
         if m:
             meta[m.group(1)] = m.group(2).strip()
             continue
@@ -79,22 +107,27 @@ def parse(path):
         if line.startswith('@exercise'):
             flush()
             in_quiz, in_ex, target = False, True, None
-            exercises.append({'title': line[9:].strip(), 'desc': '', 'starter': None, 'input': None,
-                              'expected': None, 'solution': None, 'hints': [], 'line': n})
+            exercises.append(new_task(line[9:].strip(), n))
             continue
         if in_ex:
-            if re.match(r'@hint(?:\s|$)', line):
-                exercises[-1]['hints'].append(line[5:].strip())
-                continue
-            m = re.match(r'@(input|expect|solution)\b', line)
-            if m:
-                target = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}[m.group(1)]
-            elif line.strip():
+            field = parse_task_line(exercises[-1], line)
+            if field:
+                target = field
+            elif field is None and line.strip():
                 exercises[-1]['desc'] += ' ' + line
             continue
         if in_quiz:
-            if line.startswith('? '):
-                questions.append({'prompt': line[2:], 'choices': [], 'correct': [], 'explain': None, 'code': None, 'line': n})
+            task = questions[-1]['task'] if questions else None
+            field = parse_task_line(task, line) if task else None
+            if line.startswith('? ') or line.startswith('?code '):
+                coding = line.startswith('?code ')
+                prompt = line[6:].strip() if coding else line[2:]
+                questions.append({'prompt': prompt, 'choices': [], 'correct': [], 'explain': None, 'code': None,
+                                  'line': n, 'task': new_task('Coding question', n, prompt) if coding else None})
+                target = None
+            elif field is not None:
+                if field:
+                    target = field
             elif line[:2] in ('- ', '* ') and questions:
                 if line[0] == '*':
                     questions[-1]['correct'].append(len(questions[-1]['choices']))
@@ -155,51 +188,63 @@ def compile_and_run(code, cpp, workdir, name, stdin=None):
         return True, r.stderr, '<timed out>'
 
 
+def check_task(ex, where, tag, cpp, workdir):
+    """Problems with an exercise or coding question: the starter must compile but not
+    already pass, and the solution must compile cleanly and pass."""
+    problems = []
+    if len(ex['hints']) > MAX_EXERCISE_HINTS:
+        problems.append(f'{where}: too many hints (max {MAX_EXERCISE_HINTS})')
+    if any(not hint for hint in ex['hints']):
+        problems.append(f'{where}: empty hint')
+    if not ex['title']:
+        problems.append(f'{where}: no title')
+    if not ex['desc'].strip():
+        problems.append(f'{where}: no description')
+    if not ex['starter']:
+        return problems + [f'{where}: no starter code']
+    if ex['expected'] is None:
+        return problems + [f'{where}: no @expect block']
+    stdin = (ex['input'] or '') + '\n'
+    ok, err, out = compile_and_run(ex['starter'], cpp, workdir, tag + '_starter', stdin)
+    if not ok:
+        problems.append(f'{where}: starter code does not compile:\n{err}')
+    elif out is not None and normalize(out) == normalize(ex['expected']):
+        problems.append(f'{where}: the starter code already produces the expected output')
+    if not ex['solution']:
+        return problems + [f'{where}: no @solution (needed to prove the exercise can be solved)']
+    ok, err, out = compile_and_run(ex['solution'], cpp, workdir, tag + '_solution', stdin)
+    if not ok:
+        problems.append(f'{where}: solution does not compile:\n{err}')
+    elif err.strip():
+        problems.append(f'{where}: solution has warnings:\n{err}')
+    elif normalize(out) != normalize(ex['expected']):
+        problems.append(f'{where}: solution output differs.\n  expected: {normalize(ex["expected"])}\n'
+                        f'  actual:   {normalize(out)}')
+    return problems
+
+
 def check(path, workdir):
     name = os.path.basename(path)
     problems = []
     meta, blocks, questions, exercises = parse(path)
     cpp = meta.get('track') in ('C++', 'cpp')
 
-    # Exercises: the starter compiles but doesn't already pass; the solution passes.
+    # Exercises and quiz coding questions: the starter compiles but doesn't already pass;
+    # the solution passes.
     for ei, ex in enumerate(exercises):
-        if len(ex['hints']) > MAX_EXERCISE_HINTS:
-            problems.append(f'exercise {ei + 1}: too many hints (max {MAX_EXERCISE_HINTS})')
-        if any(not hint for hint in ex['hints']):
-            problems.append(f'exercise {ei + 1}: empty hint')
-        where = f'exercise "{ex["title"]}" (line {ex["line"]})'
-        if not ex['title']:
-            problems.append(f'{where}: no title')
-        if not ex['desc'].strip():
-            problems.append(f'{where}: no description')
-        if not ex['starter']:
-            problems.append(f'{where}: no starter code')
-            continue
-        if ex['expected'] is None:
-            problems.append(f'{where}: no @expect block')
-            continue
-        tag = f'{os.path.splitext(name)[0]}_ex{ei}'
-        stdin = (ex['input'] or '') + '\n'
-        ok, err, out = compile_and_run(ex['starter'], cpp, workdir, tag + '_starter', stdin)
-        if not ok:
-            problems.append(f'{where}: starter code does not compile:\n{err}')
-        elif out is not None and normalize(out) == normalize(ex['expected']):
-            problems.append(f'{where}: the starter code already produces the expected output')
-        if not ex['solution']:
-            problems.append(f'{where}: no @solution (needed to prove the exercise can be solved)')
-            continue
-        ok, err, out = compile_and_run(ex['solution'], cpp, workdir, tag + '_solution', stdin)
-        if not ok:
-            problems.append(f'{where}: solution does not compile:\n{err}')
-        elif err.strip():
-            problems.append(f'{where}: solution has warnings:\n{err}')
-        elif normalize(out) != normalize(ex['expected']):
-            problems.append(f'{where}: solution output differs.\n  expected: {normalize(ex["expected"])}\n'
-                            f'  actual:   {normalize(out)}')
+        problems += check_task(ex, f'exercise "{ex["title"]}" (line {ex["line"]})',
+                               f'{os.path.splitext(name)[0]}_ex{ei}', cpp, workdir)
+    for qi, q in enumerate(questions):
+        if q['task']:
+            problems += check_task(q['task'], f'coding question at line {q["line"]}',
+                                   f'{os.path.splitext(name)[0]}_code{qi}', cpp, workdir)
 
     for key in ('id', 'title', 'track'):
         if key not in meta:
             problems.append(f'missing @{key}')
+    for skill in meta.get('speed', '').replace(',', ' ').split():
+        if skill not in SPEED_SKILLS:
+            problems.append(f'@speed: unknown skill {skill!r} (known: {" ".join(SPEED_SKILLS)})')
     if len(blocks) > MAX_BLOCKS:
         problems.append(f'{len(blocks)} blocks (max {MAX_BLOCKS})')
     if len(questions) > MAX_QUESTIONS:
@@ -213,8 +258,16 @@ def check(path, workdir):
         if bad:
             problems.append(f'line {n}: non-ASCII {"".join(sorted(set(bad)))!r}')
 
+    if questions and not any(q['task'] for q in questions):
+        problems.append('the quiz has no coding question (?code)')
     for q in questions:
         where = f'question at line {q["line"]}'
+        if q['task']:
+            if q['choices']:
+                problems.append(f'{where}: a coding question has no choices')
+            if not q['explain']:
+                problems.append(f'{where}: no explanation')
+            continue
         if len(q['choices']) < 2 or len(q['choices']) > MAX_CHOICES:
             problems.append(f'{where}: {len(q["choices"])} choices')
         if len(q['correct']) != 1:
@@ -225,6 +278,8 @@ def check(path, workdir):
             problems.append(f'{where}: duplicate choices')
 
     codes = [b[1] for b in blocks if b[0] == 'code'] + [q['code'] for q in questions if q['code']]
+    # A coding question's starter and solution are shown on the quiz page too.
+    codes += [q['task'][k] for q in questions if q['task'] for k in ('starter', 'solution') if q['task'][k]]
     # In a pointer diagram only the "> code" lines are shown as code. (Whether the whole
     # script is valid is checked by tests\test_memory_model.c, which uses the app's parser.)
     codes += ['\n'.join(re.sub(r'^> ?', '', l.strip()) for l in b[1].split('\n') if l.strip().startswith('>'))

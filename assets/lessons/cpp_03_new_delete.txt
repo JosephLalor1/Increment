@@ -209,3 +209,54 @@ int *getPtrToFive() {
 - remove
 - new
 ! Memory from new is returned with delete.
+
+?code getPtrToFive has to return the address of an int holding 5 that still exists after the function returns. Finish it with new.
+@hint A local variable is gone when the function returns, so its address would dangle.
+@hint return new int(5); makes the int on the heap, where it lasts until delete.
+```
+#include <iostream>
+using namespace std;
+
+int *getPtrToFive() {
+    // TODO: make an int holding 5 on the heap, return its address
+    return nullptr;
+}
+
+int main() {
+    int *p = getPtrToFive();
+    if (p == nullptr) {
+        cout << "p is nullptr" << endl;
+        return 1;
+    }
+    cout << "*p = " << *p << endl;
+    delete p;
+    return 0;
+}
+```
+@expect
+```
+*p = 5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int *getPtrToFive() {
+    int *x = new int;
+    *x = 5;
+    return x;
+}
+
+int main() {
+    int *p = getPtrToFive();
+    if (p == nullptr) {
+        cout << "p is nullptr" << endl;
+        return 1;
+    }
+    cout << "*p = " << *p << endl;
+    delete p;
+    return 0;
+}
+```
+! Memory from new stays allocated after the function returns, so the address is still good in main. main is then responsible for the delete.

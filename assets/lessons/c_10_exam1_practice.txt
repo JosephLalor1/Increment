@@ -1,5 +1,6 @@
 @id c_10_exam1_practice
 @track C
+@speed arithmetic loops arrays
 @kind practice
 @title Exam 1 Practice: Lab 1 Problems
 
@@ -634,3 +635,55 @@ for (int r = 1; r <= 3; r++) {
 - A|A|A|
 - AAA|AA|A|
 ! Row r prints r A's, then a separator.
+
+?code isLeapYear gets 1900 wrong: 1900 was not a leap year, because it is divisible by 100 but not by 400. Fix the function.
+@hint Every year divisible by 100 is also divisible by 4, so the first test already returns true for 1900.
+@hint Check the special cases first: 400, then 100, then 4.
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isLeapYear(int year) {
+    if (year % 4 == 0) return true;
+    if (year % 100 == 0) return false;
+    if (year % 400 == 0) return true;
+    return false;
+}
+
+int main() {
+    int years[] = { 1900, 2000, 2023, 2024 };
+    for (int i = 0; i < 4; i++) {
+        const char *answer = isLeapYear(years[i]) ? "yes" : "no";
+        printf("%d: %s\n", years[i], answer);
+    }
+    return 0;
+}
+```
+@expect
+```
+1900: no
+2000: yes
+2023: no
+2024: yes
+```
+@solution
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isLeapYear(int year) {
+    if (year % 400 == 0) return true;
+    if (year % 100 == 0) return false;
+    return year % 4 == 0;
+}
+
+int main() {
+    int years[] = { 1900, 2000, 2023, 2024 };
+    for (int i = 0; i < 4; i++) {
+        const char *answer = isLeapYear(years[i]) ? "yes" : "no";
+        printf("%d: %s\n", years[i], answer);
+    }
+    return 0;
+}
+```
+! The tests overlap, so their order matters. Testing 400 first, then 100, then 4 means each year reaches the most specific rule that applies to it.

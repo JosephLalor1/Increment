@@ -86,9 +86,10 @@ static void FinishExercise(Parser *ps)
     ps->exBlankLine = false;
 }
 
-static void ParseExerciseLine(Parser *ps, const char *line)
+// The "@hint", "@input", "@expect" and "@solution" lines shared by exercises and quiz
+// coding questions. Returns false if line is none of them.
+static bool ParseTaskLine(Parser *ps, Exercise *ex, const char *line)
 {
-    Exercise *ex = &ps->lesson->exercises[ps->lesson->exerciseCount - 1];
     if (strcmp(line, "@hint") == 0 || StartsWith(line, "@hint ") || StartsWith(line, "@hint\t")) {
         const char *text = line + 5;
         while (*text == ' ' || *text == '\t') text++;
@@ -97,11 +98,25 @@ static void ParseExerciseLine(Parser *ps, const char *line)
         } else if (ex->hintCount >= MAX_EXERCISE_HINTS) {
             TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercise hints, ignoring extra hint", ps->file, ps->lineNo);
         } else ex->hints[ex->hintCount++] = CopyStr(text);
-        return;
+        return true;
     }
-    if (StartsWith(line, "@input"))    { ps->fenceTarget = &ex->input; return; }
-    if (StartsWith(line, "@expect"))   { ps->fenceTarget = &ex->expected; return; }
-    if (StartsWith(line, "@solution")) { ps->fenceTarget = &ex->solution; return; }
+    if (StartsWith(line, "@input"))    { ps->fenceTarget = &ex->input; return true; }
+    if (StartsWith(line, "@expect"))   { ps->fenceTarget = &ex->expected; return true; }
+    if (StartsWith(line, "@solution")) { ps->fenceTarget = &ex->solution; return true; }
+    return false;
+}
+
+// The coding task of the quiz question being parsed, or NULL for multiple choice.
+static Exercise *CurrentQuizTask(Parser *ps)
+{
+    Lesson *L = ps->lesson;
+    return ps->inQuiz && L->questionCount > 0 ? L->questions[L->questionCount - 1].task : NULL;
+}
+
+static void ParseExerciseLine(Parser *ps, const char *line)
+{
+    Exercise *ex = &ps->lesson->exercises[ps->lesson->exerciseCount - 1];
+    if (ParseTaskLine(ps, ex, line)) return;
     if (line[0] == '\0') {
         if (ps->exDesc.len) ps->exBlankLine = true;
         return;
@@ -142,6 +157,12 @@ static void FlushCode(Parser *ps)
         free(*target);
         *target = code;
         ps->fenceTarget = NULL;  // an unlabelled block is the starter code
+    } else if (CurrentQuizTask(ps)) {  // a coding question: like an exercise's code blocks
+        Exercise *task = CurrentQuizTask(ps);
+        char **target = ps->fenceTarget ? ps->fenceTarget : &task->starter;
+        free(*target);
+        *target = code;
+        ps->fenceTarget = NULL;
     } else if (ps->inQuiz && L->questionCount > 0) {
         Question *q = &L->questions[L->questionCount - 1];
         free(q->code);
@@ -163,17 +184,32 @@ static void ParseQuizLine(Parser *ps, const char *line)
 {
     Lesson *L = ps->lesson;
     Question *q = L->questionCount ? &L->questions[L->questionCount - 1] : NULL;
+    bool coding = StartsWith(line, "?code ");
 
-    if (StartsWith(line, "? ")) {
+    if (StartsWith(line, "? ") || coding) {
         if (L->questionCount >= MAX_QUESTIONS) {
             TraceLog(LOG_WARNING, "LESSON: %s:%d: too many questions", ps->file, ps->lineNo);
             return;
         }
         q = &L->questions[L->questionCount++];
-        q->prompt = CopyStr(line + 2);
+        const char *prompt = line + (coding ? 6 : 2);
+        while (*prompt == ' ') prompt++;
+        q->prompt = CopyStr(prompt);
         q->correct = -1;
+        ps->fenceTarget = NULL;
+        if (coding) {  // the prompt doubles as the task description in the code editor
+            q->task = calloc(1, sizeof *q->task);
+            q->task->title = CopyStr("Coding question");
+            q->task->description = CopyStr(prompt);
+        }
+    } else if (q && q->task && ParseTaskLine(ps, q->task, line)) {
+        return;
     } else if (StartsWith(line, "- ") || StartsWith(line, "* ")) {
         if (!q) return;
+        if (q->task) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: a coding question has no choices", ps->file, ps->lineNo);
+            return;
+        }
         if (q->choiceCount >= MAX_CHOICES) {
             TraceLog(LOG_WARNING, "LESSON: %s:%d: too many choices", ps->file, ps->lineNo);
             return;
@@ -222,6 +258,7 @@ static void ParseLine(Parser *ps, char *line)
         L->track = (strcmp(t, "C++") == 0 || strcmp(t, "cpp") == 0) ? TRACK_CPP : TRACK_C;
         return;
     }
+    if (StartsWith(line, "@speed ")) { CopyField(L->speedSkills, sizeof L->speedSkills, line + 7); return; }
     if (StartsWith(line, "@kind ")) {
         L->practice = strstr(line + 6, "practice") != NULL;
         return;
@@ -278,6 +315,17 @@ static void ParseLine(Parser *ps, char *line)
     AppendParaLine(ps, BLOCK_TEXT, line);
 }
 
+// Fills in what an exercise or coding question left out, so the editor never sees NULL
+// starter code or expected output.
+static void FinishTask(const char *path, Exercise *ex)
+{
+    if (!ex->starter) ex->starter = CopyStr("");
+    if (!ex->expected) {
+        TraceLog(LOG_WARNING, "LESSON: %s: exercise \"%s\" has no @expect output", path, ex->title);
+        ex->expected = CopyStr("");
+    }
+}
+
 static bool ParseLessonFile(const char *path, Lesson *L)
 {
     char *text = LoadFileText(path);
@@ -310,20 +358,15 @@ static bool ParseLessonFile(const char *path, Lesson *L)
     free(ps.para.data);
     free(ps.code.data);
     free(ps.exDesc.data);
-    for (int i = 0; i < L->exerciseCount; i++) {
-        Exercise *ex = &L->exercises[i];
-        if (!ex->starter) ex->starter = CopyStr("");
-        if (!ex->expected) {
-            TraceLog(LOG_WARNING, "LESSON: %s: exercise \"%s\" has no @expect output", path, ex->title);
-            ex->expected = CopyStr("");
-        }
-    }
+    for (int i = 0; i < L->exerciseCount; i++) FinishTask(path, &L->exercises[i]);
     UnloadFileText(text);
 
     if (L->title[0] == '\0') CopyField(L->title, sizeof L->title, L->id);
     for (int i = 0; i < L->questionCount; i++) {
         Question *q = &L->questions[i];
-        if (q->correct < 0) {
+        if (q->task) {
+            FinishTask(path, q->task);
+        } else if (q->correct < 0) {
             TraceLog(LOG_WARNING, "LESSON: %s: question %d has no correct answer (mark one with '* ')", path, i + 1);
             q->correct = 0;
         }
@@ -331,25 +374,29 @@ static bool ParseLessonFile(const char *path, Lesson *L)
     return true;
 }
 
+static void FreeExercise(Exercise *ex)
+{
+    free(ex->title);
+    free(ex->description);
+    free(ex->starter);
+    free(ex->input);
+    free(ex->expected);
+    free(ex->solution);
+    for (int h = 0; h < ex->hintCount; h++) free(ex->hints[h]);
+}
+
 static void FreeLesson(Lesson *L)
 {
     for (int i = 0; i < L->blockCount; i++) free(L->blocks[i].text);
-    for (int i = 0; i < L->exerciseCount; i++) {
-        Exercise *ex = &L->exercises[i];
-        free(ex->title);
-        free(ex->description);
-        free(ex->starter);
-        free(ex->input);
-        free(ex->expected);
-        free(ex->solution);
-        for (int h = 0; h < ex->hintCount; h++) free(ex->hints[h]);
-    }
+    for (int i = 0; i < L->exerciseCount; i++) FreeExercise(&L->exercises[i]);
     for (int i = 0; i < L->questionCount; i++) {
         Question *q = &L->questions[i];
         free(q->prompt);
         free(q->code);
         free(q->explain);
         for (int c = 0; c < q->choiceCount; c++) free(q->choices[c]);
+        if (q->task) FreeExercise(q->task);
+        free(q->task);
     }
 }
 

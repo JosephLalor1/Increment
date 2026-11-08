@@ -316,6 +316,7 @@ AccountAction SettingsScreen(void)
 
     settings.contentH = y - top + 64;
     EndView();
+    PageScrollBar(view, &settings.scroll, settings.contentH);
     return action;
 }
 

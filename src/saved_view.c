@@ -87,5 +87,6 @@ SavedChoice SavedViewDraw(SavedView *s, const LessonSet *set, Rectangle view)
     }
     s->height = (y - top) + 24;
     EndView();
+    PageScrollBar(view, &s->scroll, s->height);
     return choice;
 }

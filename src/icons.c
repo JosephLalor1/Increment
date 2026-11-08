@@ -193,6 +193,23 @@ void IconDraw(Icon icon, Vector2 c, float size, Color col)
         Line(-0.15f, 0.0f, 0.15f, 0.0f);
         Line(-0.15f, 0.18f, 0.05f, 0.18f);
         break;
+    case ICON_STAR: {
+        // Five points, filled as a fan of triangles from the centre.
+        Vector2 points[10];
+        for (int i = 0; i < 10; i++) {
+            float angle = -PI / 2 + i * PI / 5, r = i % 2 ? 0.2f : 0.46f;
+            points[i] = (Vector2){ cosf(angle) * r, 0.04f + sinf(angle) * r };
+        }
+        for (int i = 0; i < 10; i++) {
+            Vector2 a = points[i], b = points[(i + 1) % 10];
+            Tri(0, 0.04f, a.x, a.y, b.x, b.y);
+        }
+    } break;
+    case ICON_BOLT: {
+        float bolt[] = { 0.1f, -0.42f, -0.2f, 0.06f, 0.04f, 0.06f, -0.08f, 0.42f, 0.22f, -0.08f, -0.02f, -0.08f,
+                         0.1f, -0.42f };
+        Poly(bolt, 7);
+    } break;
     case ICON_COUNT:
         break;
     }

@@ -279,3 +279,69 @@ int main() {
 * 10
 - 9
 ! Each call adds to the same instance's n: 1 + 4 + 5.
+
+?code offsetVector should move the vector by (1, 2), but main's v doesn't move. Fix it by passing a pointer, as in the lesson.
+@hint The function gets a copy of v and moves the copy.
+@hint Take a Vector *v, use v-> for the fields, and call it with &v.
+```
+#include <iostream>
+using namespace std;
+
+class Vector {
+public:
+    double xStart, xEnd, yStart, yEnd;
+};
+
+void offsetVector(Vector v, double offX, double offY) {
+    v.xStart += offX;
+    v.xEnd += offX;
+    v.yStart += offY;
+    v.yEnd += offY;
+}
+
+int main() {
+    Vector v;
+    v.xStart = 0;
+    v.yStart = 0;
+    v.xEnd = 3;
+    v.yEnd = 4;
+    offsetVector(v, 1, 2);
+    cout << "(" << v.xStart << ", " << v.yStart << ") to ("
+         << v.xEnd << ", " << v.yEnd << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(1, 2) to (4, 6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Vector {
+public:
+    double xStart, xEnd, yStart, yEnd;
+};
+
+void offsetVector(Vector *v, double offX, double offY) {
+    v->xStart += offX;
+    v->xEnd += offX;
+    v->yStart += offY;
+    v->yEnd += offY;
+}
+
+int main() {
+    Vector v;
+    v.xStart = 0;
+    v.yStart = 0;
+    v.xEnd = 3;
+    v.yEnd = 4;
+    offsetVector(&v, 1, 2);
+    cout << "(" << v.xStart << ", " << v.yStart << ") to ("
+         << v.xEnd << ", " << v.yEnd << ")" << endl;
+    return 0;
+}
+```
+! Objects are passed by value unless you say otherwise, so the function moved a copy. Through a pointer, v->xStart means (*v).xStart, the field of main's own v. (A reference, Vector &v, would also work.)

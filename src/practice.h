@@ -17,6 +17,10 @@ typedef struct {
     bool completed;
 } PracticeSession;
 
+// How many of a lesson's questions a practice session can ask: all but coding questions,
+// which need the code editor and so only appear in the lesson's own quiz.
+int PracticeLessonQuestions(const Lesson *lesson);
+
 // LessonSet must outlive the session. Init/free also clear account-specific selections.
 bool PracticeInit(PracticeSession *session, const LessonSet *lessons);
 void PracticeFree(PracticeSession *session);

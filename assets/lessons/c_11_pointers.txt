@@ -1,5 +1,6 @@
 @id c_11_pointers
 @track C
+@speed pointers
 @title Pointers: Addresses and Dereferencing
 
 # Computer memory revisited
@@ -244,3 +245,40 @@ printf("%d %d", x, *p);
 - 25 Address
 - Error
 ! x is 25 and *p is the value at x's address, also 25.
+
+?code Change i to 20 using only ptr: the new line must not mention i by name.
+@hint ptr holds i's address. Which operator reaches the variable at that address?
+@hint *ptr = 20; stores 20 in the int that ptr points at.
+```
+#include <stdio.h>
+
+int main() {
+    int i = 10;
+    int *ptr = &i;
+    // TODO: set i to 20 through ptr
+
+    printf("i = %d\n", i);
+    printf("*ptr = %d\n", *ptr);
+    return 0;
+}
+```
+@expect
+```
+i = 20
+*ptr = 20
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 10;
+    int *ptr = &i;
+    *ptr = 20;
+
+    printf("i = %d\n", i);
+    printf("*ptr = %d\n", *ptr);
+    return 0;
+}
+```
+! *ptr is another name for i while ptr points at it, so assigning to *ptr changes i. Writing ptr = 20 instead would change the address in ptr, not i.

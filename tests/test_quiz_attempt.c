@@ -55,13 +55,68 @@ static void CheckReview(const Lesson *lesson)
     assert(!attempt.completed && QuizAttemptCorrect(&attempt) == 0);
     for (int i = 0; i < MAX_QUESTIONS; i++) assert(attempt.answers[i] == -1);
     assert(ProgressBest(lesson->id) == 100);
-    for (int i = 0; i < lesson->questionCount; i++)
-        assert(QuizAttemptPick(&attempt, i, (lesson->questions[i].correct + 1) % lesson->questions[i].choiceCount));
+    for (int i = 0; i < lesson->questionCount; i++) {
+        const Question *q = &lesson->questions[i];
+        assert(QuizAttemptPick(&attempt, i, QuizIsCoding(q) ? QUIZ_CODE_SKIPPED : (q->correct + 1) % q->choiceCount));
+    }
     ProgressRecord(lesson->id, QuizAttemptFinish(&attempt)); // lower retry uses normal best-score logic
     assert(ProgressBest(lesson->id) == 100);
     QuizAttemptBegin(&attempt, NULL); // account change / clear
     assert(!QuizAttemptReview(&attempt, 0, &item));
     assert(QuizAttemptFinish(&attempt) == 0);
+}
+
+// Coding questions: passing the program is the right answer, skipping is wrong, and the
+// review hands over the task so its expected output and solution can be shown.
+static void CheckCodingQuestions(void)
+{
+    Exercise task = { .title = "Coding question", .description = "Print hi", .starter = "", .expected = "hi",
+                      .solution = "int main() {}" };
+    Lesson *fixture = calloc(1, sizeof *fixture);
+    assert(fixture);
+    fixture->questionCount = 2;
+    fixture->questions[0] = (Question){ .prompt = "Print hi", .correct = -1, .task = &task };
+    fixture->questions[1] = (Question){ .prompt = "Print hi again", .correct = -1, .task = &task };
+    const Question *q = &fixture->questions[0];
+    assert(QuizIsCoding(q) && !QuizIsCoding(NULL));
+    assert(QuizChoiceValid(q, QUIZ_CODE_PASSED) && QuizChoiceValid(q, QUIZ_CODE_SKIPPED));
+    assert(!QuizChoiceValid(q, -1) && !QuizChoiceValid(q, 2));
+    assert(QuizAnswerCorrect(q, QUIZ_CODE_PASSED) && !QuizAnswerCorrect(q, QUIZ_CODE_SKIPPED));
+
+    QuizAttempt attempt;
+    QuizAttemptBegin(&attempt, fixture);
+    assert(!QuizAttemptPick(&attempt, 0, 5));
+    assert(QuizAttemptPick(&attempt, 0, QUIZ_CODE_PASSED));
+    assert(!QuizAttemptPick(&attempt, 0, QUIZ_CODE_SKIPPED));  // a pass can't be undone by skipping
+    assert(QuizAttemptPick(&attempt, 1, QUIZ_CODE_SKIPPED));
+    assert(QuizAttemptFinish(&attempt) == 50);
+
+    QuizReviewItem item;
+    assert(QuizAttemptReview(&attempt, 0, &item));
+    assert(item.task == &task && item.answered && item.correct && item.selectedAnswer && item.correctAnswer);
+    assert(QuizAttemptReview(&attempt, 1, &item));
+    assert(item.task == &task && item.answered && !item.correct && strcmp(item.selectedAnswer, "Skipped") == 0);
+    free(fixture);
+}
+
+// The lessons' coding questions arrive complete: a task with starter code, expected output
+// and a solution, and no multiple-choice answers.
+static void CheckLessonCodingQuestions(const LessonSet *lessons)
+{
+    int found = 0;
+    for (int i = 0; i < lessons->count; i++) {
+        const Lesson *lesson = &lessons->items[i];
+        for (int k = 0; k < lesson->questionCount; k++) {
+            const Question *q = &lesson->questions[k];
+            if (!QuizIsCoding(q)) continue;
+            found++;
+            assert(q->choiceCount == 0 && q->prompt && q->prompt[0]);
+            assert(q->task->starter && q->task->starter[0] && q->task->expected && q->task->solution);
+            assert(strcmp(q->task->description, q->prompt) == 0);
+        }
+    }
+    assert(found > 0);
+    printf("%d lesson coding questions parse\n", found);
 }
 
 int main(void)
@@ -80,6 +135,8 @@ int main(void)
         checked[lesson->track] = true;
     }
     assert(checked[TRACK_C] && checked[TRACK_CPP]);
+    CheckCodingQuestions();
+    CheckLessonCodingQuestions(&lessons);
 
     Lesson *fixture = calloc(1, sizeof *fixture);
     assert(fixture);

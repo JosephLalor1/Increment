@@ -49,5 +49,6 @@ int CoursesScreen(const LessonSet *lessons)
     if (!number) y += UiWrappedText(gFonts.text, "No lessons in this course yet.", (Vector2){ x, y }, w, 23, COL_DIM, true) + 24;
     courses.height = y - top + 24;
     EndView();
+    PageScrollBar(view, &courses.scroll, courses.height);
     return selected >= 0 ? selected : COURSES_STAY;
 }

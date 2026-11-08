@@ -108,3 +108,23 @@ void ProgressRecordExercise(const char *lessonId, int exerciseIndex)
     ExerciseId(lessonId, exerciseIndex, id, sizeof id);
     ProgressRecord(id, 100);
 }
+
+// "<lesson id>!gold", the id a won speed round is stored under.
+static void GoldId(const char *lessonId, char *out, size_t size)
+{
+    snprintf(out, size, "%s!gold", lessonId);
+}
+
+bool ProgressGold(const char *lessonId)
+{
+    char id[64];
+    GoldId(lessonId, id, sizeof id);
+    return ProgressBest(id) >= 100;
+}
+
+void ProgressRecordGold(const char *lessonId)
+{
+    char id[64];
+    GoldId(lessonId, id, sizeof id);
+    ProgressRecord(id, 100);
+}

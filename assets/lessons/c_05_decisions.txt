@@ -169,3 +169,49 @@ switch (x) {
 - It does not compile
 - It checks whether x is greater than 5
 ! = is assignment. The value of x = 5 is 5, which is non-zero and so counts as true.
+
+?code Scores of 80 or more should print Distinction, 50 to 79 Pass, and anything lower Fail. With the input 85 this program prints Pass. Fix the order of the tests.
+@hint An if / else if chain stops at the first test that is true.
+@hint 85 >= 50 is true, so the Distinction test is never reached. Test the higher mark first.
+```
+#include <stdio.h>
+
+int main() {
+    int score;
+    scanf("%d", &score);
+    if (score >= 50) {
+        printf("Pass\n");
+    } else if (score >= 80) {
+        printf("Distinction\n");
+    } else {
+        printf("Fail\n");
+    }
+    return 0;
+}
+```
+@input
+```
+85
+```
+@expect
+```
+Distinction
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int score;
+    scanf("%d", &score);
+    if (score >= 80) {
+        printf("Distinction\n");
+    } else if (score >= 50) {
+        printf("Pass\n");
+    } else {
+        printf("Fail\n");
+    }
+    return 0;
+}
+```
+! Only the first true branch of an if / else if chain runs. Every score of 80 or more is also 50 or more, so the stricter test has to come first.

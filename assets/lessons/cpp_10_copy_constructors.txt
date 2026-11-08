@@ -188,3 +188,67 @@ int main() {
 - 10 10
 - 10 5
 ! The custom copy constructor doubles the value as it copies.
+
+?code Changing student2's name also changes student1's, because the default copy shares one name. Write a copy constructor that makes a deep copy, so this prints foo boo.
+@hint The default copy copies the name pointer, not the characters it points at.
+@hint In MITStudent(const MITStudent &o), allocate new char[strlen(o.name) + 1] and strcpy into it.
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char *name;
+    MITStudent(int id, const char *n) {
+        studentID = id;
+        name = new char[strlen(n) + 1];
+        strcpy(name, n);
+    }
+    // TODO: a copy constructor that makes a deep copy
+};
+
+int main() {
+    MITStudent student1(98, "foo");
+    MITStudent student2 = student1;
+    student2.name[0] = 'b';
+    cout << student1.name << " " << student2.name << endl;
+    return 0;
+}
+```
+@expect
+```
+foo boo
+```
+@solution
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char *name;
+    MITStudent(int id, const char *n) {
+        studentID = id;
+        name = new char[strlen(n) + 1];
+        strcpy(name, n);
+    }
+    MITStudent(const MITStudent &o) {  // deep copy
+        studentID = o.studentID;
+        name = new char[strlen(o.name) + 1];
+        strcpy(name, o.name);
+    }
+};
+
+int main() {
+    MITStudent student1(98, "foo");
+    MITStudent student2 = student1;
+    student2.name[0] = 'b';
+    cout << student1.name << " " << student2.name << endl;
+    return 0;
+}
+```
+! A shallow copy leaves both name pointers holding the same address. The deep copy gives student2 its own characters, so changing them leaves student1 alone. (A full version would also free the names in a destructor; see the next lesson.)

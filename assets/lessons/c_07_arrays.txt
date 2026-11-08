@@ -1,5 +1,6 @@
 @id c_07_arrays
 @track C
+@speed arrays
 @title Arrays
 
 An array stores several values of the same type in one block of contiguous memory: the elements sit next to each other. You reach an element by its index, and the first index is 0.
@@ -224,3 +225,45 @@ int m[3][4] = {
 * It writes past the end of the array into memory used by something else
 - The write is ignored
 ! C does no bounds checking. Writing past the end is undefined behaviour and corrupts other data.
+
+?code This program should print the warmest temperature, which is -2, but it prints 0. Fix it.
+@hint Every temperature is below 0. What does largest start as?
+@hint Start largest at the first element, temps[0], instead of 0.
+```
+#include <stdio.h>
+
+int main() {
+    int temps[] = { -5, -2, -9, -3 };
+    int count = sizeof(temps) / sizeof(temps[0]);
+    int largest = 0;
+    for (int i = 0; i < count; i++) {
+        if (temps[i] > largest) {
+            largest = temps[i];
+        }
+    }
+    printf("Warmest: %d\n", largest);
+    return 0;
+}
+```
+@expect
+```
+Warmest: -2
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int temps[] = { -5, -2, -9, -3 };
+    int count = sizeof(temps) / sizeof(temps[0]);
+    int largest = temps[0];
+    for (int i = 1; i < count; i++) {
+        if (temps[i] > largest) {
+            largest = temps[i];
+        }
+    }
+    printf("Warmest: %d\n", largest);
+    return 0;
+}
+```
+! Starting at 0 only works if some value is bigger than 0. Starting with the array's own first element works for any values, and the loop can then begin at index 1.

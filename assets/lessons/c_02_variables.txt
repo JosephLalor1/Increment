@@ -140,3 +140,38 @@ printf("%.2f", pi);
 - It formats the value with 2 decimal places
 - It is a typo; it has no meaning
 ! A decimal literal is a double by default. The f suffix makes it a float.
+
+?code Finish the program: declare a double called price holding 4.5, then print the total cost, quantity times price, with 2 decimal places.
+@hint Use %f to print a double, and %.2f for exactly 2 decimal places.
+@hint An int times a double gives a double, so quantity * price is 13.5.
+```
+#include <stdio.h>
+
+int main() {
+    int quantity = 3;
+    // TODO: declare a double called price holding 4.5
+
+    printf("Quantity: %d\n", quantity);
+    // TODO: print "Total: " and quantity * price, 2 decimals
+    return 0;
+}
+```
+@expect
+```
+Quantity: 3
+Total: 13.50
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int quantity = 3;
+    double price = 4.5;
+
+    printf("Quantity: %d\n", quantity);
+    printf("Total: %.2f\n", quantity * price);
+    return 0;
+}
+```
+! The format specifier has to match the type: %d for an int, %f for a double. The .2 in %.2f rounds the printed value to 2 decimal places.

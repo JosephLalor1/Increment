@@ -37,9 +37,18 @@ float QuizViewReview(const QuizReviewItem *item, int number, float x, float y, f
     y += UiWrappedText(gFonts.text, "Your answer:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
     y += UiWrappedText(gFonts.text, item->selectedAnswer ? item->selectedAnswer : "Not answered",
                        (Vector2){ x, y }, w, 22 * scale, state, draw) + 16;
-    y += UiWrappedText(gFonts.text, "Correct answer:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
-    y += UiWrappedText(gFonts.text, item->correctAnswer ? item->correctAnswer : "Not available",
-                       (Vector2){ x, y }, w, 22 * scale, COL_GOOD, draw) + 16;
+    if (item->task) {  // a coding question: what the program had to print, and one that does
+        y += UiWrappedText(gFonts.text, "Expected output:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+        y += UiOutputBlock(item->task->expected, (Vector2){ x, y }, w, 20 * scale, draw) + 16;
+        if (item->task->solution) {
+            y += UiWrappedText(gFonts.text, "A working solution:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+            y += UiCodeBlock(item->task->solution, (Vector2){ x, y }, w, 20 * scale, draw) + 16;
+        }
+    } else {
+        y += UiWrappedText(gFonts.text, "Correct answer:", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
+        y += UiWrappedText(gFonts.text, item->correctAnswer ? item->correctAnswer : "Not available",
+                           (Vector2){ x, y }, w, 22 * scale, COL_GOOD, draw) + 16;
+    }
     if (item->explanation) {
         y += UiWrappedText(gFonts.text, "Explanation", (Vector2){ x, y }, w, 18 * scale, COL_DIM, draw) + 6;
         y += UiWrappedText(gFonts.text, item->explanation, (Vector2){ x, y }, w, 21 * scale, COL_TEXT, draw) + 12;

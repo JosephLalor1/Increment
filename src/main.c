@@ -23,6 +23,7 @@
 #include "memory_view.h"
 #include "notes_panel.h"
 #include "progress.h"
+#include "speed_screen.h"
 #include "splash.h"
 #include "window_mode.h"
 #include "ui.h"
@@ -214,6 +215,14 @@ static void RunLesson(void)
         OpenCodeEditor(SCREEN_LESSON);
         CodeOpenExercise(lesson, action.exerciseIndex);
         break;
+    case LESSON_OPEN_QUIZ_CODE:
+        OpenCodeEditor(SCREEN_LESSON);
+        CodeOpenQuizQuestion(lesson, action.questionIndex, action.startFresh);
+        break;
+    case LESSON_SPEED_ROUND:
+        SpeedScreenOpen(lesson);
+        app.screen = SCREEN_SPEED;
+        break;
     case LESSON_STAY:
         break;
     }
@@ -222,7 +231,16 @@ static void RunLesson(void)
 static void RunCode(void)
 {
     // Back to the menu or the lesson; the lesson screen keeps its own scroll position.
-    if (CodeScreen()) app.screen = app.codeReturn;
+    // A quiz's coding question passes its result back (CodeQuizSolved is false otherwise).
+    if (!CodeScreen()) return;
+    app.screen = app.codeReturn;
+    if (app.codeReturn == SCREEN_LESSON) LessonScreenQuizCodeResult(CodeQuizSolved());
+}
+
+// A speed round goes back to its lesson, which is where it was opened from.
+static void RunSpeed(void)
+{
+    if (SpeedScreen() == SPEED_SCREEN_BACK) app.screen = SCREEN_LESSON;
 }
 
 static void RunCourses(void)
@@ -348,6 +366,7 @@ int main(int argc, char **argv)
         case SCREEN_HOME:      RunHome();          break;
         case SCREEN_LESSON:    RunLesson();        break;
         case SCREEN_PRACTICE: RunPractice(); break;
+        case SCREEN_SPEED:    RunSpeed();    break;
         case SCREEN_COURSES: RunCourses(); break;
         }
 

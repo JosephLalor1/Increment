@@ -38,6 +38,12 @@ void UpdateScroll(float *scroll, float contentH, float viewH)
     if (*scroll < 0) *scroll = 0;
 }
 
+bool PageScrollBar(Rectangle view, float *scroll, float contentH)
+{
+    Rectangle track = { view.x + view.width - 16, view.y + 6, 12, view.height - 12 };
+    return UiScrollBar(track, scroll, contentH, view.height);
+}
+
 void BeginView(Rectangle v)
 {
     BeginScissorMode((int)v.x, (int)v.y, (int)v.width, (int)v.height);

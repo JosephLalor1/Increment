@@ -517,6 +517,39 @@ static Layout MakeLayout(const Editor *e, Rectangle r)
     return L;
 }
 
+// The longest line's length in characters, for horizontal scrolling.
+static int LongestLine(const Editor *e)
+{
+    int longest = 0;
+    for (int i = 0, col = 0; i <= e->len; i++) {
+        if (i == e->len || e->text[i] == '\n') { longest = Max(longest, col); col = 0; }
+        else col++;
+    }
+    return longest;
+}
+
+// Where the scroll bars go and how much they scroll: a vertical bar on the right edge and
+// a horizontal one along the bottom, each only when the text doesn't fit that way.
+typedef struct {
+    Rectangle vertical, horizontal;
+    bool showVertical, showHorizontal;
+    float contentH, contentW;  // the whole text's size, as the bars scroll it
+} ScrollBars;
+
+static ScrollBars MakeScrollBars(const Editor *e, Rectangle r, const Layout *L)
+{
+    ScrollBars b;
+    b.contentH = EditorLineCount(e) * L->lineH + L->lineH;  // as far as scrollY can go, plus the view
+    b.contentW = LongestLine(e) * L->charW + L->charW * 4;
+    // Shown only when the text itself overflows (the extra line and columns of slack the
+    // editor allows past the end don't count).
+    b.showVertical = EditorLineCount(e) * L->lineH > L->text.height;
+    b.showHorizontal = LongestLine(e) * L->charW > L->text.width;
+    b.vertical = (Rectangle){ r.x + r.width - 13, r.y + 5, 10, r.height - 10 - (b.showHorizontal ? 12 : 0) };
+    b.horizontal = (Rectangle){ L->text.x, r.y + r.height - 13, r.x + r.width - L->text.x - (b.showVertical ? 18 : 6), 10 };
+    return b;
+}
+
 static int PosFromPoint(const Editor *e, const Layout *L, Vector2 m)
 {
     int line = (int)floorf((m.y - L->text.y + e->scrollY) / L->lineH);
@@ -598,8 +631,11 @@ void EditorWidget(Editor *e, Rectangle r)
     if (over) UiWantCursor(MOUSE_CURSOR_IBEAM);
 
     // Mouse: click to place the caret, drag or shift-click to select, double-click for a word.
+    // A click on a scroll bar is the bar's (it's handled when the bars are drawn, below).
     Vector2 m = GetMousePosition();
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    ScrollBars bars = MakeScrollBars(e, r, &L);
+    bool onBar = (bars.showVertical && UiMouseOver(bars.vertical)) || (bars.showHorizontal && UiMouseOver(bars.horizontal));
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !onBar) {
         if (over) {
             UiFocus(e);
             int pos = PosFromPoint(e, &L, m);
@@ -635,11 +671,7 @@ void EditorWidget(Editor *e, Rectangle r)
     lines = EditorLineCount(e);
 
     // Keep the caret visible after it moves, then clamp scrolling to the content.
-    int maxCols = 0;
-    for (int i = 0, col = 0; i <= e->len; i++) {
-        if (i == e->len || e->text[i] == '\n') { maxCols = Max(maxCols, col); col = 0; }
-        else col++;
-    }
+    int maxCols = LongestLine(e);
     if (e->revealCursor) {
         float cy = EditorLineOf(e, e->cursor) * L.lineH;
         float cx = EditorColOf(e, e->cursor) * L.charW;
@@ -730,4 +762,8 @@ void EditorWidget(Editor *e, Rectangle r)
         }
         EndScissorMode();
     }
+
+    bars = MakeScrollBars(e, r, &L);  // the text may have changed since the click handling
+    if (bars.showVertical) UiScrollBar(bars.vertical, &e->scrollY, bars.contentH, L.text.height);
+    if (bars.showHorizontal) UiScrollBar(bars.horizontal, &e->scrollX, bars.contentW, L.text.width);
 }

@@ -154,6 +154,7 @@ int SearchViewResults(SearchView *s, const LessonSet *set, Rectangle view, bool 
     }
     s->resultsHeight = (y - top) + 24;
     EndView();
+    PageScrollBar(view, &s->resultsScroll, s->resultsHeight);
     return clicked;
 }
 

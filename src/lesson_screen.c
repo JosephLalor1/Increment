@@ -25,6 +25,7 @@ static struct {
 
     int question;             // quiz: the current question
     QuizAttempt attempt;
+    bool codeOpened[MAX_QUESTIONS];  // coding questions already opened in the editor this attempt
     int lastPercent;          // result: the score just recorded
     FoxMilestone milestone;
     double celebrationStarted;
@@ -90,6 +91,7 @@ static void StartQuiz(void)
     const Lesson *lesson = CurrentLesson();
     reader.question = 0;
     QuizAttemptBegin(&reader.attempt, lesson);
+    memset(reader.codeOpened, 0, sizeof reader.codeOpened);
     reader.milestone = FOX_MILESTONE_NONE;
     MascotResetActor(FOX_QUIZ, FOX_THINKING);
     if (lesson->questionCount == 0) {
@@ -107,6 +109,36 @@ static void FinishQuiz(void)
     RecordCompletion(reader.lastPercent);
 }
 
+void LessonScreenQuizCodeResult(bool solved)
+{
+    if (reader.page != LESSON_PAGE_QUIZ || !solved) return;
+    if (QuizAttemptPick(&reader.attempt, reader.question, QUIZ_CODE_PASSED)) MascotReact(FOX_QUIZ, FOX_CORRECT);
+}
+
+// A synthetic answer for the demo pages: right for even questions, wrong for odd ones.
+static int DemoAnswer(const Question *q, int index)
+{
+    bool wrong = index % 2;
+    if (QuizIsCoding(q)) return wrong ? QUIZ_CODE_SKIPPED : QUIZ_CODE_PASSED;
+    return wrong && q->choiceCount > 1 ? (q->correct + 1) % q->choiceCount : q->correct;
+}
+
+int LessonScreenDemoCoding(bool solved)
+{
+    const Lesson *lesson = CurrentLesson();
+    for (int i = 0; i < lesson->questionCount; i++) {
+        if (!QuizIsCoding(&lesson->questions[i])) continue;
+        reader.question = i;
+        QuizAttemptBegin(&reader.attempt, lesson);
+        if (solved) {
+            QuizAttemptPick(&reader.attempt, i, QUIZ_CODE_PASSED);
+            MascotReact(FOX_QUIZ, FOX_CORRECT);
+        }
+        return i;
+    }
+    return -1;
+}
+
 void LessonScreenDemo(LessonPage page, float scroll, bool answered)
 {
     const Lesson *lesson = CurrentLesson();
@@ -116,14 +148,11 @@ void LessonScreenDemo(LessonPage page, float scroll, bool answered)
     QuizAttemptBegin(&reader.attempt, lesson);
     if (page == LESSON_PAGE_RESULT || page == LESSON_PAGE_REVIEW) {
         // Synthetic, unsaved demo: alternate right/wrong answers, with the last unanswered.
-        for (int i = 0; i < lesson->questionCount - 1; i++) {
-            const Question *q = &lesson->questions[i];
-            QuizAttemptPick(&reader.attempt, i, i % 2 && q->choiceCount > 1 ? (q->correct + 1) % q->choiceCount : q->correct);
-        }
+        for (int i = 0; i < lesson->questionCount - 1; i++) QuizAttemptPick(&reader.attempt, i, DemoAnswer(&lesson->questions[i], i));
         reader.lastPercent = QuizAttemptFinish(&reader.attempt);
     } else if (answered && page == LESSON_PAGE_QUIZ) {
         QuizAttemptPick(&reader.attempt, 0, 0);
-        MascotReact(FOX_QUIZ, lesson->questions[0].correct == 0 ? FOX_CORRECT : FOX_INCORRECT);
+        MascotReact(FOX_QUIZ, QuizAnswerCorrect(&lesson->questions[0], 0) ? FOX_CORRECT : FOX_INCORRECT);
     }
     if (page == LESSON_PAGE_CELEBRATION) {
         reader.milestone = answered ? FOX_MILESTONE_COURSE : FOX_MILESTONE_LESSON;
@@ -249,6 +278,21 @@ static void NotesButton(void)
     if (NotesPanelHasNotes()) DrawCircleV((Vector2){ button.x + button.width - 12, button.y + 10 }, 4, COL_ACCENT);
 }
 
+// "Speed round" under the quiz button: the optional timed challenge for gold mastery. Once
+// won it shows a gold star and says so. Returns true when pressed.
+static bool SpeedRoundButton(const Lesson *lesson, float x, float y, float w)
+{
+    bool gold = ProgressGold(lesson->id);
+    Rectangle button = { x, y, 340, 52 };
+    bool pressed = UiButtonIconEx(button, gold ? ICON_STAR : ICON_BOLT, gold ? "Speed round: gold" : "Speed round",
+                                  22, COL_PANEL, COL_SECONDARY_HOVER, gold ? COL_GOLD : COL_TEXT, true);
+    const char *note = gold ? "Mastered against the clock" : "Optional: 10 fast questions for gold";
+    if (button.width + 16 + UiTextWidth(gFonts.text, note, 18) <= w) {  // only beside it if there's room
+        UiText(gFonts.text, note, x + button.width + 16, y + 16, 18, gold ? COL_GOLD : COL_DIM);
+    }
+    return pressed;
+}
+
 static LessonAction ReadingPage(void)
 {
     const Lesson *lesson = CurrentLesson();
@@ -292,7 +336,10 @@ static LessonAction ReadingPage(void)
     Icon icon = lesson->questionCount ? ICON_PLAY : ICON_CHECK;
     bool enterKey = IsKeyPressed(KEY_ENTER) && !UiAnyFocus();  // Enter in the notes is a new line, not "start"
     if (UiButtonIcon((Rectangle){ x, y, 340, 52 }, icon, label, true) || enterKey) StartQuiz();
-    y += 52 + 48;
+    y += 52 + 16;
+    bool speedRound = lesson->speedSkills[0] && SpeedRoundButton(lesson, x, y, w);
+    if (lesson->speedSkills[0]) y += 52 + 16;
+    y += 32;
     if (reader.attempt.completed) {
         if (UiButtonIconEx((Rectangle){ x, y, 340, 48 }, ICON_BOOK, "Review Answers", 22,
                            COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) ShowPage(LESSON_PAGE_REVIEW);
@@ -301,9 +348,12 @@ static LessonAction ReadingPage(void)
 
     reader.contentHeight = y - top + 32;
     EndView();
+    PageScrollBar(view, &reader.scroll, reader.contentHeight);
     if (panelW > 0) NotesPanelDraw(panel);
 
-    if (tryExample) {
+    if (speedRound) {
+        action.kind = LESSON_SPEED_ROUND;
+    } else if (tryExample) {
         action.kind = LESSON_TRY_EXAMPLE;
         action.exampleCode = tryExample;
     } else if (openExercise >= 0) {
@@ -322,6 +372,56 @@ static float DrawChoice(const Question *q, int choice, bool answered, float x, f
                         bool *chosen)
 {
     return QuizViewChoice(q, choice, answered ? reader.attempt.answers[reader.question] : -1, x, y, w, scale, chosen);
+}
+
+// A heading above one of a coding question's code boxes ("Starter code", "Expected output").
+static float SmallHeading(const char *text, float x, float y, float scale)
+{
+    UiText(gFonts.bold, text, x, y, 18 * scale, COL_DIM);
+    return 30 * scale;
+}
+
+// A coding question on the quiz page: the task, its starter code and expected output and,
+// until it's answered, buttons to solve it in the code editor or skip it (which counts as
+// wrong). Sets *action to open the editor. Returns the height used.
+static float CodingQuestion(const Question *q, bool answered, float x, float y, float w, float scale,
+                            LessonAction *action)
+{
+    const Exercise *task = q->task;
+    float top = y;
+    UiIconText(ICON_CODE, gFonts.bold, "Coding question", x, y, 20 * scale, COL_ACCENT);
+    y += 36 * scale;
+    y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28 * scale, COL_TEXT, true) + 12;
+    if (!answered) {
+        y += UiWrappedText(gFonts.text, "Fix or finish the program in the code editor. It counts as correct as soon as "
+                           "its output matches the expected output.", (Vector2){ x, y }, w, 19 * scale, COL_DIM, true) + 20;
+    }
+    y += SmallHeading("Starter code", x, y, scale);
+    y += UiCodeBlock(task->starter, (Vector2){ x, y }, w, 20 * scale, true) + 16;
+    if (task->input) {
+        y += SmallHeading("Input", x, y, scale);
+        y += UiOutputBlock(task->input, (Vector2){ x, y }, w, 20 * scale, true) + 16;
+    }
+    y += SmallHeading("Expected output", x, y, scale);
+    y += UiOutputBlock(task->expected, (Vector2){ x, y }, w, 20 * scale, true) + 24;
+
+    if (!answered) {
+        bool opened = reader.codeOpened[reader.question];
+        if (UiButtonIcon((Rectangle){ x, y, 320, 52 }, ICON_CODE, opened ? "Continue in code editor" : "Open in code editor",
+                         true)) {
+            action->kind = LESSON_OPEN_QUIZ_CODE;
+            action->questionIndex = reader.question;
+            action->startFresh = !opened;
+            reader.codeOpened[reader.question] = true;
+        }
+        if (UiButtonIconEx((Rectangle){ x + 336, y, 220, 52 }, ICON_NEXT, "Skip question", 22, COL_PANEL,
+                           COL_SECONDARY_HOVER, COL_TEXT, true)
+            && QuizAttemptPick(&reader.attempt, reader.question, QUIZ_CODE_SKIPPED)) {
+            MascotReact(FOX_QUIZ, FOX_INCORRECT);
+        }
+        y += 52 + 12;
+    }
+    return y - top;
 }
 
 static LessonAction QuizPage(void)
@@ -350,29 +450,38 @@ static LessonAction QuizPage(void)
     ProgressBar((Rectangle){ x, y, w, 6 }, (float)reader.question / lesson->questionCount, COL_PANEL_HI, COL_ACCENT);
     y += 30;
 
-    y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28 * scale, COL_TEXT, true) + 16;
-    if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20 * scale, true) + 20;
-
     bool answered = reader.attempt.answers[reader.question] >= 0;
-    for (int i = 0; i < q->choiceCount; i++) {
-        bool chosen;
-        y += DrawChoice(q, i, answered, x, y, w, scale, &chosen) + 12;
-        if (chosen) {
-            if (QuizAttemptPick(&reader.attempt, reader.question, i))
-                MascotReact(FOX_QUIZ, i == q->correct ? FOX_CORRECT : FOX_INCORRECT);
-            answered = true;
+    if (QuizIsCoding(q)) {
+        y += CodingQuestion(q, answered, x, y, w, scale, &action);
+        answered = reader.attempt.answers[reader.question] >= 0;  // Skip may have just answered it
+    } else {
+        y += UiWrappedText(gFonts.text, q->prompt, (Vector2){ x, y }, w, 28 * scale, COL_TEXT, true) + 16;
+        if (q->code) y += UiCodeBlock(q->code, (Vector2){ x, y }, w, 20 * scale, true) + 20;
+        for (int i = 0; i < q->choiceCount; i++) {
+            bool chosen;
+            y += DrawChoice(q, i, answered, x, y, w, scale, &chosen) + 12;
+            if (chosen) {
+                if (QuizAttemptPick(&reader.attempt, reader.question, i))
+                    MascotReact(FOX_QUIZ, i == q->correct ? FOX_CORRECT : FOX_INCORRECT);
+                answered = true;
+            }
         }
     }
 
     if (answered) {  // feedback, the explanation, then on to the next question or the result
         y += 8;
-        bool right = reader.attempt.answers[reader.question] == q->correct;
+        bool right = QuizAnswerCorrect(q, reader.attempt.answers[reader.question]);
         UiIconText(right ? ICON_CHECK : ICON_CROSS, gFonts.bold, right ? "Correct!" : "Not quite.", x, y, 26,
                    right ? COL_GOOD : COL_BAD);
         y += 40;
         y += MascotCompanionActor(FOX_QUIZ, x, y, w, 72, 18 * scale, FOX_THINKING,
                                   right ? "That's correct! Great job!" : "Every mistake helps you learn!") + 14;
         if (q->explain) y += UiWrappedText(gFonts.text, q->explain, (Vector2){ x, y }, w, 21 * scale, COL_TEXT, true) + 16;
+        if (QuizIsCoding(q) && q->task->solution) {  // one way to solve it, to compare with their own
+            UiText(gFonts.bold, right ? "One way to write it" : "A working solution", x, y, 18 * scale, COL_DIM);
+            y += 30 * scale;
+            y += UiCodeBlock(q->task->solution, (Vector2){ x, y }, w, 20 * scale, true) + 20;
+        }
 
         bool lastQuestion = reader.question + 1 >= lesson->questionCount;
         bool next = UiButtonIcon((Rectangle){ x, y, 240, 50 }, lastQuestion ? ICON_TROPHY : ICON_NEXT,
@@ -390,6 +499,7 @@ static LessonAction QuizPage(void)
 
     reader.contentHeight = y - top + 64;
     EndView();
+    PageScrollBar(view, &reader.scroll, reader.contentHeight);
     return action;
 }
 
@@ -498,6 +608,7 @@ static LessonAction ReviewPage(void)
     }
     reader.contentHeight = y - top + 24;
     EndView();
+    PageScrollBar(view, &reader.scroll, reader.contentHeight);
     float footerY = GetScreenHeight() - 84.0f;
     DrawRectangle(0, (int)footerY, GetScreenWidth(), 84, COL_BG);
     float bw = (w - 20) / 2;
@@ -540,6 +651,7 @@ static LessonAction CelebrationPage(void)
                        (Vector2){ x, y }, w, 20 * scale, COL_DIM, true) + 24;
     reader.contentHeight = y - top + 24;
     EndView();
+    PageScrollBar(view, &reader.scroll, reader.contentHeight);
     float footer = GetScreenHeight() - 88.0f;
     float bw = (w - 24) / 3;
     if (UiButtonIconEx((Rectangle){ x, footer + 18, bw, 50 }, ICON_BACK, "Return to Roadmap", 18,

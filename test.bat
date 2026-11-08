@@ -53,6 +53,11 @@ if errorlevel 1 set FAILED=1
 if errorlevel 1 exit /b 1
 build\test_memory_model.exe
 if errorlevel 1 set FAILED=1
+rem Compiles a few hundred generated speed round questions with gcc and g++ to check their answers.
+"%CC%" %CFLAGS% tests\test_speed_round.c src\speed_round.c -o build\test_speed_round.exe
+if errorlevel 1 exit /b 1
+build\test_speed_round.exe "%RAYLIB_DIR%\w64devkit\bin"
+if errorlevel 1 set FAILED=1
 "%CC%" %CFLAGS% tests\test_bookmarks.c src\bookmarks.c -o build\test_bookmarks.exe
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_notes.c src\notes.c src\platform.c -o build\test_notes.exe %LIBS%

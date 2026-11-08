@@ -1,5 +1,6 @@
 @id c_13_pointer_to_pointer
 @track C
+@speed pointer_to_pointer pointers
 @title Pointers to Pointers
 
 A pointer is a variable, so it has an address too. A pointer to a pointer stores the address of another pointer. This is called double indirection.
@@ -203,3 +204,43 @@ printf("%d", x);
 * int **
 - int &
 ! To change a caller's int * you pass its address, which is an int **.
+
+?code pointAt should make main's ptr point at b, but *ptr is still 1 afterwards. Fix pointAt and the way it is called.
+@hint pointAt gets a copy of ptr, so changing p doesn't change main's ptr.
+@hint Pass &ptr, take an int **pp, and set *pp = target.
+```
+#include <stdio.h>
+
+void pointAt(int *p, int *target) {
+    p = target;
+}
+
+int main() {
+    int a = 1, b = 2;
+    int *ptr = &a;
+    pointAt(ptr, &b);
+    printf("*ptr = %d\n", *ptr);
+    return 0;
+}
+```
+@expect
+```
+*ptr = 2
+```
+@solution
+```
+#include <stdio.h>
+
+void pointAt(int **pp, int *target) {
+    *pp = target;
+}
+
+int main() {
+    int a = 1, b = 2;
+    int *ptr = &a;
+    pointAt(&ptr, &b);
+    printf("*ptr = %d\n", *ptr);
+    return 0;
+}
+```
+! To change a variable in the caller you pass its address, and that is still true when the variable is a pointer. With pp holding ptr's address, *pp = target changes ptr itself.

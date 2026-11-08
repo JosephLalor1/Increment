@@ -20,6 +20,14 @@ static bool SameQuestion(const Question *a, const Question *b)
     return true;
 }
 
+int PracticeLessonQuestions(const Lesson *lesson)
+{
+    int count = 0;
+    for (int q = 0; q < lesson->questionCount && q < MAX_QUESTIONS; q++)
+        if (!QuizIsCoding(&lesson->questions[q])) count++;
+    return count;
+}
+
 static bool Eligible(const PracticeSession *s, int lesson)
 {
     return s->selected && lesson >= 0 && lesson < s->lessons->count
@@ -40,6 +48,8 @@ static PracticeQuestion *BuildPool(const PracticeSession *s, int *count)
         const Lesson *lesson = &s->lessons->items[i];
         for (int q = 0; q < lesson->questionCount && q < MAX_QUESTIONS; q++) {
             const Question *question = &lesson->questions[q];
+            // Coding questions need the code editor, which only the lesson quiz opens.
+            if (QuizIsCoding(question)) continue;
             if (!question->prompt || question->choiceCount > MAX_CHOICES || !QuizChoiceValid(question, question->correct)) continue;
             bool duplicate = false;
             for (int j = 0; j < *count; j++) {
@@ -89,7 +99,7 @@ void PracticeSelect(PracticeSession *s, int lesson, bool selected)
 {
     if (!s->selected || lesson < 0 || lesson >= s->lessons->count) return;
     const Lesson *item = &s->lessons->items[lesson];
-    if (item->track != s->track || !item->questionCount) return;
+    if (item->track != s->track || !PracticeLessonQuestions(item)) return;
     s->selected[lesson] = selected;
     Refresh(s);
 }
@@ -97,7 +107,7 @@ void PracticeSelect(PracticeSession *s, int lesson, bool selected)
 void PracticeSelectAll(PracticeSession *s, bool selected)
 {
     for (int i = 0; i < s->lessons->count; i++)
-        if (s->selected) s->selected[i] = selected && s->lessons->items[i].track == s->track && s->lessons->items[i].questionCount > 0;
+        if (s->selected) s->selected[i] = selected && s->lessons->items[i].track == s->track && PracticeLessonQuestions(&s->lessons->items[i]) > 0;
     Refresh(s);
 }
 

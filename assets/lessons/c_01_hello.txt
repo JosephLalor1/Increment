@@ -94,3 +94,32 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 * while
 - Main
 ! while is a reserved keyword. C is case-sensitive, so Main is a different name from main.
+
+?code This program should print its two messages on two separate lines, but they come out joined together. Fix it.
+@hint printf only starts a new line where you ask it to.
+@hint The escape sequence for a new line is \n.
+```
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!");
+    printf("Welcome to C.\n");
+    return 0;
+}
+```
+@expect
+```
+Hello, World!
+Welcome to C.
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    printf("Welcome to C.\n");
+    return 0;
+}
+```
+! printf prints exactly the characters you give it. Without \n at the end of the first message, the second one carries on along the same line.

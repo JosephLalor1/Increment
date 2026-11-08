@@ -533,6 +533,9 @@ static int JourneyView(const LessonSet *set, float top)
     int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
     page.journeyHeight[track] += 8;
     EndView();
+    // Dragging the bar moves the journey directly, without the easing.
+    if (PageScrollBar(view, &page.journeyTarget[track], page.journeyHeight[track]) && UiScrollBarDragging())
+        page.journeyScroll[track] = page.journeyTarget[track];
     return clicked;
 }
 
@@ -548,6 +551,7 @@ static int StatisticsView(const LessonSet *set, float top)
                            &page.contentHeight);
     page.contentHeight += 24;
     EndView();
+    PageScrollBar(view, &page.scroll, page.contentHeight);
     return clicked;
 }
 

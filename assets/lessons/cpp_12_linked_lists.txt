@@ -432,3 +432,99 @@ InsertAtEnd(&head, 4);
 - To print it later
 - It doesn't need to
 ! Reading a deleted node is use-after-free.
+
+?code PrintList should print all three nodes, 10 20 30, but it stops before the last one. Fix the loop.
+@hint The last node's nextPtr is nullptr. What happens to it in the loop?
+@hint Keep going while current itself is not nullptr.
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node *nextPtr;
+};
+
+void InsertAtBeginning(Node **ptrToHeadPtr, int newData) {
+    Node *newNode = new Node;
+    newNode->data = newData;
+    newNode->nextPtr = *ptrToHeadPtr;
+    *ptrToHeadPtr = newNode;
+}
+
+void PrintList(Node *headPtr) {
+    Node *current = headPtr;
+    while (current->nextPtr != nullptr) {
+        cout << current->data << " ";
+        current = current->nextPtr;
+    }
+    cout << endl;
+}
+
+void FreeList(Node **ptrToHeadPtr) {
+    while (*ptrToHeadPtr != nullptr) {
+        Node *next = (*ptrToHeadPtr)->nextPtr;
+        delete *ptrToHeadPtr;
+        *ptrToHeadPtr = next;
+    }
+}
+
+int main() {
+    Node *headPtr = nullptr;
+    InsertAtBeginning(&headPtr, 30);
+    InsertAtBeginning(&headPtr, 20);
+    InsertAtBeginning(&headPtr, 10);
+    PrintList(headPtr);
+    FreeList(&headPtr);
+    return 0;
+}
+```
+@expect
+```
+10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node *nextPtr;
+};
+
+void InsertAtBeginning(Node **ptrToHeadPtr, int newData) {
+    Node *newNode = new Node;
+    newNode->data = newData;
+    newNode->nextPtr = *ptrToHeadPtr;
+    *ptrToHeadPtr = newNode;
+}
+
+void PrintList(Node *headPtr) {
+    Node *current = headPtr;
+    while (current != nullptr) {
+        cout << current->data << " ";
+        current = current->nextPtr;
+    }
+    cout << endl;
+}
+
+void FreeList(Node **ptrToHeadPtr) {
+    while (*ptrToHeadPtr != nullptr) {
+        Node *next = (*ptrToHeadPtr)->nextPtr;
+        delete *ptrToHeadPtr;
+        *ptrToHeadPtr = next;
+    }
+}
+
+int main() {
+    Node *headPtr = nullptr;
+    InsertAtBeginning(&headPtr, 30);
+    InsertAtBeginning(&headPtr, 20);
+    InsertAtBeginning(&headPtr, 10);
+    PrintList(headPtr);
+    FreeList(&headPtr);
+    return 0;
+}
+```
+! current->nextPtr != nullptr is false on the last node, so its data is never printed (and an empty list would crash, because current->nextPtr reads through a nullptr). Testing current != nullptr visits every node and handles the empty list.

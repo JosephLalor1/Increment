@@ -198,3 +198,52 @@ int main() {
 * Add 1 to it to reach the next function
 - Store it in a variable
 ! Arithmetic on function pointers is not allowed.
+
+?code The second line should print 10 - 4 = 6, but op still points at Add. Point op at Subtract before the second call, still calling through op.
+@hint A function's name, without brackets, is its address.
+@hint op = Subtract; makes op point at the other function.
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Subtract(int num1, int num2) {
+    return num1 - num2;
+}
+
+int main() {
+    int (*op)(int, int) = Add;
+    printf("10 + 4 = %d\n", op(10, 4));
+    // TODO: point op at Subtract
+    printf("10 - 4 = %d\n", op(10, 4));
+    return 0;
+}
+```
+@expect
+```
+10 + 4 = 14
+10 - 4 = 6
+```
+@solution
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Subtract(int num1, int num2) {
+    return num1 - num2;
+}
+
+int main() {
+    int (*op)(int, int) = Add;
+    printf("10 + 4 = %d\n", op(10, 4));
+    op = Subtract;
+    printf("10 - 4 = %d\n", op(10, 4));
+    return 0;
+}
+```
+! A function pointer is a variable like any other: assigning it a different function changes what op(10, 4) calls, without changing the call itself.

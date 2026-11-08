@@ -172,3 +172,50 @@ delete p;
 * x was not allocated with new, so it must not be deleted
 - delete needs square brackets
 ! Only memory from new can be deleted. x is freed automatically when it goes out of scope.
+
+?code After delete, p still holds the old address, so the program says it is dangling. Add the good habit from this lesson so p is safe to test.
+@hint delete frees the memory but doesn't change the pointer.
+@hint Set p to nullptr straight after deleting it.
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int *p = new int(42);
+    cout << "Value: " << *p << endl;
+    delete p;
+    // TODO: make p safe after the delete
+
+    if (p == nullptr) {
+        cout << "p is safe to test" << endl;
+    } else {
+        cout << "p is dangling" << endl;
+    }
+    return 0;
+}
+```
+@expect
+```
+Value: 42
+p is safe to test
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int *p = new int(42);
+    cout << "Value: " << *p << endl;
+    delete p;
+    p = nullptr;
+
+    if (p == nullptr) {
+        cout << "p is safe to test" << endl;
+    } else {
+        cout << "p is dangling" << endl;
+    }
+    return 0;
+}
+```
+! A deleted pointer still holds the address of memory you no longer own. Setting it to nullptr makes it testable, and a second delete of a nullptr does nothing instead of crashing.

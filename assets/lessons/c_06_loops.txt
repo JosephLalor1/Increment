@@ -1,5 +1,6 @@
 @id c_06_loops
 @track C
+@speed loops
 @title Loops: while, do-while and for
 
 Loops repeat a block of code. C has three: while, do-while and for.
@@ -258,3 +259,37 @@ for (int i = 10; i >= 1; i -= 3) {
 - 3
 - 4
 ! i takes 10, 7, 4, 1. The next value, -2, fails the condition.
+
+?code This loop should add up the numbers from 1 to 10 (which make 55), but it prints 45. Fix the loop.
+@hint Which number does the loop never add?
+@hint i < 10 stops before i reaches 10.
+```
+#include <stdio.h>
+
+int main() {
+    int sum = 0;
+    for (int i = 1; i < 10; i++) {
+        sum += i;
+    }
+    printf("Sum of 1 to 10 = %d\n", sum);
+    return 0;
+}
+```
+@expect
+```
+Sum of 1 to 10 = 55
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int sum = 0;
+    for (int i = 1; i <= 10; i++) {
+        sum += i;
+    }
+    printf("Sum of 1 to 10 = %d\n", sum);
+    return 0;
+}
+```
+! This is an off-by-one error. With i < 10 the loop stops after i = 9, so 10 is never added. i <= 10 includes it.

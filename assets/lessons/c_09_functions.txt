@@ -191,3 +191,48 @@ int main() {
 * 6
 - 123
 ! The inner call returns 3, then add(3, 3) returns 6.
+
+?code main uses a function max that returns the larger of its two arguments, but its body hasn't been written yet. Write it.
+@hint Compare a and b with an if, or with the ?: operator.
+@hint Return a if it is bigger than b, otherwise return b.
+```
+#include <stdio.h>
+
+int max(int a, int b);  // prototype: max is defined below main
+
+int main() {
+    printf("max(3, 9) = %d\n", max(3, 9));
+    printf("max(12, -4) = %d\n", max(12, -4));
+    return 0;
+}
+
+int max(int a, int b) {
+    // TODO: return the larger of a and b
+    return 0;
+}
+```
+@expect
+```
+max(3, 9) = 9
+max(12, -4) = 12
+```
+@solution
+```
+#include <stdio.h>
+
+int max(int a, int b);  // prototype: max is defined below main
+
+int main() {
+    printf("max(3, 9) = %d\n", max(3, 9));
+    printf("max(12, -4) = %d\n", max(12, -4));
+    return 0;
+}
+
+int max(int a, int b) {
+    if (a > b) {
+        return a;
+    }
+    return b;
+}
+```
+! The prototype lets main call max before its definition appears. The value after return is what the call max(3, 9) turns into in main.

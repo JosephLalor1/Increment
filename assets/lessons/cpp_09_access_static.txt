@@ -201,3 +201,59 @@ struct Point {
 - Public fields are not allowed in C++
 - Getters create a copy of the class
 ! Code outside can read the value but cannot change it directly.
+
+?code Point has a static count of how many points have been made, but it stays 0. Make the constructor add one to it.
+@hint There is one count shared by every Point, not one per object.
+@hint count++; in the constructor counts each new point.
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    static int count;  // shared by every Point
+    double x, y;
+    Point(double px, double py) {
+        x = px;
+        y = py;
+        // TODO: count this point
+    }
+};
+
+int Point::count = 0;
+
+int main() {
+    Point a(1, 2), b(3, 4), c(5, 6);
+    cout << "Points made: " << Point::count << endl;
+    return 0;
+}
+```
+@expect
+```
+Points made: 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    static int count;  // shared by every Point
+    double x, y;
+    Point(double px, double py) {
+        x = px;
+        y = py;
+        count++;
+    }
+};
+
+int Point::count = 0;
+
+int main() {
+    Point a(1, 2), b(3, 4), c(5, 6);
+    cout << "Points made: " << Point::count << endl;
+    return 0;
+}
+```
+! A static field belongs to the class, so all three constructors add to the same count, and main reads it with Point::count.

@@ -237,3 +237,53 @@ int main() {
 - The class itself
 - The first field of the class
 ! this->x reaches the current instance's field x.
+
+?code The constructor's parameters have the same names as the fields, so the point stays at (0, 0). Fix the constructor with the this pointer.
+@hint Inside the constructor, x means the parameter, not the field.
+@hint this->x is the field x of the object being constructed.
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0;
+    double y = 0;
+    Point(double x, double y) {
+        x = x;
+        y = y;
+    }
+};
+
+int main() {
+    Point p(1, 2);
+    cout << "(" << p.x << ", " << p.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(1, 2)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0;
+    double y = 0;
+    Point(double x, double y) {
+        this->x = x;
+        this->y = y;
+    }
+};
+
+int main() {
+    Point p(1, 2);
+    cout << "(" << p.x << ", " << p.y << ")" << endl;
+    return 0;
+}
+```
+! A parameter hides a field with the same name, so x = x just assigns the parameter to itself. this points at the object being built, so this->x reaches the field. (An initialisation list, : x(x), y(y), would also work.)

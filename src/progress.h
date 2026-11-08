@@ -8,6 +8,7 @@
 // Two kinds of id are stored:
 //   <lesson id>               best quiz score for the lesson (0-100)
 //   <lesson id>#<n>           100 once exercise n (1-based) has been passed
+//   <lesson id>!gold          100 once the lesson's speed round has been won (gold mastery)
 // Only this module builds those ids; everyone else asks with the functions below.
 
 #define PASS_PERCENT 70  // a lesson counts as complete at this quiz score or above
@@ -22,5 +23,8 @@ void ProgressRecord(const char *lessonId, int percent);  // keeps the best score
 
 bool ProgressExerciseDone(const char *lessonId, int exerciseIndex);  // zero-based index
 void ProgressRecordExercise(const char *lessonId, int exerciseIndex); // marks it passed and saves
+
+bool ProgressGold(const char *lessonId);        // the lesson's speed round has been won
+void ProgressRecordGold(const char *lessonId);  // marks gold mastery and saves
 
 #endif

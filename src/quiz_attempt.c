@@ -1,13 +1,22 @@
+// Answers to one lesson's quiz, and the rules for marking an answer, shared with practice
+// sessions. No drawing and no saving.
 #include "quiz_attempt.h"
 
 #include <string.h>
 
+bool QuizIsCoding(const Question *q) { return q && q->task; }
+
 bool QuizChoiceValid(const Question *q, int choice)
 {
+    if (QuizIsCoding(q)) return choice == QUIZ_CODE_PASSED || choice == QUIZ_CODE_SKIPPED;
     return q && choice >= 0 && choice < q->choiceCount && choice < MAX_CHOICES && q->choices[choice];
 }
 
-bool QuizAnswerCorrect(const Question *q, int choice) { return QuizChoiceValid(q, choice) && choice == q->correct; }
+bool QuizAnswerCorrect(const Question *q, int choice)
+{
+    if (QuizIsCoding(q)) return choice == QUIZ_CODE_PASSED;
+    return QuizChoiceValid(q, choice) && choice == q->correct;
+}
 
 void QuizQuestionReview(const Question *q, int choice, QuizReviewItem *item)
 {
@@ -15,10 +24,17 @@ void QuizQuestionReview(const Question *q, int choice, QuizReviewItem *item)
     if (!q) return;
     item->question = q;
     item->answered = QuizChoiceValid(q, choice);
-    item->selectedAnswer = item->answered ? q->choices[choice] : NULL;
-    item->correctAnswer = QuizChoiceValid(q, q->correct) ? q->choices[q->correct] : NULL;
     item->correct = QuizAnswerCorrect(q, choice);
     item->explanation = q->explain && q->explain[0] ? q->explain : NULL;
+    if (QuizIsCoding(q)) {  // the "answer" is whether the program passed
+        item->task = q->task;
+        item->selectedAnswer = !item->answered ? NULL
+                             : item->correct ? "Your program printed the expected output." : "Skipped";
+        item->correctAnswer = "A program that prints the expected output";
+        return;
+    }
+    item->selectedAnswer = item->answered ? q->choices[choice] : NULL;
+    item->correctAnswer = QuizChoiceValid(q, q->correct) ? q->choices[q->correct] : NULL;
 }
 
 void QuizAttemptBegin(QuizAttempt *attempt, const Lesson *lesson)

@@ -16,6 +16,9 @@ Rectangle ScrollView(void); // the area below the top bar
 // Wheel/keyboard scrolling clamped to contentH (measured on the previous frame).
 // Keys are ignored while a text box has focus.
 void UpdateScroll(float *scroll, float contentH, float viewH);
+// The scroll bar for a page scrolled with UpdateScroll, along the right edge of view (drag
+// it, or click its track to jump). Call after EndView, so it's drawn over the page.
+bool PageScrollBar(Rectangle view, float *scroll, float contentH);  // true while hovered or dragged
 void BeginView(Rectangle v); // clip drawing and hit-testing to v
 void EndView(void);
 

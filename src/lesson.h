@@ -24,15 +24,6 @@ typedef struct {
     char *text;
 } Block;
 
-typedef struct {
-    char *prompt;
-    char *code;      // optional snippet shown under the prompt, may be NULL
-    char *choices[MAX_CHOICES];
-    int choiceCount;
-    int correct;     // index into choices
-    char *explain;   // optional, may be NULL
-} Question;
-
 // A coding exercise, done in the code editor. The learner's program passes when its
 // output matches `expected` for the given `input`.
 typedef struct {
@@ -46,11 +37,24 @@ typedef struct {
     int hintCount;
 } Exercise;
 
+// A quiz question: either multiple choice, or (when task is set) a coding question that
+// is solved in the code editor and counts as correct once the program's output matches.
+typedef struct {
+    char *prompt;
+    char *code;      // optional snippet shown under the prompt, may be NULL
+    char *choices[MAX_CHOICES];
+    int choiceCount;
+    int correct;     // index into choices (multiple choice only)
+    char *explain;   // optional, may be NULL
+    Exercise *task;  // a "?code" question's program to fix or finish; NULL for multiple choice
+} Question;
+
 typedef struct {
     char id[32];
     char title[96];
     Track track;
     bool practice;   // "@kind practice": exam/lab practice rather than new material
+    char speedSkills[96];  // "@speed pointers ...": the skills its speed round tests (speed_round.h); "" for none
     Block blocks[MAX_BLOCKS];
     int blockCount;
     Question questions[MAX_QUESTIONS];

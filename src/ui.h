@@ -13,6 +13,7 @@ typedef struct {
     Color secondaryHover;             // hover fill for neutral buttons, tinted by the accent
     Color brand;                      // logo tile: the deep variant of the accent in both themes
     Color good, goodBg, bad, badBg, codeBg, noteBg;
+    Color gold;                       // gold mastery (speed rounds)
     Color synDefault, synKeyword, synType, synString, synNumber, synComment, synPreproc;
 } UiTheme;
 
@@ -34,6 +35,7 @@ extern UiTheme gTheme;
 #define COL_BAD_BG    (gTheme.badBg)
 #define COL_CODE_BG   (gTheme.codeBg)
 #define COL_NOTE_BG   (gTheme.noteBg)
+#define COL_GOLD      (gTheme.gold)
 
 #define UI_ACCENT_COUNT 5
 
@@ -70,6 +72,15 @@ void UiWantCursor(int cursor); // request any MOUSE_CURSOR_* this frame
 void UiSetClip(Rectangle r);
 void UiClearClip(void);
 bool UiMouseOver(Rectangle r);
+
+// A scroll bar along track: vertical when the track is taller than it is wide, otherwise
+// horizontal. viewLen of contentLen is visible and *scroll is the offset into it (0 to
+// contentLen - viewLen). Drag the thumb, or click the track to jump there (and keep
+// dragging). Draws nothing when everything fits. Call it after drawing the content it
+// scrolls, so it sits on top. Returns true while the mouse is over it or dragging it, so the
+// caller can leave that click alone.
+bool UiScrollBar(Rectangle track, float *scroll, float contentLen, float viewLen);
+bool UiScrollBarDragging(void);  // some scroll bar's thumb is held down
 bool UiClicked(Rectangle r);
 
 float UiSpacing(Font f, float size);

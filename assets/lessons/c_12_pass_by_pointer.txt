@@ -1,5 +1,6 @@
 @id c_12_pass_by_pointer
 @track C
+@speed pass_by_pointer pointers
 @title Pass by Pointer
 
 In the Functions lesson you saw that C passes ordinary variables by value: the function gets a copy, so it cannot change the caller's variable. Pointers solve this. If you pass the address of a variable, the function can reach the original through it.
@@ -252,3 +253,45 @@ int main() {
 - (*p)++ moves the pointer; *p++ increments the value
 - Both are compile errors
 ! ++ binds tighter than *, so *p++ increments p, not *p.
+
+?code swap_ints should swap the caller's two variables, but x and y come out unchanged. Fix the function.
+@hint The function swaps a and b, its own copies of the addresses. What should be swapped instead?
+@hint Use *a and *b, and make temp an int.
+```
+#include <stdio.h>
+
+void swap_ints(int *a, int *b) {
+    int *temp = a;
+    a = b;
+    b = temp;
+}
+
+int main() {
+    int x = 3, y = 7;
+    swap_ints(&x, &y);
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+@expect
+```
+x = 7, y = 3
+```
+@solution
+```
+#include <stdio.h>
+
+void swap_ints(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int main() {
+    int x = 3, y = 7;
+    swap_ints(&x, &y);
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+! The pointers themselves are passed by value, so swapping a and b only swaps the function's copies. Swapping *a and *b changes the ints they point at, which are main's x and y.

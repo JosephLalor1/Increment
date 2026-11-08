@@ -21,6 +21,7 @@ static const UiTheme darkBase = {
     .good = { 90, 200, 130, 255 },    .goodBg = { 34, 70, 52, 255 },
     .bad = { 235, 95, 95, 255 },      .badBg = { 82, 36, 40, 255 },
     .codeBg = { 16, 17, 22, 255 },    .noteBg = { 38, 45, 64, 255 },
+    .gold = { 245, 196, 66, 255 },
     .synDefault = { 220, 223, 228, 255 }, .synKeyword = { 198, 120, 221, 255 }, .synType = { 86, 182, 194, 255 },
     .synString = { 152, 195, 121, 255 },  .synNumber = { 209, 154, 102, 255 },  .synComment = { 110, 118, 135, 255 },
     .synPreproc = { 224, 108, 117, 255 },
@@ -33,6 +34,7 @@ static const UiTheme lightBase = {
     .good = { 22, 140, 70, 255 },     .goodBg = { 214, 245, 225, 255 },
     .bad = { 205, 40, 40, 255 },      .badBg = { 252, 224, 224, 255 },
     .codeBg = { 235, 237, 243, 255 }, .noteBg = { 226, 236, 252, 255 },
+    .gold = { 190, 132, 0, 255 },
     .synDefault = { 40, 44, 52, 255 },    .synKeyword = { 166, 38, 164, 255 },  .synType = { 1, 122, 170, 255 },
     .synString = { 60, 130, 60, 255 },    .synNumber = { 152, 94, 1, 255 },     .synComment = { 140, 142, 150, 255 },
     .synPreproc = { 200, 70, 60, 255 },
@@ -172,17 +174,78 @@ void UiWantCursor(int cursor) { wantedCursor = cursor; }
 void UiSetClip(Rectangle r) { clipRect = r; clipOn = true; }
 void UiClearClip(void) { clipOn = false; }
 
-bool UiMouseOver(Rectangle r)
+static const float *scrollBarDragged;  // the scroll value whose thumb is being dragged, or NULL
+static float scrollBarGrab;            // where on the thumb it was grabbed, from its start
+
+// Whether the mouse is over r, inside the current clip, even during a scroll bar drag.
+static bool MouseOverAnyway(Rectangle r)
 {
     Vector2 m = GetMousePosition();
     if (clipOn && !CheckCollisionPointRec(m, clipRect)) return false;
     return CheckCollisionPointRec(m, r);
 }
 
+// While a scroll bar's thumb is held, nothing else is under the mouse: no hover effects,
+// and letting go over a button doesn't click it.
+bool UiMouseOver(Rectangle r) { return !scrollBarDragged && MouseOverAnyway(r); }
+
 bool UiClicked(Rectangle r)
 {
     return UiMouseOver(r) && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
+
+// ---------------------------------------------------------------------------
+// Scroll bars
+
+bool UiScrollBar(Rectangle track, float *scroll, float contentLen, float viewLen)
+{
+    bool vertical = track.height >= track.width;
+    float trackLen = vertical ? track.height : track.width;
+    float maxScroll = contentLen - viewLen;
+    if (maxScroll <= 0.5f || trackLen <= 0) {
+        if (scrollBarDragged == scroll) scrollBarDragged = NULL;
+        return false;  // everything fits: no bar
+    }
+    float thumbLen = fmaxf(36, trackLen * viewLen / contentLen);
+    if (thumbLen > trackLen) thumbLen = trackLen;
+    float travel = trackLen - thumbLen;
+    float start = vertical ? track.y : track.x;
+    Vector2 m = GetMousePosition();
+    float mouse = vertical ? m.y : m.x;
+
+    // Grab the thumb, or click elsewhere on the track to jump there and keep dragging.
+    bool over = MouseOverAnyway(track);
+    float thumbAt = start + travel * fminf(1, fmaxf(0, *scroll / maxScroll));
+    if (over && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        bool onThumb = mouse >= thumbAt && mouse <= thumbAt + thumbLen;
+        scrollBarGrab = onThumb ? mouse - thumbAt : thumbLen / 2;
+        scrollBarDragged = scroll;
+    }
+    bool dragging = scrollBarDragged == scroll;
+    if (dragging && !IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {  // let go
+        dragging = false;
+        scrollBarDragged = NULL;
+    }
+    if (dragging) {
+        float t = travel > 0 ? (mouse - scrollBarGrab - start) / travel : 0;
+        *scroll = maxScroll * fminf(1, fmaxf(0, t));
+        thumbAt = start + travel * (*scroll / maxScroll);
+    }
+
+    // A slim thumb that widens, with a faint track behind it, while hovered or dragged.
+    bool active = over || dragging;
+    if (active) UiWantHand();
+    float thickness = vertical ? track.width : track.height;
+    float thumbThick = active ? thickness - 2 : thickness * 0.5f;
+    if (active) UiRoundRect(track, thickness / 2, Fade(COL_PANEL_HI, 0.6f));
+    Rectangle thumb = vertical ? (Rectangle){ track.x + (thickness - thumbThick) / 2, thumbAt, thumbThick, thumbLen }
+                               : (Rectangle){ thumbAt, track.y + (thickness - thumbThick) / 2, thumbLen, thumbThick };
+    Color color = dragging ? COL_ACCENT : Fade(COL_DIM, active ? 0.75f : 0.45f);
+    UiRoundRect(thumb, thumbThick / 2, color);
+    return active;
+}
+
+bool UiScrollBarDragging(void) { return scrollBarDragged != NULL; }
 
 float UiSpacing(Font f, float size)
 {

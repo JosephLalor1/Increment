@@ -137,3 +137,41 @@ printf("%s", w);
 - '\0' is a newline
 - '0' ends a string
 ! Only the character with value 0 terminates a string.
+
+?code This loop should replace every 'a' in the string with '*', but it stops partway through. Make it go all the way to the end of the string.
+@hint The loop always stops at 5, whatever the string's length.
+@hint Keep going until text[i] is the null terminator, '\0'.
+```
+#include <stdio.h>
+
+int main() {
+    char text[] = "banana bandana";
+    for (int i = 0; i < 5; i++) {
+        if (text[i] == 'a') {
+            text[i] = '*';
+        }
+    }
+    printf("%s\n", text);
+    return 0;
+}
+```
+@expect
+```
+b*n*n* b*nd*n*
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char text[] = "banana bandana";
+    for (int i = 0; text[i] != '\0'; i++) {
+        if (text[i] == 'a') {
+            text[i] = '*';
+        }
+    }
+    printf("%s\n", text);
+    return 0;
+}
+```
+! A C string ends at its null terminator, so text[i] != '\0' visits every character whatever the length. (strlen(text) from <string.h> would work as well.)

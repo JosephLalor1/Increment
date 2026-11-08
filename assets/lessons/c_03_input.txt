@@ -115,3 +115,39 @@ int ok = scanf("%d", &n);
 * Use scanf_s, or define _CRT_SECURE_NO_WARNINGS at the top of the file
 - Put the scanf call inside main twice
 ! Visual Studio wants the safer scanf_s, or you can turn the warning off with _CRT_SECURE_NO_WARNINGS.
+
+?code This program should read two numbers and add them, but it crashes. Find the mistake in the scanf call and fix it.
+@hint Look at what scanf is given for each %d.
+@hint scanf needs the address of every variable it fills in.
+```
+#include <stdio.h>
+
+int main() {
+    int a, b;
+    printf("Enter two numbers: ");
+    scanf("%d %d", &a, b);
+    printf("%d + %d = %d\n", a, b, a + b);
+    return 0;
+}
+```
+@input
+```
+7 4
+```
+@expect
+```
+Enter two numbers: 7 + 4 = 11
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int a, b;
+    printf("Enter two numbers: ");
+    scanf("%d %d", &a, &b);
+    printf("%d + %d = %d\n", a, b, a + b);
+    return 0;
+}
+```
+! scanf stores what it reads at an address, so every variable needs its &. Without it, scanf takes b's garbage value as an address and writes somewhere it shouldn't. (The numbers typed in don't appear in the output, because they're input, not something the program prints.)

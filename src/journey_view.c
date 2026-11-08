@@ -123,6 +123,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         Vector2 center = Station(x, stationY, width, ordinal);
         float step = StationStep(lesson, scale), radius = 43 * scale;
         bool passed = ProgressLessonPassed(lesson->id), current = i == next;
+        bool gold = ProgressGold(lesson->id);  // won the lesson's speed round
         Rectangle hit = { center.x - radius - 8, center.y - radius - 12, radius * 2 + 16, radius * 2 + 24 };
         float titleY = center.y + radius + 18;
         float titleH = UiWrappedText(gFonts.text, lesson->title, (Vector2){ 0, 0 }, 264, 20 * scale, COL_TEXT, false);
@@ -148,6 +149,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         DrawCircleV((Vector2){ center.x, center.y + 6 }, radius, passed ? ColorBrightness(COL_GOOD, -0.25f)
                                                                          : current ? ColorBrightness(currentColor, -0.25f) : COL_PANEL);
         DrawCircleV(face, radius, ColorBrightness(fill, 0.08f * hover));
+        if (gold) DrawRing(face, radius + 3, radius + 8, 0, 360, 64, COL_GOLD);
         DrawCircleV((Vector2){ face.x - radius * 0.2f, face.y - radius * 0.35f }, radius * 0.48f, Fade(WHITE, passed || current ? 0.09f : 0.025f));
         IconDraw(passed ? ICON_CHECK : lesson->practice ? ICON_TARGET : current ? ICON_PLAY : ICON_CODE,
                  (Vector2){ face.x, face.y - (current ? 9 : 0) }, 32 * scale, ink);
@@ -164,8 +166,9 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         if (UiTextWidth(gFonts.text, lesson->title, 20 * scale) <= 264)
             UiTextCentered(gFonts.text, lesson->title, center.x, titleY, 20 * scale, COL_TEXT);
         else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale, COL_TEXT, true);
-        UiTextCentered(gFonts.text, passed ? "COMPLETED" : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME",
-                       center.x, titleY + titleH + 6, 12 * scale, passed ? COL_GOOD : current ? currentColor : COL_DIM);
+        const char *status = gold ? "GOLD MASTERY" : passed ? "COMPLETED" : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME";
+        UiTextCentered(gFonts.text, status, center.x, titleY + titleH + 6, 12 * scale,
+                       gold ? COL_GOLD : passed ? COL_GOOD : current ? currentColor : COL_DIM);
         if (current && MascotAvailable()) Guide(center, x, width, scale, done, total);
         if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) selected = i;
 

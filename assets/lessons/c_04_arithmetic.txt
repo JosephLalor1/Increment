@@ -1,5 +1,6 @@
 @id c_04_arithmetic
 @track C
+@speed arithmetic
 @title Arithmetic and Type Conversion
 
 C has the usual arithmetic operators: + - * / and % (remainder). The type of the values matters a great deal, especially for division.
@@ -175,3 +176,33 @@ printf("%.1f", f);
 - n % 2 == 1
 - n * 2 == 0
 ! An even number divides by 2 with no remainder.
+
+?code The average of 7 and 8 is 7.5, but this program prints 7.00. Fix the calculation.
+@hint What type is (a + b) / 2 when a and b are both ints?
+@hint Make one side of the division a double, for example 2.0 instead of 2.
+```
+#include <stdio.h>
+
+int main() {
+    int a = 7, b = 8;
+    double average = (a + b) / 2;
+    printf("Average: %.2f\n", average);
+    return 0;
+}
+```
+@expect
+```
+Average: 7.50
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int a = 7, b = 8;
+    double average = (a + b) / 2.0;
+    printf("Average: %.2f\n", average);
+    return 0;
+}
+```
+! 15 / 2 is integer division, so it truncates to 7 before the result is stored in the double. Dividing by 2.0 (or casting with (double)) makes it a floating-point division that keeps the .5.

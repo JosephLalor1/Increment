@@ -13,6 +13,7 @@
 #include "notes_panel.h"
 #include "lesson_screen.h"
 #include "progress.h"
+#include "speed_screen.h"
 #include "ui.h"
 
 #include "raylib.h"
@@ -39,7 +40,7 @@ static SearchFilter ShotSearchFilter(void)
     return SEARCH_BOTH;
 }
 
-// Opens the code editor for the editor, exercise and tryit shots. Returns false when that
+// Opens the code editor for the editor, exercise, quiztask and tryit shots. Returns false when that
 // isn't possible (signed out, or no such exercise or example).
 static bool PrepareCodeShot(const char *name, const LessonSet *lessons, int lessonIndex, int exerciseNumber)
 {
@@ -58,6 +59,14 @@ static bool PrepareCodeShot(const char *name, const LessonSet *lessons, int less
         const char *hints = getenv("INCREMENT_SHOT_HINTS");
         if (hints) CodeHintsDemo(atoi(hints));
         return true;
+    }
+    if (Is(name, "quiztask")) {  // the lesson's first quiz coding question
+        for (int q = 0; q < lesson->questionCount; q++) {
+            if (!lesson->questions[q].task) continue;
+            CodeOpenQuizQuestion(lesson, q, true);
+            return true;
+        }
+        return false;
     }
     for (int b = 0; b < lesson->blockCount; b++) {  // tryit: the lesson's first runnable example
         if (lesson->blocks[b].type == BLOCK_CODE && strstr(lesson->blocks[b].text, "main(")) {
@@ -81,6 +90,17 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                            Is(name, "practice-question") ? 1 : Is(name, "practice-results") ? 2 : Is(name, "practice-review") ? 3 : 0);
         return SCREEN_PRACTICE;
     }
+    // speed: a lesson's speed round intro; speedready: the count-in; speedplay <index> <ms>:
+    // question 7, ms into its 5 seconds; speedfail: the explained failure; speedgold: gold.
+    if (Is(name, "speed") || Is(name, "speedready") || Is(name, "speedplay") || Is(name, "speedfail")
+        || Is(name, "speedgold")) {
+        if (lessons->count == 0 || !lessons->items[lessonIndex].speedSkills[0]) return Home();
+        SpeedScreenOpen(&lessons->items[lessonIndex]);
+        int stage = Is(name, "speedready") ? 1 : Is(name, "speedplay") ? 2 : Is(name, "speedfail") ? 3
+                  : Is(name, "speedgold") ? 4 : 0;
+        SpeedScreenDemo(stage, extra ? (float)atof(extra) : 0);
+        return SCREEN_SPEED;
+    }
     if (Is(name, "courses")) {
         CoursesScreenOpen(lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
         return SCREEN_COURSES;
@@ -101,7 +121,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         SettingsOpen();
         return SCREEN_SETTINGS;
     }
-    if (Is(name, "editor") || Is(name, "exercise") || Is(name, "tryit")) {
+    if (Is(name, "editor") || Is(name, "exercise") || Is(name, "tryit") || Is(name, "quiztask")) {
         if (!PrepareCodeShot(name, lessons, lessonIndex, extra ? atoi(extra) : 1)) return Home();
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (runFirst && runFirst[0] == '1') CodeRunNow();
@@ -125,7 +145,8 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
     // The rest show lesson content, so they need lessons.
     if (lessons->count == 0) return Home();
     LessonPage page = Is(name, "lesson") || Is(name, "notes")    ? LESSON_PAGE_READING
-                    : Is(name, "quiz") || Is(name, "answered")   ? LESSON_PAGE_QUIZ
+                    : Is(name, "quiz") || Is(name, "answered")
+                      || Is(name, "quizcode") || Is(name, "quizsolved")  ? LESSON_PAGE_QUIZ
                     : Is(name, "result")                         ? LESSON_PAGE_RESULT
                     : Is(name, "review")                         ? LESSON_PAGE_REVIEW
                     : Is(name, "celebration") || Is(name, "graduation") ? LESSON_PAGE_CELEBRATION
@@ -142,6 +163,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         MemoryViewDemo(atoi(diagram) - 1, comma ? atoi(comma + 1) : -1);
     }
     LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
+    // quizcode / quizsolved: the quiz at its coding question, before and after it's solved.
+    if (Is(name, "quizcode") || Is(name, "quizsolved")) {
+        if (LessonScreenDemoCoding(Is(name, "quizsolved")) < 0) return Home();
+        shot->framesLeft = 24;
+    }
     if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
     return SCREEN_LESSON;
 }

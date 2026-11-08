@@ -1,5 +1,6 @@
 @id c_14_pointer_arithmetic
 @track C
+@speed pointer_arithmetic arrays
 @title Pointer Arithmetic and Arrays
 
 You can add to and subtract from a pointer to move it through memory:
@@ -226,3 +227,47 @@ printf("%d", *p);
 - 15
 - 20
 ! a + 3 is a[3]; moving back 2 lands on a[1].
+
+?code sum should add all five values (making 15), but it prints 10. Fix the function.
+@hint Which element does the loop leave out?
+@hint ptr + numValues is already one past the last element, and the loop stops before it.
+```
+#include <stdio.h>
+
+int sum(int *ptr, int numValues) {
+    int total = 0;
+    for (int *end = ptr + numValues - 1; ptr < end; ptr++) {
+        total += *ptr;
+    }
+    return total;
+}
+
+int main() {
+    int values[] = { 1, 2, 3, 4, 5 };
+    printf("Sum = %d\n", sum(values, 5));
+    return 0;
+}
+```
+@expect
+```
+Sum = 15
+```
+@solution
+```
+#include <stdio.h>
+
+int sum(int *ptr, int numValues) {
+    int total = 0;
+    for (int *end = ptr + numValues; ptr < end; ptr++) {
+        total += *ptr;
+    }
+    return total;
+}
+
+int main() {
+    int values[] = { 1, 2, 3, 4, 5 };
+    printf("Sum = %d\n", sum(values, 5));
+    return 0;
+}
+```
+! ptr + numValues points one past the last element, and ptr < end stops just before it. Subtracting 1 as well stops one element early, so the 5 is never added.

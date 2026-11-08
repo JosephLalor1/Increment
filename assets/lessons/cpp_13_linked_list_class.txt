@@ -463,3 +463,107 @@ a.printList();
 * 4
 - 6
 ! The new node's prev and next, A's next and B's prev.
+
+?code Write the size method so it counts the nodes in the list.
+@hint Walk from head to nullptr, as the other methods do.
+@hint Keep a count, add one for each node, and return it.
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node *next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node *head;
+
+public:
+    LinkedList() { head = nullptr; }
+    ~LinkedList() {
+        while (head != nullptr) {
+            Node *next = head->next;
+            delete head;
+            head = next;
+        }
+    }
+    void insertAtBeginning(int value) {
+        Node *node = new Node(value);
+        node->next = head;
+        head = node;
+    }
+    int size() const {
+        // TODO: count the nodes
+        return 0;
+    }
+};
+
+int main() {
+    LinkedList list;
+    cout << "Empty: " << list.size() << endl;
+    list.insertAtBeginning(3);
+    list.insertAtBeginning(2);
+    list.insertAtBeginning(1);
+    cout << "After 3 inserts: " << list.size() << endl;
+    return 0;
+}
+```
+@expect
+```
+Empty: 0
+After 3 inserts: 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node *next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node *head;
+
+public:
+    LinkedList() { head = nullptr; }
+    ~LinkedList() {
+        while (head != nullptr) {
+            Node *next = head->next;
+            delete head;
+            head = next;
+        }
+    }
+    void insertAtBeginning(int value) {
+        Node *node = new Node(value);
+        node->next = head;
+        head = node;
+    }
+    int size() const {
+        int count = 0;
+        for (Node *cur = head; cur != nullptr; cur = cur->next) {
+            count++;
+        }
+        return count;
+    }
+};
+
+int main() {
+    LinkedList list;
+    cout << "Empty: " << list.size() << endl;
+    list.insertAtBeginning(3);
+    list.insertAtBeginning(2);
+    list.insertAtBeginning(1);
+    cout << "After 3 inserts: " << list.size() << endl;
+    return 0;
+}
+```
+! head is private, so only a method like size can walk the nodes. Counting until cur is nullptr works for the empty list too, where the loop never runs.

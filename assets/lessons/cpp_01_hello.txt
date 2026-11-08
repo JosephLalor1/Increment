@@ -134,3 +134,48 @@ cout << d;
 - cpp
 - c++compile
 ! g++ is the GNU C++ compiler.
+
+?code The program should read a name and an age, but it never reads the age, so it always says 1. Add the missing input.
+@hint cin >> reads one value each time you use >>.
+@hint You can chain them: cin >> name >> age;
+```
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    string name;
+    int age = 0;
+    cout << "Name and age: ";
+    cin >> name;
+    // TODO: read age as well
+    cout << "Hi " << name << ", next year you will be "
+         << age + 1 << endl;
+    return 0;
+}
+```
+@input
+```
+Ada 36
+```
+@expect
+```
+Name and age: Hi Ada, next year you will be 37
+```
+@solution
+```
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    string name;
+    int age = 0;
+    cout << "Name and age: ";
+    cin >> name >> age;
+    cout << "Hi " << name << ", next year you will be "
+         << age + 1 << endl;
+    return 0;
+}
+```
+! Each >> reads the next value from the input into a variable of the right type: the word into the string, then the number into the int. (The prompt "Name and age: " is printed on the same line, so the output starts with it.)

@@ -42,6 +42,13 @@ static Rectangle Body(float top, float footer)
     return view;
 }
 
+// Ends a page started with Body, adding its scroll bar.
+static void EndBody(Rectangle view)
+{
+    EndView();
+    PageScrollBar(view, &practice.scroll, practice.height);
+}
+
 static bool Start(void)
 {
     if (!PracticeStart(&practice.session, (uint32_t)GetRandomValue(1, 0x7fffffff))) {
@@ -88,7 +95,8 @@ static PracticeAction Setup(void)
         shown++;
         float titleH = UiWrappedText(gFonts.text, lesson->title, (Vector2){ 0, 0 }, w - 90, 22 * UiTextScale(), COL_TEXT, false);
         Rectangle row = { x, y, w, titleH + 50 };
-        bool enabled = lesson->questionCount > 0 && s->selected;
+        int questions = PracticeLessonQuestions(lesson);
+        bool enabled = questions > 0 && s->selected;
         bool over = enabled && UiMouseOver(row);
         bool selected = s->selected && s->selected[i];
         if (over) UiWantHand();
@@ -96,14 +104,14 @@ static PracticeAction Setup(void)
         UiRoundRect((Rectangle){ x + 18, y + 18, 28, 28 }, 6, selected ? COL_ACCENT : COL_BG);
         if (selected) IconDraw(ICON_CHECK, (Vector2){ x + 32, y + 32 }, 20, COL_ON_ACCENT);
         Line(lesson->title, x + 64, y + 12, w - 90, 22 * UiTextScale(), enabled ? COL_TEXT : COL_DIM);
-        Line(lesson->questionCount ? TextFormat("%d quiz questions", lesson->questionCount) : "No quiz questions available for this lesson.",
+        Line(questions ? TextFormat("%d quiz questions", questions) : "No quiz questions available for this lesson.",
              x + 64, y + titleH + 20, w - 90, 16, COL_DIM);
         if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) PracticeSelect(s, i, !selected);
         y += row.height + 12;
     }
     if (!shown) y += Line("No lessons are available in this track yet.", x, y, w, 22, COL_DIM) + 24;
     practice.height = y - top + 24;
-    EndView();
+    EndBody(view);
     float footer = GetScreenHeight() - 84.0f;
     Line("Revision only. Your lesson scores and course progress stay unchanged.", x, footer + 18, w - 320, 17, COL_DIM);
     if (UiButtonIcon((Rectangle){ x + w - 292, footer + 16, 292, 50 }, ICON_PLAY, "Start Practice", s->available > 0)) Start();
@@ -141,7 +149,7 @@ static PracticeAction Questions(void)
     y += MascotCompanionActor(FOX_PRACTICE, x, y, w, 72, 18 * scale, answered ? FOX_DETERMINED : FOX_CODING,
                               answered ? "Keep going! Every question helps you learn!" : "Ready to test your knowledge?") + 16;
     practice.height = y - top + 24;
-    EndView();
+    EndBody(view);
     bool last = s->current + 1 == s->count;
     if (UiButtonIcon((Rectangle){ x + w - 292, GetScreenHeight() - 68.0f, 292, 50 }, ICON_NEXT,
                      last ? "Submit Practice" : "Next Question", answered) || (answered && IsKeyPressed(KEY_ENTER))) {
@@ -169,7 +177,7 @@ static PracticeAction Results(void)
     y += Line(percent >= 80 ? "Fantastic work! Keep practising to build your confidence." : "Practice makes progress! Review your answers and try again.", x, y, w, 21, COL_DIM) + 18;
     y += Line("This revision result does not change lesson scores or completion.", x, y, w, 18, COL_DIM) + 24;
     practice.height = y - top + 24;
-    EndView();
+    EndBody(view);
     float bw = (w - 24) / 3, footer = GetScreenHeight() - 68.0f;
     if (UiButtonIconEx((Rectangle){ x, footer, bw, 50 }, ICON_BOOK, "Review Answers", 19, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) Page(REVIEW);
     if (UiButtonIconEx((Rectangle){ x + bw + 12, footer, bw, 50 }, ICON_RETRY, "Practice Again", 19, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, true)) Page(SETUP);
@@ -195,7 +203,7 @@ static PracticeAction Review(void)
         y += h + 20;
     }
     practice.height = y - top + 24;
-    EndView();
+    EndBody(view);
     if (UiButtonIcon((Rectangle){ x + (w - 300) / 2, GetScreenHeight() - 68.0f, 300, 50 }, ICON_BACK, "Back to Results", true)) Page(RESULTS);
     return PRACTICE_STAY;
 }

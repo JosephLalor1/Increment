@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum { CODE_PLAYGROUND, CODE_SNIPPET, CODE_EXERCISE } CodeMode;
+typedef enum { CODE_PLAYGROUND, CODE_SNIPPET, CODE_EXERCISE, CODE_QUIZ } CodeMode;
 
 static const char *helloC =
     "#include <stdio.h>\n"
@@ -54,6 +54,7 @@ static struct {
     unsigned markedVersion;
 
     bool checked, passed;  // exercise result of the last run
+    bool quizSolved;       // quiz questions: some run since opening passed (see CodeQuizSolved)
     int badLine;
     int gotLines, wantLines;  // output line counts, ignoring trailing blank lines
     char wantLine[160], gotLine[160];
@@ -62,6 +63,9 @@ static struct {
     float taskScroll, taskH;
     ExerciseHints hints;
 } cs;
+
+// Exercises and quiz questions both have a task whose output is checked after each run.
+static bool HasTask(void) { return (cs.mode == CODE_EXERCISE || cs.mode == CODE_QUIZ) && cs.ex; }
 
 static char *CopyStr(const char *s)
 {
@@ -128,7 +132,7 @@ static void Prepare(CodeMode mode, const char *title, bool cpp)
     cs.lessonId[0] = '\0';
     cs.exerciseIndex = 0;
     cs.draftPath[0] = '\0';
-    cs.checked = cs.passed = false;
+    cs.checked = cs.passed = cs.quizSolved = false;
     cs.warning[0] = '\0';
     cs.taskScroll = 0;
     cs.taskH = 0;
@@ -195,6 +199,24 @@ void CodeOpenExercise(const Lesson *L, int index)
     if (!UseDraft(key)) EditorSetText(&cs.code, ex->starter);
     if (ex->input) EditorSetText(&cs.input, ex->input);
 }
+
+void CodeOpenQuizQuestion(const Lesson *L, int questionIndex, bool startFresh)
+{
+    const Exercise *task = L->questions[questionIndex].task;
+    Prepare(CODE_QUIZ, TextFormat("Quiz: %s", L->title), L->track == TRACK_CPP);
+    cs.ex = task;
+    ExerciseHintsOpen(&cs.hints, task);
+    SetOriginal(task->starter);
+    // The draft keeps the learner's work while they pop back to the quiz or the lesson;
+    // a new attempt starts from the starter again (the old draft is overwritten on save).
+    char key[64];
+    snprintf(key, sizeof key, "%s_quiz%d", L->id, questionIndex + 1);
+    bool draftLoaded = UseDraft(key);  // also points the draft path at this question
+    if (startFresh || !draftLoaded) EditorSetText(&cs.code, task->starter);
+    if (task->input) EditorSetText(&cs.input, task->input);
+}
+
+bool CodeQuizSolved(void) { return cs.mode == CODE_QUIZ && cs.quizSolved; }
 
 void CodeSetDraftFolder(const char *folder)
 {
@@ -286,18 +308,21 @@ static void RunFinished(void)
         }
     }
 
-    if (cs.mode == CODE_EXERCISE && cs.ex && r->result == RESULT_OK) {
+    if (HasTask() && r->result == RESULT_OK) {
         cs.checked = true;
         cs.passed = RunnerOutputMatches(out, cs.ex->expected, &cs.badLine);
         cs.gotLines = CountLines(out);
         cs.wantLines = CountLines(cs.ex->expected);
-        if (cs.passed) {
+        if (cs.passed && cs.mode == CODE_QUIZ) {
+            cs.quizSolved = true;  // the quiz records it when the learner goes back
+            MascotReact(FOX_EDITOR, FOX_CORRECT);
+        } else if (cs.passed) {
             ProgressRecordExercise(cs.lessonId, cs.exerciseIndex);
         } else {
             RunnerGetLine(cs.ex->expected, cs.badLine, cs.wantLine, sizeof cs.wantLine);
             RunnerGetLine(out, cs.badLine, cs.gotLine, sizeof cs.gotLine);
         }
-    } else if (cs.mode == CODE_EXERCISE && r->result != RESULT_NONE) {
+    } else if (HasTask() && r->result != RESULT_NONE) {
         cs.checked = true;  // crashed or timed out: not passed
         cs.passed = false;
         cs.badLine = 0;
@@ -319,7 +344,8 @@ static void TaskPanel(Rectangle r)
     UiRoundRect(r, 10, COL_PANEL);
     bool hasHints = cs.ex->hintCount > 0;
     bool revealedNow = false;
-    bool done = cs.lessonId[0] && ProgressExerciseDone(cs.lessonId, cs.exerciseIndex);
+    bool done = cs.mode == CODE_QUIZ ? cs.quizSolved
+              : cs.lessonId[0] && ProgressExerciseDone(cs.lessonId, cs.exerciseIndex);
     Rectangle body = r;
     if (hasHints) {
         UiIconText(done ? ICON_CHECK : ICON_TARGET, gFonts.bold, done ? "Task (done)" : "Task",
@@ -371,12 +397,15 @@ static void TaskPanel(Rectangle r)
         if (cs.taskScroll < 0) cs.taskScroll = 0;
     }
 
-    if (cs.taskH > body.height - 8 && cs.taskScroll < maxScroll - 1) {  // more below: say so
+    if (cs.taskH > body.height - 8 && cs.taskScroll < maxScroll - 1) {  // more below: say so (left of the bar)
         const char *more = "Scroll for more";
         float mw = MeasureTextEx(gFonts.text, more, 15, 0).x;
-        UiRoundRect((Rectangle){ r.x + r.width - mw - 30, r.y + r.height - 30, mw + 20, 24 }, 12, COL_PANEL_HI);
-        UiText(gFonts.text, more, r.x + r.width - mw - 20, r.y + r.height - 27, 15, COL_DIM);
+        UiRoundRect((Rectangle){ r.x + r.width - mw - 46, r.y + r.height - 30, mw + 20, 24 }, 12, COL_PANEL_HI);
+        UiText(gFonts.text, more, r.x + r.width - mw - 36, r.y + r.height - 27, 15, COL_DIM);
     }
+    // Scrolls the same range as the wheel above: 0 to taskH + 16 - body.height.
+    Rectangle track = { r.x + r.width - 16, body.y + 6, 10, body.height - 12 };
+    UiScrollBar(track, &cs.taskScroll, cs.taskH + 16, body.height);
 }
 
 static void StatusLine(float x, float y, float w)
@@ -408,9 +437,11 @@ static float StatusHeight(float w)
 // Result of checking an exercise's output; returns the height used.
 static float ResultBanner(float x, float y, float w, bool draw)
 {
-    if (cs.mode != CODE_EXERCISE || !cs.checked) return 0;
+    if (!HasTask() || !cs.checked) return 0;
     char msg[512];
-    if (cs.passed) {
+    if (cs.passed && cs.mode == CODE_QUIZ) {
+        snprintf(msg, sizeof msg, "Correct! Your output matches the expected output. Press Back to quiz to carry on.");
+    } else if (cs.passed) {
         snprintf(msg, sizeof msg, "Correct! Your output matches the expected output.");
     } else if (cs.badLine > 0 && cs.gotLines == 0) {
         snprintf(msg, sizeof msg, "Not quite. Your program didn't print anything.");
@@ -490,9 +521,16 @@ bool CodeScreen(void)
     x += 142;
     if (SecondaryButton((Rectangle){ x, barY, 120, barH }, ICON_RETRY, "Reset", !busy)) {
         EditorReplaceAll(&cs.code, cs.original, GetTime());  // Ctrl+Z brings the old code back
-        if (cs.mode == CODE_EXERCISE && cs.ex->input) EditorSetText(&cs.input, cs.ex->input);
+        if (HasTask() && cs.ex->input) EditorSetText(&cs.input, cs.ex->input);
     }
     x += 132;
+    // A solved quiz question: one click back to the quiz, where the pass is counted.
+    bool backToQuiz = false;
+    if (cs.mode == CODE_QUIZ && cs.quizSolved) {
+        backToQuiz = UiButtonIconEx((Rectangle){ x, barY, 180, barH }, ICON_NEXT, "Back to quiz", 19, COL_ACCENT,
+                                    COL_ACCENT_HI, COL_ON_ACCENT, !busy);
+        x += 192;
+    }
     if (cs.mode == CODE_EXERCISE && cs.ex->solution) {
         if (SecondaryButton((Rectangle){ x, barY, 180, barH }, ICON_BOOK, "Show solution", !busy)) {
             EditorReplaceAll(&cs.code, cs.ex->solution, GetTime());
@@ -533,13 +571,13 @@ bool CodeScreen(void)
     EditorWidget(&cs.code, (Rectangle){ pad, top, codeW, bottom - top });
 
     float y = top;
-    if (cs.mode == CODE_EXERCISE) {
+    if (HasTask()) {
         float taskH = (bottom - top) * 0.36f;
         TaskPanel((Rectangle){ rx, y, rw, taskH });
         y += taskH + 12;
     }
     y = Label("Input", rx, y);
-    float inputH = cs.mode == CODE_EXERCISE ? 64 : 92;
+    float inputH = HasTask() ? 64 : 92;
     EditorWidget(&cs.input, (Rectangle){ rx, y, rw, inputH });
     y += inputH + 12;
 
@@ -552,6 +590,10 @@ bool CodeScreen(void)
     y += ResultBanner(rx, y, rw, true);
     if (bottom - y > 40) EditorWidget(&cs.output, (Rectangle){ rx, y, rw, bottom - y });
 
+    if (backToQuiz) {
+        CodeClose();
+        return true;
+    }
     if (run) StartRun();
     return false;
 }

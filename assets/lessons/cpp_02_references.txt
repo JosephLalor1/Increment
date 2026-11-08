@@ -1,5 +1,6 @@
 @id cpp_02_references
 @track C++
+@speed references
 @title Pass by Reference
 
 In C, a function gets a copy of each ordinary argument (pass by value), and the only way to change the caller's variable is to pass a pointer. C++ adds a third option: pass by reference.
@@ -178,3 +179,43 @@ cout << a;
 - const int &r = 42;
 - int y = 2; int &r = y;
 ! A reference must be initialised to refer to something.
+
+?code doubleIt should double the caller's variable, but n is still 5 afterwards. Fix it with a reference: only the function's parameter needs to change.
+@hint The function changes its own copy, x.
+@hint Write int &x to make x another name for the caller's variable.
+```
+#include <iostream>
+using namespace std;
+
+void doubleIt(int x) {
+    x = x * 2;
+}
+
+int main() {
+    int n = 5;
+    doubleIt(n);
+    cout << "n = " << n << endl;
+    return 0;
+}
+```
+@expect
+```
+n = 10
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+void doubleIt(int &x) {
+    x = x * 2;
+}
+
+int main() {
+    int n = 5;
+    doubleIt(n);
+    cout << "n = " << n << endl;
+    return 0;
+}
+```
+! With int x the function gets a copy of n. With int &x, x is a reference, another name for n itself, so the change is seen in main. The call doubleIt(n) stays the same.
