@@ -33,6 +33,7 @@ static struct {
     char notice[160];                      // shown in green under the fields ("" for none)
     char maskedResetEmail[EMAIL_MAX + 8];  // "a***@example.com": where the reset code went
     bool sending;                          // a reset email is on its way
+    bool remember;                         // "Remember me on this computer" is ticked
     double resendAt;                       // GetTime() when "Send a new code" is allowed again
 } login;
 
@@ -40,6 +41,11 @@ static struct {
 // Form fields
 
 static bool IsResetMode(LoginMode m) { return m == LOGIN_RESET || m == LOGIN_RESET_EMAIL || m == LOGIN_RESET_CODE; }
+
+// Signing in and creating an account offer "Remember me"; the reset steps don't.
+static bool OffersRemember(LoginMode m) { return m == LOGIN_SIGNIN || m == LOGIN_CREATE; }
+#define REMEMBER_ROW_H 38
+#define REMEMBER_ROW_COMPACT_H 30
 
 // The text fields the current mode shows, top to bottom (also the Tab order).
 static char **LoginFields(int *count)
@@ -183,6 +189,10 @@ static bool SubmitLogin(void)
     }
 
     if (ok) {
+        // Remember the sign-in on this computer if asked; otherwise forget any older one.
+        const char *rememberErr;
+        if (OffersRemember(login.mode) && login.remember) AccountRememberMe(&rememberErr);
+        else AccountForgetMe();
         // A new account or a recovery-code reset issues a fresh recovery code to show.
         bool issuedCode = login.mode == LOGIN_CREATE || login.mode == LOGIN_RESET;
         if (issuedCode) RecoveryOffer(newRecoveryCode);
@@ -373,7 +383,9 @@ AccountAction LoginScreen(void)
     float messageH = message[0] ? UiWrappedText(gFonts.text, message, (Vector2){ 0, 0 }, w, 17, COL_TEXT, false) + 10 : 0;
     float footerH = login.mode == LOGIN_CREATE
         ? UiWrappedText(gFonts.text, EmailModeText(), (Vector2){ 0, 0 }, w, 16, COL_DIM, false) + 30 : 48;
-    float fixedH = 28 + 64 + infoH + messageH + 50 + footerH + 20;
+    float rememberH = OffersRemember(login.mode) ? REMEMBER_ROW_H : 0;
+    float rememberRowH = REMEMBER_ROW_H;  // the row drawn under the fields (tighter when compact)
+    float fixedH = 28 + 64 + infoH + messageH + rememberH + 50 + footerH + 20;
 
     // Full layout: logo, subtitle, card, Quit. Short windows drop the subtitle and Quit and
     // tighten the fields, so even the four-field reset form fits at the minimum height.
@@ -381,8 +393,13 @@ AccountAction LoginScreen(void)
     bool compact = fullH > GetScreenHeight();
     FieldSpacing spacing = compact ? (FieldSpacing){ 22, 42, 10 } : (FieldSpacing){ 26, 48, 16 };
     if (compact && login.mode == LOGIN_CREATE) {
-        spacing.fieldH = 40;
-        spacing.fieldGap = 8;  // leave room for the email-mode explanation and validation errors
+        spacing.labelGap = 20;
+        spacing.fieldH = 38;
+        spacing.fieldGap = 8;  // leave room for the email-mode explanation, validation errors and "Remember me"
+    }
+    if (compact && OffersRemember(login.mode)) {  // a tighter "Remember me" row too
+        fixedH -= REMEMBER_ROW_H - REMEMBER_ROW_COMPACT_H;
+        rememberRowH = REMEMBER_ROW_COMPACT_H;
     }
     float cardH = fixedH + fieldCount * (spacing.labelGap + spacing.fieldH + spacing.fieldGap);
     float top = compact ? 16 : (GetScreenHeight() - fullH) / 2.0f;
@@ -409,6 +426,10 @@ AccountAction LoginScreen(void)
     if (message[0]) {
         Color color = login.error ? COL_BAD : COL_GOOD;
         y += UiWrappedText(gFonts.text, message, (Vector2){ x, y - 4 }, w, 17, color, true) + 10;
+    }
+    if (OffersRemember(login.mode)) {
+        UiCheckbox(x, y - 2, "Remember me on this computer", 18, &login.remember);
+        y += rememberRowH;
     }
     bool waitingToSend = login.mode == LOGIN_RESET_EMAIL && login.sending;
     if (UiButton((Rectangle){ x, y, w, 50 }, buttonLabel[login.mode], !waitingToSend)) submit = true;

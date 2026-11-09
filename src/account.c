@@ -3,6 +3,7 @@
 #include "account.h"
 #include "email_address.h"
 #include "platform.h"
+#include "wipe.h"
 #include "raylib.h"
 
 #include <ctype.h>
@@ -293,6 +294,7 @@ static AccountSettings LoadSettings(const char *name)
 
 static bool RequireLogin(const char **err);
 static void SetCurrent(int index);
+static void ForgetUser(const char *name);  // "remember me", below
 
 // A one-time 6-digit code, stored hashed like a password.
 typedef struct {
@@ -546,6 +548,7 @@ bool AccountResetPasswordWithEmail(const char *name, const char *code, const cha
         *err = "Could not save the account file.";
         return false;
     }
+    ForgetUser(accounts[i].name);  // a reset forgets any remembered sign-in
     SetCurrent(i);
     return true;
 }
@@ -662,11 +665,117 @@ bool AccountResetPassword(const char *name, const char *recoveryCode, const char
         *err = "Could not save the account file.";
         return false;
     }
+    ForgetUser(accounts[i].name);  // a reset forgets any remembered sign-in
     SetCurrent(i);
     return true;
 }
 
 void AccountLogout(void) { current = -1; }
+
+// ---------------------------------------------------------------------------
+// "Remember me": signing in again on this computer without the password. The computer keeps
+// a random token in <data>/remember.txt ("<name> <token hex>"); the account keeps only the
+// token's salted hash, in users/<name>.remember.txt, like a password. The token is 256 random
+// bits, so it can't be guessed and needs no slow hash; each use replaces it with a new one.
+
+#define TOKEN_LEN         32
+#define TOKEN_ITERATIONS  1000UL  // the token is random, so a few rounds are plenty and start-up stays instant
+
+static const char *RememberPath(void)
+{
+    static char path[1100];
+    snprintf(path, sizeof path, "%sremember.txt", dataDir);
+    return path;
+}
+
+// The remembered user's name from <data>/remember.txt, and their token if token isn't NULL.
+static bool ReadRemembered(char name[USERNAME_MAX + 1], char token[TOKEN_LEN * 2 + 1])
+{
+    FILE *f = fopen(RememberPath(), "r");
+    if (!f) return false;
+    char tokenText[TOKEN_LEN * 2 + 1] = "";
+    bool ok = fscanf(f, "%20s %64s", name, tokenText) == 2;
+    fclose(f);
+    if (ok && token) snprintf(token, TOKEN_LEN * 2 + 1, "%s", tokenText);
+    WIPE(tokenText);
+    return ok;
+}
+
+// Forgets a user's remembered sign-in: the token's hash, and the computer's token if it's theirs.
+static void ForgetUser(const char *name)
+{
+    remove(UserFile(name, ".remember.txt"));
+    char remembered[USERNAME_MAX + 1];
+    if (ReadRemembered(remembered, NULL) && SameName(remembered, name)) remove(RememberPath());
+}
+
+bool AccountRememberMe(const char **err)
+{
+    if (!RequireLogin(err)) return false;
+    unsigned char bytes[TOKEN_LEN];
+    char token[TOKEN_LEN * 2 + 1];
+    Secret secret = { TOKEN_ITERATIONS };
+    bool ok = PlatformRandom(bytes, sizeof bytes);
+    ToHex(bytes, sizeof bytes, token);
+    ok = ok && PlatformRandom(secret.salt, SALT_LEN)
+            && PlatformHashPassword(token, secret.salt, SALT_LEN, secret.iterations, secret.hash);
+    char hashed[256], computer[128];
+    SecretToText(&secret, hashed, sizeof hashed);
+    snprintf(computer, sizeof computer, "%s %s\n", accounts[current].name, token);
+    strncat(hashed, "\n", sizeof hashed - strlen(hashed) - 1);
+    ok = ok && WriteFileAtomic(UserFile(accounts[current].name, ".remember.txt"), hashed)
+            && WriteFileAtomic(RememberPath(), computer);
+    WIPE(bytes);
+    WIPE(token);
+    WIPE(computer);
+    if (!ok) {
+        ForgetUser(accounts[current].name);  // never leave half a token behind
+        *err = "Couldn't save the sign-in on this computer.";
+    }
+    return ok;
+}
+
+bool AccountSignInRemembered(void)
+{
+    char name[USERNAME_MAX + 1], token[TOKEN_LEN * 2 + 1];
+    if (!ReadRemembered(name, token)) return false;
+    int i = FindAccount(name);
+    bool ok = false;
+    if (i >= 0) {
+        FILE *f = fopen(UserFile(name, ".remember.txt"), "r");
+        unsigned long iterations = 0;
+        char saltHex[SALT_LEN * 2 + 1], hashHex[PASSWORD_HASH_LEN * 2 + 1];
+        Secret secret;
+        if (f) {
+            ok = fscanf(f, "%lu %32s %64s", &iterations, saltHex, hashHex) == 3
+              && SecretFromText(iterations, saltHex, hashHex, &secret) && CheckSecret(token, &secret);
+            fclose(f);
+        }
+    }
+    WIPE(token);
+    if (!ok) {
+        remove(RememberPath());  // a stale or tampered token: back to the password
+        if (i >= 0) remove(UserFile(name, ".remember.txt"));
+        return false;
+    }
+    SetCurrent(i);
+    const char *err;
+    AccountRememberMe(&err);  // a fresh token for next time; if that fails, it just isn't remembered
+    return true;
+}
+
+void AccountForgetMe(void)
+{
+    if (current >= 0) ForgetUser(accounts[current].name);
+    else remove(RememberPath());
+}
+
+const char *AccountRememberedUser(void)
+{
+    static char name[USERNAME_MAX + 1];
+    if (!ReadRemembered(name, NULL)) name[0] = '\0';
+    return name;
+}
 
 bool AccountChangePassword(const char *currentPassword, const char *newPassword, const char **err)
 {
@@ -731,6 +840,7 @@ bool AccountDelete(const char *password, const char **err)
         return false;
     }
 
+    ForgetUser(removed.name);  // its remembered sign-in, if any
     remove(UserFile(removed.name, ".txt"));
     remove(UserFile(removed.name, ".settings.txt"));
     remove(UserFile(removed.name, ".email.txt"));

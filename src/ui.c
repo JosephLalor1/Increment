@@ -333,6 +333,27 @@ bool UiLink(float x, float y, const char *text, float size)
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
+bool UiCheckbox(float x, float y, const char *label, float size, bool *checked)
+{
+    float box = size + 4;
+    float labelW = UiTextWidth(gFonts.text, label, size);
+    Rectangle hit = { x, y, box + 10 + labelW, box };  // the label toggles it too
+    bool over = UiMouseOver(hit);
+    if (over) UiWantHand();
+    Rectangle square = { x, y, box, box };
+    if (*checked) {
+        UiRoundRect(square, 5, over ? COL_ACCENT_HI : COL_ACCENT);
+        IconDraw(ICON_CHECK, (Vector2){ x + box / 2, y + box / 2 }, box * 0.75f, COL_ON_ACCENT);
+    } else {
+        UiRoundRect(square, 5, over ? COL_PANEL_HI : COL_BG);
+        DrawRectangleRoundedLinesEx(square, 0.3f, 6, 1.5f, over ? COL_ACCENT : COL_DIM);
+    }
+    UiText(gFonts.text, label, x + box + 10, y + (box - size) / 2 - 1, size, COL_TEXT);
+    bool clicked = over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    if (clicked) *checked = !*checked;
+    return clicked;
+}
+
 void UiFocus(const void *id) { focused = id; }
 bool UiHasFocus(const void *id) { return focused == id; }
 bool UiTakesInput(const void *id) { return focused == id && frameFocus == id; }

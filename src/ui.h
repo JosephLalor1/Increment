@@ -91,6 +91,9 @@ void UiRoundRect(Rectangle r, float radius, Color c);
 bool UiButton(Rectangle r, const char *label, bool enabled);
 bool UiButtonEx(Rectangle r, const char *label, float size, Color base, Color hover, Color fg, bool enabled);
 bool UiLink(float x, float y, const char *text, float size); // accent-coloured clickable text
+// A checkbox with its label to the right, at x, y (size + 4 high); clicking either toggles
+// *checked. Returns true when it was toggled.
+bool UiCheckbox(float x, float y, const char *label, float size, bool *checked);
 
 // Buttons with an icon before the label (label may be NULL for an icon-only button).
 bool UiButtonIcon(Rectangle r, Icon icon, const char *label, bool enabled);

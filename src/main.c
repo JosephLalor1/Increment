@@ -44,6 +44,7 @@ static struct {
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
     double splashStart;       // GetTime() when the splash began
     float splashTime;         // --shot splash: a fixed moment of the animation, or < 0 to run live
+    bool rememberedSignIn;    // signed in at start-up with "remember me": skip the login form
     bool quit;
 } app;
 
@@ -99,6 +100,7 @@ static void ShowLogin(void)
 
 static void LogOut(void)
 {
+    AccountForgetMe();  // logging out on purpose means typing the password next time
     AccountLogout();
     ShowLogin();
 }
@@ -136,7 +138,9 @@ static void RunSplash(void)
 {
     float t = app.splashTime >= 0 ? app.splashTime : (float)(GetTime() - app.splashStart);
     bool finished = SplashScreen(t);
-    if (finished && app.splashTime < 0) app.screen = SCREEN_LOGIN;
+    if (!finished || app.splashTime >= 0) return;
+    if (app.rememberedSignIn) SignedIn();  // straight in, as on the last visit
+    else app.screen = SCREEN_LOGIN;
 }
 
 static void RunLogin(void)
@@ -366,6 +370,10 @@ int main(int argc, char **argv)
         // Open the window in the saved mode (maximised by default). Screenshots
         // keep the fixed 1280x800 window so they stay comparable.
         WindowModeEnable();
+        // "Remember me": sign that user in behind the splash. (Never for screenshots, which
+        // sign in as they're told.)
+        app.rememberedSignIn = AccountSignInRemembered();
+        if (app.rememberedSignIn) ApplyUserAppearance();
     }
 
     while (!WindowShouldClose() && !app.quit) {

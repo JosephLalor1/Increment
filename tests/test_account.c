@@ -445,6 +445,68 @@ static void TestLegacyAndCorruptFiles(void)
     CHECK(!AccountLogin("zed", "anything", &err));
 }
 
+// "Remember me": signing in again after a restart without the password; the token changes
+// each time; only its hash is kept with the account; wrong tokens, logging out, resets and
+// deleting the account all forget it.
+static void TestRememberMe(void)
+{
+    const char *err = NULL;
+    char code[RECOVERY_CODE_SIZE], next[RECOVERY_CODE_SIZE];
+
+    AccountsInit(dir);
+    CHECK(!AccountRememberMe(&err));  // nobody signed in
+    CHECK(!AccountSignInRemembered());  // nothing remembered yet
+    CHECK(AccountCreate("grace", "cobol1959", code, &err));
+    CHECK(AccountRememberMe(&err));
+    CHECK(strcmp(AccountRememberedUser(), "grace") == 0);
+    char *computer = LoadFileText(DataFile("remember.txt"));
+    char *hashed = LoadFileText(DataFile("users/grace.remember.txt"));
+    CHECK(computer && hashed);
+    char token[80] = "";
+    if (computer) sscanf(computer, "%*s %79s", token);
+    CHECK(strlen(token) == 64);                                   // 32 random bytes in hex
+    CHECK(hashed && strstr(hashed, token) == NULL);               // the account never keeps the token itself
+    CHECK(computer && strstr(computer, "cobol1959") == NULL);     // nor is the password stored anywhere
+    UnloadFileText(hashed);
+
+    // A restart: signed straight in, with a fresh token for next time.
+    AccountLogout();
+    AccountsInit(dir);
+    CHECK(AccountSignInRemembered());
+    CHECK(AccountCurrent() && strcmp(AccountCurrent(), "grace") == 0);
+    char *rotated = LoadFileText(DataFile("remember.txt"));
+    CHECK(rotated && computer && strcmp(rotated, computer) != 0);
+    UnloadFileText(rotated);
+
+    // The old token no longer works, and a wrong token is cleared.
+    AccountLogout();
+    if (computer) WriteFile(DataFile("remember.txt"), computer);
+    UnloadFileText(computer);
+    CHECK(!AccountSignInRemembered());
+    CHECK(!FileExists(DataFile("remember.txt")));
+    CHECK(strcmp(AccountRememberedUser(), "") == 0);
+
+    // Logging out (ForgetMe) forgets it.
+    CHECK(AccountLogin("grace", "cobol1959", &err));
+    CHECK(AccountRememberMe(&err));
+    AccountForgetMe();
+    AccountLogout();
+    CHECK(!AccountSignInRemembered());
+
+    // So does resetting the password, and deleting the account.
+    CHECK(AccountLogin("grace", "cobol1959", &err));
+    CHECK(AccountRememberMe(&err));
+    AccountLogout();
+    CHECK(AccountResetPassword("grace", code, "newpass99", next, &err));
+    AccountLogout();
+    CHECK(!AccountSignInRemembered());
+    CHECK(!FileExists(DataFile("users/grace.remember.txt")));
+    CHECK(AccountLogin("grace", "newpass99", &err));
+    CHECK(AccountRememberMe(&err));
+    CHECK(AccountDelete("newpass99", &err));
+    CHECK(!FileExists(DataFile("remember.txt")) && !FileExists(DataFile("users/grace.remember.txt")));
+}
+
 int main(int argc, char **argv)
 {
     SetTraceLogLevel(LOG_ERROR);
@@ -462,6 +524,7 @@ int main(int argc, char **argv)
     TestEmailVerification();
     TestPasswordResetByEmail();
     TestLegacyAndCorruptFiles();
+    TestRememberMe();
 
     if (failures) {
         printf("%d check(s) failed\n", failures);

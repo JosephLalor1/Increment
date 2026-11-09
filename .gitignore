@@ -12,6 +12,7 @@ email_config.txt
 progress.txt
 accounts.txt
 window.txt
+remember.txt
 *.tmp
 users/
 

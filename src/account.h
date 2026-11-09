@@ -39,6 +39,17 @@ bool AccountResetPassword(const char *name, const char *recoveryCode, const char
                           char recoveryOut[RECOVERY_CODE_SIZE], const char **err);
 void AccountLogout(void);
 
+// "Remember me" on this computer, so the learner needn't type their password each time.
+// RememberMe stores a fresh random sign-in token for the signed-in user (the computer keeps
+// the token, the account only its hash). SignInRemembered signs that user in at start-up if
+// the token matches, and replaces it with a new one; a missing or wrong token returns false
+// (and is cleared). ForgetMe clears it (logging out does). Resetting the password or deleting
+// the account forgets it too. Only one user is remembered per computer.
+bool AccountRememberMe(const char **err);
+bool AccountSignInRemembered(void);
+void AccountForgetMe(void);
+const char *AccountRememberedUser(void);  // the remembered user's name, "" if none
+
 // These act on the logged-in user and require their current password.
 bool AccountChangePassword(const char *currentPassword, const char *newPassword, const char **err);
 bool AccountNewRecoveryCode(const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err);
