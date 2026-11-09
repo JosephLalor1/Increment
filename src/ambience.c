@@ -32,14 +32,14 @@ static char RandomGlyph(void) { return glyphSet[NextRandom() % (sizeof glyphSet 
 static float Clamp01(float t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
 
 // How opaque the background's characters are at their strongest. Every style breathes: its
-// brightness swells and fades slowly together, between 75% and 115% of this, over
+// brightness swells and fades slowly together, between 55% and 135% of this, over
 // PULSE_SECONDS.
 #define AMBIENCE_ALPHA 0.30f
-#define PULSE_SECONDS  8.0f
+#define PULSE_SECONDS  5.0f
 
 static float Brightness(void)
 {
-    return AMBIENCE_ALPHA * (0.95f + 0.2f * sinf(clock * 2 * PI / PULSE_SECONDS));
+    return AMBIENCE_ALPHA * (0.95f + 0.4f * sinf(clock * 2 * PI / PULSE_SECONDS));
 }
 
 const char *AmbienceStyleName(AmbienceStyle s) { return s < AMBIENCE_STYLE_COUNT ? styleNames[s] : ""; }

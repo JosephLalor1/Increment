@@ -5,7 +5,7 @@
 #include "bookmarks.h"
 #include "ambience.h"
 #include "brand.h"
-#include "code_rain.h"
+#include "mouse_trail.h"
 #include "code_screen.h"
 #include "practice_screen.h"
 #include "courses_screen.h"
@@ -158,7 +158,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         for (int s = 0; ambience && s < AMBIENCE_STYLE_COUNT; s++)
             if (strcmp(ambience, AmbienceStyleName((AmbienceStyle)s)) == 0) AmbienceSetStyle((AmbienceStyle)s);
         AmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
-        if (trail && trail[0] == '1') CodeTrailDemo((Vector2){ 300, 640 }, (Vector2){ 760, 470 });
+        if (trail && trail[0] == '1') MouseTrailDemo((Vector2){ 300, 640 }, (Vector2){ 760, 470 });
         return SCREEN_HOME;
     }
 

@@ -4,7 +4,7 @@
 #include "account_screens_shared.h"
 #include "account.h"
 #include "ambience.h"
-#include "code_rain.h"
+#include "mouse_trail.h"
 #include "email.h"
 #include "layout.h"
 #include "ui.h"
@@ -41,7 +41,7 @@ void ApplyUserAppearance(void)
     bool validSize = s.textSize >= 0 && s.textSize < TEXT_SIZE_COUNT;
     UiSetTextScale(validSize ? textScales[s.textSize] : 1.0f);
     AmbienceSetStyle((AmbienceStyle)s.ambience);
-    CodeTrailEnable(s.mouseTrail);
+    MouseTrailEnable(s.mouseTrail);
 }
 
 // ---------------------------------------------------------------------------

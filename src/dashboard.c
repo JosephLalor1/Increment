@@ -3,7 +3,7 @@
 #include "account.h"
 #include "ambience.h"
 #include "brand.h"
-#include "code_rain.h"
+#include "mouse_trail.h"
 #include "dashboard_stats.h"
 #include "journey_view.h"
 #include "layout.h"
@@ -601,12 +601,12 @@ static int JourneyView(const LessonSet *set, float top)
     // Faint code characters in the background, in the learner's chosen style, and a trail of
     // them following the mouse (each set in Settings).
     AmbienceUpdate(view, GetFrameTime());
-    CodeTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
+    MouseTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
     BeginView(view);
     AmbienceDraw();
     int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
     page.journeyHeight[track] += 8;
-    CodeTrailDraw();
+    MouseTrailDraw();
     EndView();
     // Dragging the bar moves the journey directly, without the easing.
     if (PageScrollBar(view, &page.journeyTarget[track], page.journeyHeight[track]) && UiScrollBarDragging())
