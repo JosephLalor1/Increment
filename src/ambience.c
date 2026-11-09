@@ -31,6 +31,17 @@ static float RandomBetween(float lo, float hi) { return lo + (hi - lo) * Random0
 static char RandomGlyph(void) { return glyphSet[NextRandom() % (sizeof glyphSet - 1)]; }
 static float Clamp01(float t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
 
+// How opaque the background's characters are at their strongest. Every style breathes: its
+// brightness swells and fades slowly together, between 75% and 115% of this, over
+// PULSE_SECONDS.
+#define AMBIENCE_ALPHA 0.30f
+#define PULSE_SECONDS  8.0f
+
+static float Brightness(void)
+{
+    return AMBIENCE_ALPHA * (0.95f + 0.2f * sinf(clock * 2 * PI / PULSE_SECONDS));
+}
+
 const char *AmbienceStyleName(AmbienceStyle s) { return s < AMBIENCE_STYLE_COUNT ? styleNames[s] : ""; }
 AmbienceStyle AmbienceGetStyle(void) { return style; }
 
@@ -72,7 +83,7 @@ static void DrawParticles(void)
     for (int i = 0; i < particleCount; i++) {
         float fade = sinf(PI * particles[i].age / particles[i].life);  // in, then out again
         char glyph[2] = { particles[i].glyph, '\0' };
-        DrawTextEx(gFonts.mono, glyph, particles[i].at, particles[i].size, 0, Fade(COL_ACCENT, 0.24f * fade));
+        DrawTextEx(gFonts.mono, glyph, particles[i].at, particles[i].size, 0, Fade(COL_ACCENT, Brightness() * fade));
     }
 }
 
@@ -82,7 +93,7 @@ static void DrawParticles(void)
 #define CELL       18.0f   // pixels per character cell
 #define MAX_COLS   200
 #define MAX_ROWS   120
-#define CELL_ALPHA 0.24f   // the strongest a cell shows: as faint as the particles
+
 
 typedef struct {
     float shown;     // current strength, easing towards the field's value
@@ -326,7 +337,7 @@ static void DrawCells(void)
             if (cell->shown < 0.03f) continue;
             glyph[0] = cell->glyph;
             Vector2 at = { gridArea.x + c * CELL + 2, gridArea.y + r * CELL };
-            DrawTextEx(gFonts.mono, glyph, at, CELL * 0.82f, 0, Fade(COL_ACCENT, CELL_ALPHA * cell->shown));
+            DrawTextEx(gFonts.mono, glyph, at, CELL * 0.82f, 0, Fade(COL_ACCENT, Brightness() * cell->shown));
         }
     }
 }
