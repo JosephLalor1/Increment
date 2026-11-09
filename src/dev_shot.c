@@ -3,6 +3,7 @@
 #include "account.h"
 #include "account_screens.h"
 #include "bookmarks.h"
+#include "ambience.h"
 #include "brand.h"
 #include "code_rain.h"
 #include "code_screen.h"
@@ -152,7 +153,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         if (Is(name, "search")) DashboardDemoSearch(getenv("INCREMENT_SHOT_SEARCH"), ShotSearchFilter());
         // INCREMENT_SHOT_TRAIL=1: the journey's mouse trail, as if the mouse swept across it.
         const char *trail = getenv("INCREMENT_SHOT_TRAIL");
-        CodeAmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
+        // INCREMENT_SHOT_AMBIENCE=<style name>: the journey's background in that style.
+        const char *ambience = getenv("INCREMENT_SHOT_AMBIENCE");
+        for (int s = 0; ambience && s < AMBIENCE_STYLE_COUNT; s++)
+            if (strcmp(ambience, AmbienceStyleName((AmbienceStyle)s)) == 0) AmbienceSetStyle((AmbienceStyle)s);
+        AmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
         if (trail && trail[0] == '1') CodeTrailDemo((Vector2){ 300, 640 }, (Vector2){ 760, 470 });
         return SCREEN_HOME;
     }

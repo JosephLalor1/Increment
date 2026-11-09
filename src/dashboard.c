@@ -1,6 +1,7 @@
 // The home screen: learning journeys, statistics, saved lessons and lesson search. See dashboard.h.
 #include "dashboard.h"
 #include "account.h"
+#include "ambience.h"
 #include "brand.h"
 #include "code_rain.h"
 #include "dashboard_stats.h"
@@ -597,12 +598,12 @@ static int JourneyView(const LessonSet *set, float top)
     float blend = GetFrameTime() * 16;  // ease towards the target, so "Find my place" glides
     if (blend > 1) blend = 1;
     page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
-    // Faint code characters drift in the background, and a trail of them follows the mouse
-    // (each can be turned off in Settings).
-    CodeAmbienceUpdate(view, GetFrameTime());
+    // Faint code characters in the background, in the learner's chosen style, and a trail of
+    // them following the mouse (each set in Settings).
+    AmbienceUpdate(view, GetFrameTime());
     CodeTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
     BeginView(view);
-    CodeAmbienceDraw();
+    AmbienceDraw();
     int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
     page.journeyHeight[track] += 8;
     CodeTrailDraw();

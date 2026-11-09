@@ -30,7 +30,7 @@ typedef struct {
     Secret recovery;
 } Account;
 
-static const AccountSettings defaultSettings = { THEME_DARK, 0, TEXT_MEDIUM, true, true };
+static const AccountSettings defaultSettings = { THEME_DARK, 0, TEXT_MEDIUM, 1, true };  // 1: particles
 
 static Account accounts[MAX_ACCOUNTS];
 static int accountCount;
@@ -275,7 +275,7 @@ static AccountSettings LoadSettings(const char *name)
         if (strcmp(key, "theme") == 0 && (value == THEME_DARK || value == THEME_LIGHT)) s.theme = (ThemeMode)value;
         else if (strcmp(key, "accent") == 0 && value >= 0 && value < 16) s.accent = value;
         else if (strcmp(key, "text") == 0 && value >= 0 && value < TEXT_SIZE_COUNT) s.textSize = (TextSize)value;
-        else if (strcmp(key, "ambience") == 0) s.codeAmbience = value != 0;
+        else if (strcmp(key, "ambience") == 0 && value >= 0 && value < 64) s.ambience = value;  // older files: 0 off, 1 on (particles)
         else if (strcmp(key, "trail") == 0) s.mouseTrail = value != 0;
     }
     fclose(f);
@@ -912,6 +912,6 @@ void AccountSetSettings(AccountSettings s)
     if (current < 0) return;
     char text[128];
     snprintf(text, sizeof text, "theme %d\naccent %d\ntext %d\nambience %d\ntrail %d\n", (int)s.theme, s.accent,
-             (int)s.textSize, s.codeAmbience ? 1 : 0, s.mouseTrail ? 1 : 0);
+             (int)s.textSize, s.ambience, s.mouseTrail ? 1 : 0);
     WriteFileAtomic(UserFile(accounts[current].name, ".settings.txt"), text);
 }

@@ -187,12 +187,12 @@ static void TestSettings(void)
     CHECK(AccountCreate("barbara", "liskov74", code, &err));
     AccountSettings s = AccountGetSettings();
     CHECK(s.theme == THEME_DARK && s.accent == 0 && s.textSize == TEXT_MEDIUM); // defaults for a new user
-    CHECK(s.codeAmbience && s.mouseTrail);  // the journey's effects start on
+    CHECK(s.ambience == 1 && s.mouseTrail);  // the journey's effects start on (particles)
 
     s.theme = THEME_LIGHT;
     s.accent = 3;
     s.textSize = TEXT_LARGE;
-    s.codeAmbience = false;  // each effect switches off on its own
+    s.ambience = 5;  // another background style (Life); each effect is set on its own
     s.mouseTrail = true;
     AccountSetSettings(s);
     CHECK(FileExists(DataFile("users/barbara.settings.txt")));
@@ -209,14 +209,14 @@ static void TestSettings(void)
     AccountsInit(dir);
     s = AccountGetSettings();
     CHECK(s.theme == THEME_LIGHT && s.accent == 3 && s.textSize == TEXT_LARGE);
-    CHECK(!s.codeAmbience && s.mouseTrail);
+    CHECK(s.ambience == 5 && s.mouseTrail);
 
     // Out-of-range values in the file fall back to defaults
     WriteFile(DataFile("users/barbara.settings.txt"), "theme 7\naccent -2\ntext 99\n");
     CHECK(AccountLogin("barbara", "liskov74", &err));
     s = AccountGetSettings();
     CHECK(s.theme == THEME_DARK && s.accent == 0 && s.textSize == TEXT_MEDIUM);
-    CHECK(s.codeAmbience && s.mouseTrail);  // files from before these settings: still on
+    CHECK(s.ambience == 1 && s.mouseTrail);  // files from before these settings: particles, trail on
     AccountLogout();
 }
 

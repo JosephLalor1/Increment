@@ -3,6 +3,7 @@
 #include "account_screens.h"
 #include "account_screens_shared.h"
 #include "account.h"
+#include "ambience.h"
 #include "code_rain.h"
 #include "email.h"
 #include "layout.h"
@@ -39,7 +40,8 @@ void ApplyUserAppearance(void)
     UiSetTheme(s.theme == THEME_LIGHT, s.accent);
     bool validSize = s.textSize >= 0 && s.textSize < TEXT_SIZE_COUNT;
     UiSetTextScale(validSize ? textScales[s.textSize] : 1.0f);
-    CodeJourneyEffects(s.codeAmbience, s.mouseTrail);
+    AmbienceSetStyle((AmbienceStyle)s.ambience);
+    CodeTrailEnable(s.mouseTrail);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +155,17 @@ static float AppearanceSection(float x, float y, float w)
     // The journey's code effects, each switchable on its own.
     static const char *onOff[] = { "On", "Off" };
     UiText(gFonts.text, "Background code", x, y + 9, 20, COL_TEXT);
-    s.codeAmbience = Segmented(cx, y, 90, onOff, 2, s.codeAmbience ? 0 : 1) == 0;
-    y += 56;
+    // The styles in two rows of four: Off, Particles, Swirl, Downpour / Mandala, Life, Waves, Fox.
+    const char *styles[AMBIENCE_STYLE_COUNT];
+    for (int i = 0; i < AMBIENCE_STYLE_COUNT; i++) styles[i] = AmbienceStyleName((AmbienceStyle)i);
+    int perRow = AMBIENCE_STYLE_COUNT / 2;
+    for (int row = 0; row < 2; row++) {
+        int first = row * perRow, chosen = s.ambience - first;
+        int picked = Segmented(cx, y, 104, styles + first, perRow, chosen >= 0 && chosen < perRow ? chosen : -1);
+        if (picked >= 0) s.ambience = first + picked;
+        y += 48;
+    }
+    y += 8;
     UiText(gFonts.text, "Mouse trail", x, y + 9, 20, COL_TEXT);
     s.mouseTrail = Segmented(cx, y, 90, onOff, 2, s.mouseTrail ? 0 : 1) == 0;
     y += 48;

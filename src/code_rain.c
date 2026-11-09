@@ -78,65 +78,11 @@ static Color Mix(Color a, Color b, float t)
 }
 
 // ---------------------------------------------------------------------------
-// The journey's effects: which are on, and the ambience
-
-static bool ambienceOn = true, trailOn = true;
-
-#define AMBIENCE_MAX 48
-
-typedef struct {
-    Vector2 at;
-    float age, life;  // seconds
-    float size;
-    char glyph;
-} AmbientGlyph;
-
-static AmbientGlyph ambience[AMBIENCE_MAX];
-static int ambienceCount;
-static float ambienceDebt;  // fractional characters owed by the appear rate
-
-void CodeJourneyEffects(bool ambienceEnabled, bool trailEnabled)
-{
-    ambienceOn = ambienceEnabled;
-    trailOn = trailEnabled;
-    if (!ambienceOn) ambienceCount = 0;
-}
-
-void CodeAmbienceUpdate(Rectangle area, float dt)
-{
-    if (!ambienceOn) return;
-    for (int i = 0; i < ambienceCount; i++) {
-        ambience[i].age += dt;
-        ambience[i].at.y += 8 * dt;  // the slowest of drifts, a hint of the rain
-        if (ambience[i].age >= ambience[i].life) ambience[i--] = ambience[--ambienceCount];
-    }
-    ambienceDebt += dt * 7;  // characters appearing per second
-    while (ambienceDebt >= 1) {
-        ambienceDebt -= 1;
-        if (ambienceCount == AMBIENCE_MAX) continue;
-        ambience[ambienceCount++] = (AmbientGlyph){
-            { RandomBetween(area.x, area.x + area.width), RandomBetween(area.y, area.y + area.height) },
-            0, RandomBetween(2.5f, 5.0f), RandomBetween(12, 17), glyphSet[NextRandom() % (sizeof glyphSet - 1)] };
-    }
-}
-
-void CodeAmbienceDraw(void)
-{
-    if (!ambienceOn) return;
-    for (int i = 0; i < ambienceCount; i++) {
-        float fade = sinf(PI * ambience[i].age / ambience[i].life);  // in, then out again
-        char glyph[2] = { ambience[i].glyph, '\0' };
-        DrawTextEx(gFonts.mono, glyph, ambience[i].at, ambience[i].size, 0, Fade(COL_ACCENT, 0.24f * fade));
-    }
-}
-
-void CodeAmbienceWarm(Rectangle area)
-{
-    for (int frame = 0; frame < 300; frame++) CodeAmbienceUpdate(area, 1 / 60.0f);
-}
-
-// ---------------------------------------------------------------------------
 // The mouse trail
+
+static bool trailOn = true;
+
+void CodeTrailEnable(bool enabled) { trailOn = enabled; }
 
 #define TRAIL_MAX      24
 #define TRAIL_SPACING  16.0f   // pixels of mouse travel between characters
