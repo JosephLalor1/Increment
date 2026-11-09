@@ -260,6 +260,73 @@ for (int i = 10; i >= 1; i -= 3) {
 - 4
 ! i takes 10, 7, 4, 1. The next value, -2, fails the condition.
 
+? What does this print?
+```
+int sum = 0;
+for (int i = 1; i <= 4; i++)
+    sum += i;
+printf("%d\n", sum);
+```
+- 6
+* 10
+- 4
+- 15
+! It adds 1 + 2 + 3 + 4.
+
+? What does this print?
+```
+int i = 10;
+do {
+    printf("%d ", i);
+} while (i < 5);
+printf("\n");
+```
+* 10
+- nothing (the loop never runs)
+- 5
+! A do-while checks its condition after the body, so the body always runs at least once.
+
+? What does this print?
+```
+for (int i = 0; i < 10; i++) {
+    if (i == 3) break;
+    printf("%d", i);
+}
+printf("\n");
+```
+- 0123
+* 012
+- 3
+- 0123456789
+! break leaves the loop as soon as i reaches 3, before printing it.
+
+? What does this print?
+```
+for (int i = 0; i < 5; i++) {
+    if (i % 2 == 0) continue;
+    printf("%d", i);
+}
+printf("\n");
+```
+- 024
+* 13
+- 01234
+- 1
+! continue skips the rest of the body for even numbers, so only 1 and 3 are printed.
+
+? What does this print?
+```
+int n = 1;
+while (n < 20)
+    n *= 3;
+printf("%d\n", n);
+```
+- 9
+- 20
+* 27
+- 81
+! n goes 1, 3, 9, 27. 27 is the first value not below 20, so the loop stops there.
+
 ?code This loop should add up the numbers from 1 to 10 (which make 55), but it prints 45. Fix the loop.
 @hint Which number does the loop never add?
 @hint i < 10 stops before i reaches 10.

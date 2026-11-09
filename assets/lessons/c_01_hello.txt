@@ -95,6 +95,46 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 - Main
 ! while is a reserved keyword. C is case-sensitive, so Main is a different name from main.
 
+? What does this print?
+```
+printf("Hi");
+printf("there\n");
+```
+- Hi there
+* Hithere
+- Hi
+! printf doesn't add spaces or new lines by itself, so the second message carries straight on from the first.
+
+? Which character ends most statements in C?
+- .
+- :
+* ;
+- }
+! Statements end with a semicolon. Braces group statements; they don't end them.
+
+? What does this print?
+```
+printf("%d\n", 2 + 3);
+```
+- 2 + 3
+- 23
+* 5
+! %d prints the value of the expression after the comma, and 2 + 3 is worked out first.
+
+? Which escape sequence starts a new line?
+- \t
+* \n
+- /n
+- \\
+! \n is the newline character. \t is a tab, \\ is a backslash, and /n is just two ordinary characters.
+
+? Where do #include lines normally go?
+* At the top of the file, before anything that uses them
+- Inside main, before the first printf
+- At the end of the file
+- Anywhere, because they are ignored by the compiler
+! The preprocessor pastes the header in where the #include is, so it has to come before the code that uses what it declares.
+
 ?code This program should print its two messages on two separate lines, but they come out joined together. Fix it.
 @hint printf only starts a new line where you ask it to.
 @hint The escape sequence for a new line is \n.

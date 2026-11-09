@@ -185,6 +185,62 @@ delete[] a;
 - 0
 ! a[2] holds 2 * 2.
 
+? What does this print?
+```
+int n = 4;
+int *a = new int[n];
+for (int i = 0; i < n; i++)
+    a[i] = i * i;
+cout << a[3] << endl;
+delete[] a;
+```
+- 16
+* 9
+- 3
+- 4
+! a[3] holds 3 * 3.
+
+? What is wrong with delete a; when a = new int[5]?
+* Arrays from new[] must be freed with delete[]
+- Nothing; delete and delete[] are the same
+- a must be set to nullptr first
+- delete only works on objects
+! Mixing them up is undefined behaviour.
+
+? What does this print?
+```
+int *a = new int[3]{5, 6, 7};
+int s = 0;
+for (int i = 0; i < 3; i++) s += a[i];
+cout << s << endl;
+delete[] a;
+```
+- 7
+* 18
+- 3
+! The braces give the three elements their starting values.
+
+? Why use new int[n] rather than int a[n] when n is read from the user?
+* Standard C++ needs a fixed size for arrays on the stack; new[] takes a size known only at run time
+- new[] arrays are faster
+- int a[n] can't hold ints
+- new[] arrays don't need to be freed
+! The size of a plain array has to be known when the program is compiled.
+
+? What does this print?
+```
+int **m = new int*[2];
+for (int r = 0; r < 2; r++) m[r] = new int[3];
+m[1][2] = 5;
+cout << m[1][2] << endl;
+for (int r = 0; r < 2; r++) delete[] m[r];
+delete[] m;
+```
+* 5
+- 2
+- 6
+! Each row is its own array, reached through the array of row pointers.
+
 ?code The program reads n numbers into an array made with new[]. Finish it: print them in reverse order, then free the array.
 @hint Start the loop at the last index, n - 1, and count down to 0.
 @hint An array from new[] is freed with delete[].

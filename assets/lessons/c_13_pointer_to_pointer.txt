@@ -205,6 +205,61 @@ printf("%d", x);
 - int &
 ! To change a caller's int * you pass its address, which is an int **.
 
+? What does this print?
+```
+int x = 1;
+int *p = &x;
+int **pp = &p;
+**pp = 5;
+printf("%d\n", x);
+```
+- 1
+* 5
+- the address of x
+! *pp is p, and **pp is *p, which is x.
+
+? What does this print?
+```
+int a = 1, b = 2;
+int *p = &a;
+int **pp = &p;
+*pp = &b;
+printf("%d\n", *p);
+```
+- 1
+* 2
+- 3
+! *pp = &b changes p itself, so p now points at b.
+
+? If p is an int *, what type is &p?
+- int *
+* int **
+- int &
+- int
+! The address of a pointer to int is a pointer to a pointer to int.
+
+? What does this print?
+```
+void point(int **pp, int *t) { *pp = t; }
+int main() {
+    int a = 3, b = 4;
+    int *p = &a;
+    point(&p, &b);
+    printf("%d\n", *p);
+}
+```
+- 3
+* 4
+- 7
+! Given p's address, the function can change where main's p points.
+
+? How many dereferences reach the int from int **pp?
+- One: *pp
+* Two: **pp
+- None: pp is the int
+- Three: ***pp
+! *pp is the int pointer, and **pp is the int it points at.
+
 ?code pointAt should make main's ptr point at b, but *ptr is still 1 afterwards. Fix pointAt and the way it is called.
 @hint pointAt gets a copy of ptr, so changing p doesn't change main's ptr.
 @hint Pass &ptr, take an int **pp, and set *pp = target.

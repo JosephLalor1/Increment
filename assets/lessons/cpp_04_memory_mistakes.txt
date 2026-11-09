@@ -174,6 +174,47 @@ delete p;
 - delete needs square brackets
 ! Only memory from new can be deleted. x is freed automatically when it goes out of scope.
 
+? What happens when the same pointer is deleted twice?
+- The second delete is ignored
+* Undefined behaviour: it often crashes
+- The memory is freed twice as fast
+- A compile error
+! After the first delete the memory isn't yours to delete again. (delete on nullptr is the safe exception.)
+
+? int x = 5; int *p = &x; delete p; What is wrong?
+* x wasn't created with new, so it must not be deleted
+- p should have been set to nullptr first
+- delete needs square brackets
+- Nothing is wrong
+! Only memory from new may be given to delete. x lives on the stack.
+
+? A function does int *p = new int(1); and returns without deleting p or returning it. What happens?
+- The int is deleted when the function ends
+* The int leaks: nothing can free it now
+- A compile error
+- p becomes nullptr
+! The only pointer to it went away with the function, so the memory can't be reached.
+
+? What does this print?
+```
+int *p = new int(4);
+delete p;
+p = nullptr;
+delete p;
+cout << "ok" << endl;
+```
+* ok
+- The program crashes on the second delete
+- 4
+! delete on nullptr does nothing, which is why setting pointers to nullptr after delete is a good habit.
+
+? Which habit helps catch use of memory after delete?
+- Deleting every pointer twice
+* Setting the pointer to nullptr straight after the delete
+- Never using new
+- Using delete[] for single values
+! A nullptr can be tested and doesn't hide a stale address.
+
 ?code After delete, p still holds the old address, so the program says it is dangling. Add the good habit from this lesson so p is safe to test.
 @hint delete frees the memory but doesn't change the pointer.
 @hint Set p to nullptr straight after deleting it.

@@ -200,6 +200,62 @@ int main() {
 - Store it in a variable
 ! Arithmetic on function pointers is not allowed.
 
+? What does this print?
+```
+int g = 1;
+void setGlobal() { g = 5; }
+int main() {
+    setGlobal();
+    printf("%d\n", g);
+}
+```
+- 1
+* 5
+- 6
+! There's only one g, the global one, and setGlobal changes it.
+
+? What does this print?
+```
+int g = 1;
+void setLocal() { int g = 5; g++; }
+int main() {
+    setLocal();
+    printf("%d\n", g);
+}
+```
+* 1
+- 5
+- 6
+! setLocal declares its own g, which hides the global one and disappears when the function ends.
+
+? What does this print?
+```
+int add(int a, int b) { return a + b; }
+int mul(int a, int b) { return a * b; }
+int main() {
+    int (*op)(int, int) = mul;
+    printf("%d\n", op(3, 4));
+}
+```
+- 7
+* 12
+- 34
+! op points at mul, so op(3, 4) calls mul.
+
+? Where does a variable declared inside a block { } exist?
+* From its declaration to the end of that block
+- Everywhere in the file
+- Until the program ends
+- Only in the function that called the block
+! That's its scope. Outside the block the name means nothing (or a different variable).
+
+? Why are global variables often avoided?
+- They are slower than local variables
+* Any function can change them, which makes bugs hard to trace
+- They can only hold ints
+- They are deleted after each function call
+! When many functions can change a value, finding which one changed it wrongly is hard.
+
 ?code The second line should print 10 - 4 = 6, but op still points at Add. Point op at Subtract before the second call, still calling through op.
 @hint A function's name, without brackets, is its address.
 @hint op = Subtract; makes op point at the other function.

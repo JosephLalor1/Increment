@@ -382,6 +382,65 @@ printf("%c%s", *p, p);
 - ab
 ! After p++ it points at 'b', and as a string it is "bc".
 
+? What does this print?
+```
+char s[] = "pointer";
+char *p = s;
+while (*p != '\0') p++;
+printf("%d\n", (int)(p - s));
+```
+- 8
+* 7
+- 6
+! The loop stops on the '\0', seven characters after the start: that's strlen_ptr.
+
+? What does this print?
+```
+int a[] = {1, 2, 3, 4};
+int sum = 0;
+for (int *p = a; p < a + 4; p++)
+    sum += *p;
+printf("%d\n", sum);
+```
+- 4
+* 10
+- 9
+! sum_array walks a pointer from the first element to one past the last.
+
+? What does this print?
+```
+int a[] = {3, 9, 2};
+int *best = a;
+for (int *p = a; p < a + 3; p++)
+    if (*p > *best) best = p;
+printf("%d\n", (int)(best - a));
+```
+- 9
+* 1
+- 2
+- 0
+! best ends up pointing at the 9, which is one element from the start.
+
+? What does *dest++ = *src++; do?
+* Copies one char, then moves both pointers on by one
+- Adds 1 to the char at src and copies it
+- Moves both pointers, then copies the char
+- Copies the whole string at once
+! ++ after a pointer moves the pointer, after its old value has been used.
+
+? What does this print?
+```
+char s[] = "banana";
+int v = 0;
+for (char *p = s; *p; p++)
+    if (*p == 'a') v++;
+printf("%d\n", v);
+```
+- 2
+* 3
+- 6
+! *p is false only at the '\0', so the loop visits each letter once.
+
 ?code reverse_array should turn 1 2 3 4 5 into 5 4 3 2 1, but it prints 5 1 2 3 4. Find the missing line.
 @hint Watch right: does it ever move?
 @hint After each swap, left moves forward and right should move back.

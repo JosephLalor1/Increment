@@ -203,6 +203,66 @@ struct Point {
 - Getters create a copy of the class
 ! Code outside can read the value but cannot change it directly.
 
+? What does this print?
+```
+class Box {
+public:
+    static int count;
+    Box() { count++; }
+};
+int Box::count = 0;
+int main() {
+    Box a, b, c;
+    cout << Box::count << endl;
+}
+```
+- 1
+* 3
+- 0
+! There is one count shared by every Box, and each constructor adds to it.
+
+? Which members can a static method use directly?
+* Only static members
+- Any member
+- Only private members
+- Only public members
+! A static method isn't called on an instance, so there are no non-static fields for it to use.
+
+? What does this print?
+```
+class Account {
+private:
+    int balance = 0;
+public:
+    void deposit(int n) { if (n > 0) balance += n; }
+    int getBalance() { return balance; }
+};
+int main() {
+    Account a;
+    a.deposit(50);
+    a.deposit(-20);
+    cout << a.getBalance() << endl;
+}
+```
+- 30
+* 50
+- 70
+! deposit refuses amounts that aren't positive: the kind of check private fields make possible.
+
+? main does a.balance = 5; but balance is private. What happens?
+* The program doesn't compile
+- balance becomes 5
+- The program crashes when it runs
+- balance is set, with a warning
+! Private members can only be used inside the class.
+
+? What is the main difference between struct and class in C++?
+* Default access: public in a struct, private in a class
+- A struct can't have methods
+- A struct can't have constructors
+- Only classes can be used with new
+! Otherwise they work the same way.
+
 ?code Point has a static count of how many points have been made, but it stays 0. Make the constructor add one to it.
 @hint There is one count shared by every Point, not one per object.
 @hint count++; in the constructor counts each new point.

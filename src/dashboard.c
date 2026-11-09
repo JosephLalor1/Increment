@@ -6,6 +6,7 @@
 #include "dashboard_stats.h"
 #include "journey_view.h"
 #include "layout.h"
+#include "review_view.h"
 #include "search_view.h"
 #include "mascot.h"
 #include "progress.h"
@@ -395,8 +396,9 @@ static float TopicSection(const LessonSet *set, float x, float y, float w, float
 // The whole page, starting at y. Returns the clicked lesson index or -1; *height is the
 // page's height, for scrolling.
 // The statistics page. Returns a lesson to open, or -1; sets *speedRound to a lesson whose
-// speed round should start.
-static int DrawPage(const LessonSet *set, float x, float y, float w, float scale, float *height, int *speedRound)
+// speed round should start, and *challenge when a short challenge should.
+static int DrawPage(const LessonSet *set, float x, float y, float w, float scale, float *height, int *speedRound,
+                    ReviewView *questions, bool *challenge)
 {
     float top = y;
     int selected = -1;
@@ -412,6 +414,10 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
     y += TrackSection(set, x, y, w, scale, &selected);
     y += QuizSection(all, x, y, w, scale);
     y += SpeedRoundSection(set, all, x, y, w, scale, speedRound);
+    ReviewChoice reviewed;
+    y += ReviewViewDraw(questions, set, x, y, w, scale, &reviewed);
+    if (reviewed.openLesson >= 0) selected = reviewed.openLesson;
+    *challenge = reviewed.challenge;
     y += RecommendationSection(set, x, y, w, scale, &selected);
     y += TopicSection(set, x, y, w, scale, &selected);
     *height = y - top + 32;
@@ -431,6 +437,7 @@ static struct {
     float journeyHeight[TRACK_COUNT];
     SearchView search;
     SavedView saved;
+    ReviewView questions;              // the statistics' "Your questions" section
 } page;
 
 void DashboardOpen(void)
@@ -604,8 +611,8 @@ static int JourneyView(const LessonSet *set, float top)
 }
 
 // The statistics page, scrolling below top. Returns a clicked lesson or -1, and sets
-// *speedRound to a lesson whose speed round was clicked.
-static int StatisticsView(const LessonSet *set, float top, int *speedRound)
+// *speedRound to a lesson whose speed round was clicked and *challenge for a short challenge.
+static int StatisticsView(const LessonSet *set, float top, int *speedRound, bool *challenge)
 {
     Rectangle view = ScrollView();
     view.height -= top - view.y;
@@ -613,7 +620,7 @@ static int StatisticsView(const LessonSet *set, float top, int *speedRound)
     UpdateScroll(&page.scroll, page.contentHeight, view.height);
     BeginView(view);
     int clicked = DrawPage(set, ContentX(), view.y + 12 - page.scroll, ContentWidth(), UiTextScale(),
-                           &page.contentHeight, speedRound);
+                           &page.contentHeight, speedRound, &page.questions, challenge);
     page.contentHeight += 24;
     EndView();
     PageScrollBar(view, &page.scroll, page.contentHeight);
@@ -633,10 +640,11 @@ HomeAction DashboardScreen(const LessonSet *set)
     }
 
     bool submitted;
-    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 296, 46 };
+    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 440, 46 };
     float top = SearchViewBox(&page.search, box, &submitted);
-    if (BarButton((Rectangle){ box.x + box.width + 12, box.y, 160, 46 }, ICON_TARGET, "Practice Quiz")) action.kind = HOME_PRACTICE;
-    if (BarButton((Rectangle){ box.x + box.width + 184, box.y, 112, 46 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
+    if (BarButton((Rectangle){ box.x + box.width + 12, box.y, 132, 46 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
+    if (BarButton((Rectangle){ box.x + box.width + 156, box.y, 160, 46 }, ICON_TARGET, "Practice Quiz")) action.kind = HOME_PRACTICE;
+    if (BarButton((Rectangle){ box.x + box.width + 328, box.y, 112, 46 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
     bool openSettings = false;
     top = RecoveryReminder(ContentX(), top, &openSettings);
     if (openSettings) action.kind = HOME_SETTINGS;
@@ -648,7 +656,9 @@ HomeAction DashboardScreen(const LessonSet *set)
         if (clicked >= 0) UiFocus(NULL);  // so Backspace in the lesson goes back, not into the box
     } else if (page.view == HOME_VIEW_STATISTICS) {
         int speedRound = -1;
-        clicked = StatisticsView(set, top, &speedRound);
+        bool challenge = false;
+        clicked = StatisticsView(set, top, &speedRound, &challenge);
+        if (challenge && action.kind == HOME_STAY) action.kind = HOME_CHALLENGE;
         if (speedRound >= 0 && action.kind == HOME_STAY) {
             action.kind = HOME_SPEED_ROUND;
             action.lessonIndex = speedRound;

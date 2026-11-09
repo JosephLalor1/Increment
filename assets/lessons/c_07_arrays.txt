@@ -226,6 +226,60 @@ int m[3][4] = {
 - The write is ignored
 ! C does no bounds checking. Writing past the end is undefined behaviour and corrupts other data.
 
+? What does this print?
+```
+int a[] = {4, 8, 15, 16};
+printf("%d\n", a[1] + a[3]);
+```
+- 19
+* 24
+- 12
+- 31
+! Indexes start at 0, so a[1] is 8 and a[3] is 16.
+
+? What does this print?
+```
+int a[5] = {1, 2};
+printf("%d\n", a[4]);
+```
+- 2
+* 0
+- 1
+- a garbage value
+! When an array is partly initialised, the remaining elements are set to 0.
+
+? What does this print?
+```
+int a[4] = {3, 1, 4, 1};
+int s = 0;
+for (int i = 0; i < 4; i++)
+    s += a[i];
+printf("%d\n", s);
+```
+- 4
+- 8
+* 9
+- 3141
+! The loop adds every element: 3 + 1 + 4 + 1.
+
+? How many ints does int grid[3][4]; hold?
+- 7
+* 12
+- 3
+- 4
+! A 3 by 4 array has 3 rows of 4 elements each.
+
+? What does this print?
+```
+int a[] = {1, 2, 3, 4, 5, 6};
+printf("%d\n", (int)(sizeof(a) / sizeof(a[0])));
+```
+- 24
+* 6
+- 4
+- 5
+! sizeof(a) is the whole array's size in bytes; dividing by one element's size gives the number of elements.
+
 ?code This program should print the warmest temperature, which is -2, but it prints 0. Fix it.
 @hint Every temperature is below 0. What does largest start as?
 @hint Start largest at the first element, temps[0], instead of 0.

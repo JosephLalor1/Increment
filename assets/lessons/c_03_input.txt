@@ -117,6 +117,41 @@ int ok = scanf("%d", &n);
 - Put the scanf call inside main twice
 ! Visual Studio wants the safer scanf_s, or you can turn the warning off with _CRT_SECURE_NO_WARNINGS.
 
+? Which format specifier reads a double with scanf?
+- %f
+* %lf
+- %d
+- %c
+! scanf needs %lf for a double. (%f is for a float; printf accepts %f for both.)
+
+? The user types 12 7 for scanf("%d %d", &a, &b). What is b?
+- 12
+* 7
+- 127
+- 19
+! scanf fills the variables in order, so a gets 12 and b gets 7.
+
+? The user types hello for scanf("%d", &n). What does scanf return?
+* 0
+- 1
+- 5
+- -1
+! scanf returns how many values it stored. hello isn't a number, so it stores none.
+
+? Which reads one character, skipping spaces and newlines first?
+- scanf("%c", &c);
+* scanf(" %c", &c);
+- scanf("%s", c);
+- scanf("%d", &c);
+! The space before %c tells scanf to skip any whitespace, such as the newline left over from an earlier input.
+
+? Why print a prompt before calling scanf?
+- scanf needs a printf before it to work
+* So the user knows what to type
+- It makes the program run faster
+- It clears the input
+! scanf just waits silently for input; the prompt is for the person at the keyboard.
+
 ?code This program should read two numbers and add them, but it crashes. Find the mistake in the scanf call and fix it.
 @hint Look at what scanf is given for each %d.
 @hint scanf needs the address of every variable it fills in.

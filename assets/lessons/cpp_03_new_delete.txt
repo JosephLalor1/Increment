@@ -211,6 +211,52 @@ int *getPtrToFive() {
 - new
 ! Memory from new is returned with delete.
 
+? What does this print?
+```
+int *p = new int(7);
+*p += 1;
+cout << *p << endl;
+delete p;
+```
+- 7
+* 8
+- 1
+! new int(7) makes an int holding 7 on the heap, and p points at it.
+
+? Which creates an int on the heap holding 3?
+- int x = 3;
+* new int(3)
+- new int[3]
+- int *p = 3;
+! new int[3] would be an array of three ints, not one int holding 3.
+
+? What happens to a local variable when its function returns?
+* It goes away; its memory can be reused
+- It moves to the heap
+- It keeps its value until the next call
+- It is deleted with delete automatically
+! That's why returning a local's address leaves a dangling pointer.
+
+? What does this print?
+```
+int *p = new int(2);
+int *q = p;
+*q = 9;
+cout << *p << endl;
+delete p;
+```
+- 2
+* 9
+- 11
+! p and q hold the same address, so they reach the same int.
+
+? After delete p; what is in p?
+- nullptr, set by delete
+* The same address as before, which must not be used
+- A new int with the value 0
+- Nothing: p no longer exists
+! delete frees the memory but leaves p unchanged, so p is now dangling.
+
 ?code getPtrToFive has to return the address of an int holding 5 that still exists after the function returns. Finish it with new.
 @hint A local variable is gone when the function returns, so its address would dangle.
 @hint return new int(5); makes the int on the heap, where it lasts until delete.

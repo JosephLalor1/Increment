@@ -53,6 +53,10 @@ if errorlevel 1 set FAILED=1
 if errorlevel 1 exit /b 1
 build\test_memory_model.exe
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_review.c src\review.c src\platform.c -o build\test_review.exe %LIBS%
+if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_speed_plan.c src\speed_plan.c src\speed_round.c src\review.c src\progress.c src\quiz_attempt.c src\lesson.c src\platform.c -o build\test_speed_plan.exe %LIBS%
+if errorlevel 1 exit /b 1
 rem Compiles a few hundred generated speed round questions with gcc and g++ to check their answers.
 "%CC%" %CFLAGS% tests\test_speed_round.c src\speed_round.c -o build\test_speed_round.exe
 if errorlevel 1 exit /b 1
@@ -69,6 +73,10 @@ mkdir "%TESTDIR%"
 build\test_practice.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_exercise_hints.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_review.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_speed_plan.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_bookmarks.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

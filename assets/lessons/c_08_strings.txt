@@ -139,6 +139,57 @@ printf("%s", w);
 - '0' ends a string
 ! Only the character with value 0 terminates a string.
 
+? What does this print?
+```
+char s[] = "hello";
+printf("%d\n", (int)strlen(s));
+```
+* 5
+- 6
+- 4
+! strlen counts the characters before the '\0', which it doesn't include.
+
+? What does this print?
+```
+char s[] = "cat";
+s[0] = 'b';
+printf("%s\n", s);
+```
+- cat
+* bat
+- bcat
+! The array holds its own copy of the characters, so they can be changed one at a time.
+
+? What does this print?
+```
+char s[] = "hello";
+s[2] = '\0';
+printf("%s\n", s);
+```
+- hello
+- llo
+* he
+- hel
+! %s stops at the first '\0', which is now in position 2.
+
+? What does this print?
+```
+char s[] = "abc";
+printf("%d\n", (int)sizeof(s));
+```
+- 3
+* 4
+- 1
+- 8
+! The array has room for the 3 letters plus the '\0' at the end.
+
+? Which function from <string.h> copies one string into another?
+- strlen
+* strcpy
+- strcmp
+- printf
+! strcpy(dest, src) copies src, including its '\0', into dest.
+
 ?code This loop should replace every 'a' in the string with '*', but it stops partway through. Make it go all the way to the end of the string.
 @hint The loop always stops at 5, whatever the string's length.
 @hint Keep going until text[i] is the null terminator, '\0'.

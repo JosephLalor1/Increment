@@ -254,6 +254,66 @@ int main() {
 - Both are compile errors
 ! ++ binds tighter than *, so *p++ increments p, not *p.
 
+? What does this print?
+```
+void triple(int *n) { *n = *n * 3; }
+int main() {
+    int x = 4;
+    triple(&x);
+    printf("%d\n", x);
+}
+```
+- 4
+* 12
+- 3
+! The function gets x's address, so *n is x itself.
+
+? What does this print?
+```
+void setZero(int n) { n = 0; }
+int main() {
+    int x = 7;
+    setZero(x);
+    printf("%d\n", x);
+}
+```
+* 7
+- 0
+- 70
+! Passed by value, the function only changes its own copy.
+
+? How can one function give back both a quotient and a remainder?
+- Return both, separated by a comma
+* Take pointers to two variables and fill them in
+- Use two return statements
+- It can't; that needs two functions
+! A function returns one value, but it can write through as many pointers as it's given.
+
+? What does this print?
+```
+void minMax(int a, int b, int *lo, int *hi) {
+    *lo = a < b ? a : b;
+    *hi = a < b ? b : a;
+}
+int main() {
+    int lo, hi;
+    minMax(8, 3, &lo, &hi);
+    printf("%d %d\n", lo, hi);
+}
+```
+- 8 3
+* 3 8
+- 3 3
+- 8 8
+! minMax writes the smaller value through lo and the larger through hi.
+
+? Inside void f(int *p), what does p = NULL; change?
+* Only the function's own copy of the pointer
+- The caller's pointer
+- The int the caller's pointer points at
+- Nothing: it doesn't compile
+! The pointer itself was passed by value. To change the caller's pointer, f would need an int **.
+
 ?code swap_ints should swap the caller's two variables, but x and y come out unchanged. Fix the function.
 @hint The function swaps a and b, its own copies of the addresses. What should be swapped instead?
 @hint Use *a and *b, and make temp an int.

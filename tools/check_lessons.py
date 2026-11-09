@@ -33,7 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LESSONS = os.path.join(ROOT, 'assets', 'lessons')
 BIN = os.path.join(os.environ.get('RAYLIB_DIR', r'C:\raylib'), 'w64devkit', 'bin')
 MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many columns
-MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 16, 6
+MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 32, 6
 MAX_EXERCISE_HINTS = 8
 # The skill names an "@speed" line may use (src/speed_round.c generates their questions).
 SPEED_SKILLS = ('variables', 'arithmetic', 'conditions', 'loops', 'arrays', 'strings', 'functions',

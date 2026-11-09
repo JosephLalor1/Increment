@@ -190,6 +190,65 @@ int main() {
 - 10 5
 ! The custom copy constructor doubles the value as it copies.
 
+? What does this print?
+```
+class P {
+public:
+    int x;
+    P(int v) { x = v; }
+    P(const P &o) { x = o.x + 1; }
+};
+int main() {
+    P a(5);
+    P b = a;
+    cout << b.x << endl;
+}
+```
+- 5
+* 6
+- 1
+! P b = a runs the copy constructor, which adds 1.
+
+? Which line runs the copy constructor?
+* Point q = p;
+- q = p; when q already exists
+- Point q;
+- p.x = q.x;
+! A new object made as a copy of another uses the copy constructor; assigning to an existing one uses operator=.
+
+? What is a shallow copy?
+* Copying pointer fields as they are, so both objects share what they point at
+- Copying only some of the fields
+- A copy that is deleted straight away
+- Copying the object onto the stack
+! The default copy constructor makes shallow copies.
+
+? What does this print?
+```
+class Box {
+public:
+    int *v;
+    Box(int n) { v = new int(n); }
+};
+int main() {
+    Box a(1);
+    Box b = a;
+    *b.v = 7;
+    cout << *a.v << endl;
+}
+```
+- 1
+* 7
+- 8
+! The default copy is shallow: a.v and b.v point at the same int.
+
+? Why does a class that owns heap memory usually need a deep copy?
+* So each object has its own memory, and changing one doesn't change the other
+- So copying is faster
+- Because the heap can't be shared
+- To avoid calling the constructor
+! Sharing would also mean both destructors free the same memory.
+
 ?code Changing student2's name also changes student1's, because the default copy shares one name. Write a copy constructor that makes a deep copy, so this prints foo boo.
 @hint The default copy copies the name pointer, not the characters it points at.
 @hint In MITStudent(const MITStudent &o), allocate new char[strlen(o.name) + 1] and strcpy into it.

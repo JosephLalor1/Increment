@@ -142,6 +142,56 @@ printf("%.2f", pi);
 - It is a typo; it has no meaning
 ! A decimal literal is a double by default. The f suffix makes it a float.
 
+? What does this print?
+```
+int a = 7;
+int b = a;
+a = 10;
+printf("%d\n", b);
+```
+* 7
+- 10
+- 17
+! int b = a; copies the value 7 into b. Changing a afterwards doesn't change b.
+
+? What does this print?
+```
+double d = 2.9;
+int i = d;
+printf("%d\n", i);
+```
+- 3
+* 2
+- 2.9
+! Storing a double in an int drops the fractional part. It doesn't round.
+
+? What does this print?
+```
+printf("%.1f\n", 3.14159);
+```
+- 3.14159
+- 3.14
+* 3.1
+- 3
+! .1 asks for one digit after the decimal point.
+
+? Which declares a value that can never change?
+- #const MAX 10
+- constant int MAX = 10;
+* const int MAX = 10;
+- int MAX = const 10;
+! const before the type makes the variable read-only; assigning to it later is a compile error.
+
+? What does this print?
+```
+char c = 'A';
+printf("%d\n", c);
+```
+- A
+* 65
+- 1
+! A char is a small number. Printed with %d, 'A' shows its character code, 65.
+
 ?code Finish the program: declare a double called price holding 4.5, then print the total cost, quantity times price, with 2 decimal places.
 @hint Use %f to print a double, and %.2f for exactly 2 decimal places.
 @hint An int times a double gives a double, so quantity * price is 13.5.

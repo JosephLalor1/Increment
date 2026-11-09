@@ -136,6 +136,50 @@ cout << d;
 - c++compile
 ! g++ is the GNU C++ compiler.
 
+? What does this print?
+```
+cout << 3 + 4 << endl;
+```
+- 3 + 4
+* 7
+- 34
+! The expression is worked out first, then its value is printed.
+
+? What does this print?
+```
+int x = 5;
+cout << "x is " << x << endl;
+```
+* x is 5
+- x is x
+- "x is " 5
+! Each << sends the next item to cout in turn.
+
+? What does endl do?
+* Ends the line and flushes the output
+- Ends the program
+- Clears the screen
+- Ends the current statement
+! It's like printing "\n", and it also makes sure the text is shown straight away.
+
+? What does this print?
+```
+string s = "hi";
+cout << s << s.length() << endl;
+```
+- hi
+* hi2
+- hihi
+- 2
+! s.length() is 2, printed straight after the string.
+
+? Which reads one word into string name?
+- cout >> name;
+* cin >> name;
+- cin << name;
+- scanf(name);
+! cin uses >>, pointing from the input into the variable. It stops at whitespace.
+
 ?code The program should read a name and an age, but it never reads the age, so it always says 1. Add the missing input.
 @hint cin >> reads one value each time you use >>.
 @hint You can chain them: cin >> name >> age;

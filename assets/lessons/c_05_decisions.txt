@@ -171,6 +171,65 @@ switch (x) {
 - It checks whether x is greater than 5
 ! = is assignment. The value of x = 5 is 5, which is non-zero and so counts as true.
 
+? What does this print?
+```
+int x = 5;
+if (x > 3 && x < 10)
+    printf("in\n");
+else
+    printf("out\n");
+```
+* in
+- out
+- inout
+! 5 is greater than 3 and less than 10, so both sides of && are true.
+
+? What does this print?
+```
+int n = 2;
+switch (n) {
+case 1: printf("one ");
+case 2: printf("two ");
+case 3: printf("three ");
+}
+printf("\n");
+```
+- two
+* two three
+- one two three
+- three
+! Without break, a case falls through into the cases below it, so case 3 runs too.
+
+? What does this print?
+```
+int a = 0;
+if (a)
+    printf("yes\n");
+else
+    printf("no\n");
+```
+- yes
+* no
+- 0
+! In C, 0 counts as false and any other number as true.
+
+? What does ! do in !(x > 5)?
+* Reverses the result: true becomes false and false becomes true
+- Makes the comparison stricter
+- Checks that x is not equal to 5
+- Prints a warning if x is over 5
+! ! is logical NOT. !(x > 5) is true exactly when x is 5 or less.
+
+? What does this print?
+```
+printf("%d\n", 3 > 2 && 2 > 1);
+```
+- 0
+* 1
+- 2
+- 3
+! Both comparisons are true, and a true comparison in C has the value 1.
+
 ?code Scores of 80 or more should print Distinction, 50 to 79 Pass, and anything lower Fail. With the input 85 this program prints Pass. Fix the order of the tests.
 @hint An if / else if chain stops at the first test that is true.
 @hint 85 >= 50 is true, so the Distinction test is never reached. Test the higher mark first.

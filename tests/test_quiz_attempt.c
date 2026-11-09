@@ -119,6 +119,37 @@ static void CheckLessonCodingQuestions(const LessonSet *lessons)
     printf("%d lesson coding questions parse\n", found);
 }
 
+// Drawn quizzes: up to QUIZ_CHOICE_QUESTIONS different multiple-choice questions, then
+// every coding question; the same seed gives the same quiz, and different seeds vary it.
+static void CheckDrawn(const LessonSet *lessons)
+{
+    bool varied = false;
+    for (int l = 0; l < lessons->count; l++) {
+        const Lesson *lesson = &lessons->items[l];
+        int choices = 0, codings = 0;
+        for (int i = 0; i < lesson->questionCount; i++) {
+            if (QuizIsCoding(&lesson->questions[i])) codings++;
+            else choices++;
+        }
+        QuizAttempt a, b, c;
+        QuizAttemptBeginDrawn(&a, lesson, 11);
+        QuizAttemptBeginDrawn(&b, lesson, 11);
+        QuizAttemptBeginDrawn(&c, lesson, 12345);
+        int expected = (choices < QUIZ_CHOICE_QUESTIONS ? choices : QUIZ_CHOICE_QUESTIONS) + codings;
+        assert(a.count == expected && c.count == expected);
+        for (int i = 0; i < a.count; i++) {
+            assert(a.order[i] == b.order[i]);
+            if (a.order[i] != c.order[i]) varied = true;
+            for (int j = i + 1; j < a.count; j++) assert(a.order[i] != a.order[j]);
+            bool coding = QuizIsCoding(QuizAttemptQuestion(&a, i));
+            assert(coding == (i >= a.count - codings));  // coding questions come last
+            assert(a.answers[i] == -1);
+        }
+        assert(QuizAttemptQuestion(&a, a.count) == NULL);
+    }
+    assert(varied);
+}
+
 int main(void)
 {
     SetTraceLogLevel(LOG_ERROR);
@@ -136,6 +167,7 @@ int main(void)
     }
     assert(checked[TRACK_C] && checked[TRACK_CPP]);
     CheckCodingQuestions();
+    CheckDrawn(&lessons);
     CheckLessonCodingQuestions(&lessons);
 
     Lesson *fixture = calloc(1, sizeof *fixture);

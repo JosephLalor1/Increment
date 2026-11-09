@@ -239,6 +239,71 @@ int main() {
 - The first field of the class
 ! this->x reaches the current instance's field x.
 
+? What does this print?
+```
+class Point {
+public:
+    int x, y;
+    Point() { x = 1; y = 2; }
+};
+int main() {
+    Point p;
+    cout << p.x << p.y << endl;
+}
+```
+- 3
+* 12
+- 00
+! The constructor runs as p is created and sets both fields.
+
+? What does this print?
+```
+class Point {
+public:
+    int x, y;
+    Point(int a, int b) : x(a), y(b) {}
+};
+int main() {
+    Point p(3, 4);
+    cout << p.y << endl;
+}
+```
+- 3
+* 4
+- 7
+! The initialisation list sets y from b.
+
+? What's special about a constructor's name?
+* It's the class's name, and it has no return type
+- It always starts with init
+- It must be called create
+- It returns the new object
+! That's how C++ recognises it as the constructor.
+
+? What does this print?
+```
+class A {
+public:
+    int v;
+    A(int v) { this->v = v * 2; }
+};
+int main() {
+    A a(5);
+    cout << a.v << endl;
+}
+```
+- 5
+* 10
+- 0
+! this->v is the field; plain v is the parameter.
+
+? Point *p = new Point(1, 2); What must eventually free it?
+* delete p;
+- delete[] p;
+- free(p);
+- Nothing; it is freed at the end of main
+! An object made with new is freed with delete, which also runs its destructor.
+
 ?code The constructor's parameters have the same names as the fields, so the point stays at (0, 0). Fix the constructor with the this pointer.
 @hint Inside the constructor, x means the parameter, not the field.
 @hint this->x is the field x of the object being constructed.

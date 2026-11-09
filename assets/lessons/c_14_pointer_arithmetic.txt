@@ -228,6 +228,61 @@ printf("%d", *p);
 - 20
 ! a + 3 is a[3]; moving back 2 lands on a[1].
 
+? What does this print?
+```
+int a[] = {10, 20, 30, 40};
+int *p = a;
+p += 2;
+printf("%d\n", *p);
+```
+- 20
+* 30
+- 12
+- 10
+! p + 2 moves two whole ints along, to a[2].
+
+? What does this print?
+```
+int a[] = {1, 2, 3};
+int *p = a + 2;
+printf("%d\n", *(p - 1));
+```
+- 1
+* 2
+- 3
+! p points at a[2], so p - 1 points at a[1].
+
+? What does this print?
+```
+int a[] = {5, 9, 7};
+printf("%d\n", *a + 1);
+```
+* 6
+- 9
+- 7
+- 5
+! *a is a[0], 5, and then 1 is added. *(a + 1) would have been 9.
+
+? What does this print?
+```
+int a[] = {2, 4, 6, 8};
+int *p = a;
+int *q = a + 3;
+printf("%d\n", (int)(q - p));
+```
+- 12
+* 3
+- 6
+- 4
+! Subtracting pointers into the same array gives the number of elements between them, not bytes.
+
+? If int *p points at a[1], what is p[2]?
+- a[2]
+* a[3]
+- a[1] + 2
+- the third byte of a[1]
+! p[2] means *(p + 2), two elements past a[1].
+
 ?code sum should add all five values (making 15), but it prints 10. Fix the function.
 @hint Which element does the loop leave out?
 @hint ptr + numValues is already one past the last element, and the loop stops before it.

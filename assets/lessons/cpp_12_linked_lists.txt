@@ -434,6 +434,62 @@ InsertAtEnd(&head, 4);
 - It doesn't need to
 ! Reading a deleted node is use-after-free.
 
+? What does this print?
+```
+struct Node { int data; Node *nextPtr; };
+int main() {
+    Node c = {3, nullptr};
+    Node b = {2, &c};
+    Node a = {1, &b};
+    int sum = 0;
+    for (Node *p = &a; p != nullptr; p = p->nextPtr)
+        sum += p->data;
+    cout << sum << endl;
+}
+```
+- 3
+* 6
+- 1
+! The loop follows nextPtr from a until it reaches nullptr.
+
+? What is headPtr for an empty list?
+* nullptr
+- A node with data 0
+- The address of the last node
+- Any value
+! With no first node, there's nothing for the head to point at.
+
+? Where does InsertAtBeginning make the new node's nextPtr point?
+* At the node that used to be first
+- At nullptr
+- At itself
+- At the last node
+! Then the head is moved to the new node.
+
+? What does this print?
+```
+struct Node { int data; Node *nextPtr; };
+int main() {
+    Node b = {7, nullptr};
+    Node a = {5, &b};
+    a.nextPtr = nullptr;
+    int count = 0;
+    for (Node *p = &a; p; p = p->nextPtr) count++;
+    cout << count << endl;
+}
+```
+- 2
+* 1
+- 0
+! Cutting a's link leaves a list of one node; b still exists but is no longer in the list.
+
+? What does traversing a list mean?
+* Visiting each node in turn, from the head, by following the next pointers
+- Reversing the list
+- Deleting every node
+- Sorting the list
+! It's how PrintList and FreeList work.
+
 ?code PrintList should print all three nodes, 10 20 30, but it stops before the last one. Fix the loop.
 @hint The last node's nextPtr is nullptr. What happens to it in the loop?
 @hint Keep going while current itself is not nullptr.

@@ -235,6 +235,73 @@ int main() {
 - Nothing; it is freed automatically
 ! Every new needs a delete and every new[] a delete[].
 
+? What does this print?
+```
+class N {
+public:
+    int id;
+    N(int i) { id = i; }
+    ~N() { cout << id; }
+};
+int main() {
+    N a(1);
+    N b(2);
+}
+```
+- 12
+* 21
+- nothing
+! Local objects are destroyed in the reverse order they were made.
+
+? What does this print?
+```
+class T {
+public:
+    T() { cout << "c"; }
+    ~T() { cout << "d"; }
+};
+int main() {
+    T *t = new T[3];
+    delete[] t;
+    cout << endl;
+}
+```
+- cd
+* cccddd
+- cdcdcd
+- ccc
+! new[] constructs every element and delete[] destroys every element.
+
+? Can a destructor take parameters?
+* No: it never takes parameters and has no return type
+- Yes, any number
+- Only one, the object to destroy
+- Only when the object came from new
+! There is exactly one destructor per class, written ~ClassName().
+
+? Point *p = new Point; When does its destructor run?
+* When delete p; is called
+- At the end of the block
+- When p goes out of scope
+- Never
+! Heap objects live until they're deleted.
+
+? What does this print?
+```
+class T {
+public:
+    ~T() { cout << "bye "; }
+};
+int main() {
+    { T t; }
+    cout << "end" << endl;
+}
+```
+* bye end
+- end bye
+- end
+! t is destroyed at the end of its own block, before "end" is printed.
+
 ?code Each Noisy object says when it is destroyed, but these three are made with new and never deleted, so no destructor runs. Delete them at the end of main.
 @hint Objects made with new are only destroyed by delete.
 @hint Loop over items and delete each pointer.

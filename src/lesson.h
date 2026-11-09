@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 #define MAX_BLOCKS    256
-#define MAX_QUESTIONS 16
+#define MAX_QUESTIONS 32   // a lesson's whole question bank; a quiz asks some of them (quiz_attempt.h)
 #define MAX_CHOICES   6
 #define MAX_EXERCISES 8
 #define MAX_EXERCISE_HINTS 8
@@ -73,5 +73,11 @@ bool LessonsLoad(LessonSet *set, const char *dir);
 void LessonsUnload(LessonSet *set);
 
 const char *TrackName(Track t);
+
+// A question's lasting id, for remembering how the learner does on it (review.h):
+// "<lesson id>?<8 hex digits>", the digits hashed from its prompt and code. It doesn't depend
+// on the question's position, so adding or reordering questions keeps everyone's history.
+// size should be at least 48.
+void LessonQuestionId(const Lesson *lesson, const Question *question, char *out, int size);
 
 #endif

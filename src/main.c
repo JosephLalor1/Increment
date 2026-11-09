@@ -10,6 +10,7 @@
 #include "account_screens.h"
 #include "app_screen.h"
 #include "bookmarks.h"
+#include "review.h"
 #include "code_screen.h"
 #include "courses_screen.h"
 #include "practice_screen.h"
@@ -87,6 +88,7 @@ static void ShowLogin(void)
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
+    ReviewLoad("");  // and their answer history
     NotesPanelSetFolder(NULL);  // the next user mustn't see (or save into) these notes
     LoginReset();
     ApplyUserAppearance();
@@ -115,6 +117,7 @@ static void SignedIn(void)
 {
     ProgressLoad(AccountProgressPath());
     BookmarksLoad(AccountBookmarksPath());
+    ReviewLoad(AccountReviewPath());
     if (VerifyNeeded()) {  // the account isn't usable until its email is verified
         VerifyOpen(false);
         app.screen = SCREEN_VERIFY;
@@ -181,6 +184,11 @@ static void RunHome(void)
     switch (action.kind) {
     case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex, SCREEN_HOME); break;
     case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
+    case HOME_CHALLENGE:
+        SpeedScreenOpenChallenge(&lessons);
+        app.speedReturn = SCREEN_HOME;
+        app.screen = SCREEN_SPEED;
+        break;
     case HOME_PRACTICE:
         PracticeScreenOpen(&lessons);
         app.screen = SCREEN_PRACTICE;

@@ -193,6 +193,60 @@ int main() {
 - 123
 ! The inner call returns 3, then add(3, 3) returns 6.
 
+? What does this print?
+```
+int square(int n) { return n * n; }
+int main() {
+    printf("%d\n", square(3) + square(2));
+}
+```
+- 25
+* 13
+- 10
+- 36
+! square(3) is 9 and square(2) is 4.
+
+? What does this print?
+```
+void addOne(int n) { n = n + 1; }
+int main() {
+    int x = 5;
+    addOne(x);
+    printf("%d\n", x);
+}
+```
+* 5
+- 6
+- 1
+! The function gets a copy of x. Changing the copy doesn't change x.
+
+? What does a return statement do?
+* Ends the function and gives a value back to the caller
+- Prints the value
+- Restarts the function
+- Ends the whole program
+! The call is replaced by the returned value where it was made. (Only return in main ends the program.)
+
+? main calls a function defined below it. What must come before main?
+- Nothing: C finds functions anywhere
+* A prototype of the function
+- A copy of the whole function
+- An #include of the function's name
+! The compiler reads top to bottom, so it needs the function's prototype (or definition) before the call.
+
+? What does this print?
+```
+int max(int a, int b) { return a > b ? a : b; }
+int main() {
+    printf("%d\n", max(max(3, 9), 4));
+}
+```
+- 3
+- 4
+* 9
+- 13
+! The inner call returns 9, and max(9, 4) is 9.
+
 ?code main uses a function max that returns the larger of its two arguments, but its body hasn't been written yet. Write it.
 @hint Compare a and b with an if, or with the ?: operator.
 @hint Return a if it is bigger than b, otherwise return b.

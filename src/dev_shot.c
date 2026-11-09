@@ -14,6 +14,7 @@
 #include "notes_panel.h"
 #include "lesson_screen.h"
 #include "progress.h"
+#include "review.h"
 #include "speed_screen.h"
 #include "ui.h"
 
@@ -100,6 +101,14 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         int stage = Is(name, "speedready") ? 1 : Is(name, "speedplay") ? 2 : Is(name, "speedfail") ? 3
                   : Is(name, "speedgold") ? 4 : 0;
         SpeedScreenDemo(stage, extra ? (float)atof(extra) : 0);
+        return SCREEN_SPEED;
+    }
+    // challenge: a short challenge's intro; challengeplay <index> <ms>: its seventh question,
+    // ms in; challengeresults: its results, with a few misses. From the signed-in user's history.
+    if (Is(name, "challenge") || Is(name, "challengeplay") || Is(name, "challengeresults")) {
+        if (lessons->count == 0) return Home();
+        SpeedScreenOpenChallenge(lessons);
+        SpeedScreenDemo(Is(name, "challengeplay") ? 2 : Is(name, "challengeresults") ? 5 : 0, extra ? (float)atof(extra) : 0);
         return SCREEN_SPEED;
     }
     if (Is(name, "courses")) {
@@ -198,6 +207,7 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
     if (user && password && AccountLogin(user, password, &err)) {
         ProgressLoad(AccountProgressPath());
         BookmarksLoad(AccountBookmarksPath());
+        ReviewLoad(AccountReviewPath());
     }
     ApplyUserAppearance();
 

@@ -735,6 +735,7 @@ bool AccountDelete(const char *password, const char **err)
     remove(UserFile(removed.name, ".settings.txt"));
     remove(UserFile(removed.name, ".email.txt"));
     remove(UserFile(removed.name, ".bookmarks.txt"));
+    remove(UserFile(removed.name, ".review.txt"));  // answer history and review schedule
     PlatformRemoveDir(UserFile(removed.name, "_code"));   // code editor drafts
     PlatformRemoveDir(UserFile(removed.name, "_notes"));  // lesson notes
     memset(&mail, 0, sizeof mail);
@@ -754,6 +755,14 @@ const char *AccountBookmarksPath(void)
     static char path[1100];
     if (current < 0) return "";
     snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".bookmarks.txt"));
+    return path;
+}
+
+const char *AccountReviewPath(void)
+{
+    static char path[1100];
+    if (current < 0) return "";
+    snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".review.txt"));
     return path;
 }
 

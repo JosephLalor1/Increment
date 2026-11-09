@@ -180,6 +180,59 @@ cout << a;
 - int y = 2; int &r = y;
 ! A reference must be initialised to refer to something.
 
+? What does this print?
+```
+void addTen(int &n) { n += 10; }
+int main() {
+    int x = 1;
+    addTen(x);
+    cout << x << endl;
+}
+```
+- 1
+* 11
+- 10
+! n is a reference to x, so the change happens to x.
+
+? What does this print?
+```
+int a = 5;
+int &r = a;
+r = 8;
+cout << a << endl;
+```
+- 5
+* 8
+- 13
+! r is another name for a.
+
+? What does this print?
+```
+int a = 1, b = 2;
+int &r = a;
+r = b;
+b = 7;
+cout << a << endl;
+```
+- 1
+* 2
+- 7
+! r = b copies b's value into a. A reference can't be re-pointed at another variable.
+
+? Must a reference be given something to refer to when it's declared?
+* Yes: int &r; on its own doesn't compile
+- No: it can be set later with r = x;
+- Only for references to objects
+- Only inside functions
+! A reference is always another name for some variable, from the start.
+
+? What does const int &x as a parameter promise?
+* The function won't change the caller's variable through x
+- x is copied
+- x can't be changed by anyone
+- The caller must pass a constant
+! It's passed by reference (no copy) but read-only inside the function.
+
 ?code doubleIt should double the caller's variable, but n is still 5 afterwards. Fix it with a reference: only the function's parameter needs to change.
 @hint The function changes its own copy, x.
 @hint Write int &x to make x another name for the caller's variable.

@@ -3,6 +3,7 @@
 #include "lesson.h"
 #include "raylib.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -428,6 +429,20 @@ void LessonsUnload(LessonSet *set)
     free(set->items);
     set->items = NULL;
     set->count = 0;
+}
+
+// FNV-1a: a small, stable hash, so a question's id is the same on every run and machine.
+static unsigned HashText(unsigned hash, const char *text)
+{
+    for (const unsigned char *c = (const unsigned char *)(text ? text : ""); *c; c++) hash = (hash ^ *c) * 16777619u;
+    return hash;
+}
+
+void LessonQuestionId(const Lesson *lesson, const Question *question, char *out, int size)
+{
+    unsigned hash = HashText(2166136261u, question->prompt);
+    hash = HashText(hash ^ 0x1fu, question->code);  // the same prompt over different code is a different question
+    snprintf(out, (size_t)size, "%s?%08x", lesson->id, hash);
 }
 
 const char *TrackName(Track t)

@@ -246,6 +246,59 @@ printf("%d %d", x, *p);
 - Error
 ! x is 25 and *p is the value at x's address, also 25.
 
+? What does this print?
+```
+int x = 4;
+int *p = &x;
+*p = *p * 3;
+printf("%d\n", x);
+```
+- 4
+* 12
+- 3
+! *p is x, so the line triples x.
+
+? What does this print?
+```
+int a = 1, b = 2;
+int *p = &a;
+p = &b;
+*p = 9;
+printf("%d %d\n", a, b);
+```
+- 9 2
+* 1 9
+- 9 9
+- 1 2
+! p was moved to point at b before *p = 9, so only b changes.
+
+? What does int *p; declare?
+* p, a pointer that can hold the address of an int
+- p, an int that is multiplied by something
+- a pointer called *p
+- an int whose value is an address
+! The * in a declaration means "pointer to". The variable's name is p.
+
+? What does this print?
+```
+int x = 5;
+int *p = &x;
+int *q = p;
+*q = 8;
+printf("%d\n", *p);
+```
+- 5
+* 8
+- 13
+! q is a copy of p, so both hold x's address and *q = 8 changes x.
+
+? What happens when a program dereferences a NULL pointer?
+- It reads the value 0
+* It's an error: usually the program crashes
+- Nothing: the line is skipped
+- It reads the last value stored
+! NULL means "points at nothing", so there's no int there to read or write.
+
 ?code Change i to 20 using only ptr: the new line must not mention i by name.
 @hint ptr holds i's address. Which operator reaches the variable at that address?
 @hint *ptr = 20; stores 20 in the int that ptr points at.

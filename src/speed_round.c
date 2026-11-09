@@ -838,70 +838,143 @@ char *SpeedQuestionCode(const SpeedQuestion *q, int from, char *out, int size)
 // ---------------------------------------------------------------------------
 // The round
 
-static void NextQuestion(SpeedRound *round, double now)
+bool SpeedRoundIsBank(const SpeedRound *round, int index)
 {
-    SpeedSkill skill = round->skills[Rand(&round->seed, 0, round->skillCount - 1)];
-    SpeedGenerate(skill, round->number, &round->seed, &round->question);
-    round->phaseStart = now;
+    return index >= 0 && index < round->count && round->plan[index].bank != NULL;
 }
 
-void SpeedRoundStart(SpeedRound *round, const SpeedSkill *skills, int skillCount, uint32_t seed, double now)
+int SpeedRoundChoiceCount(const SpeedRound *round, int index)
+{
+    if (index < 0 || index >= round->count) return 0;
+    return SpeedRoundIsBank(round, index) ? round->plan[index].bank->choiceCount : SPEED_CHOICES;
+}
+
+int SpeedRoundCorrect(const SpeedRound *round, int index)
+{
+    if (index < 0 || index >= round->count) return -1;
+    return SpeedRoundIsBank(round, index) ? round->plan[index].bank->correct : round->generated[index].correct;
+}
+
+// Characters of reading in a lesson question: its prompt, code and choices.
+static int ReadingLength(const Question *q)
+{
+    int length = (int)strlen(q->prompt) + (q->code ? (int)strlen(q->code) : 0);
+    for (int i = 0; i < q->choiceCount; i++) length += (int)strlen(q->choices[i]);
+    return length;
+}
+
+double SpeedSecondsFor(const Question *bank, const SpeedQuestion *generated, SpeedFamiliarity familiarity)
+{
+    double seconds = SPEED_MIN_SECONDS;
+    if (bank) {
+        int length = ReadingLength(bank);
+        if (length > 120) seconds += (length - 120) / 50.0;  // about a second per extra line of reading
+        if (bank->code) {
+            int lines = 1;
+            for (const char *c = bank->code; *c; c++) lines += *c == '\n';
+            seconds += lines * 0.5;  // code takes tracing, not just reading
+        }
+    } else if (generated) {
+        int lines = generated->lineCount - generated->firstBodyLine;
+        if (lines > 4) seconds += (lines - 4) * 0.8;
+    }
+    if (familiarity == SPEED_NEW) seconds += 4;
+    if (familiarity == SPEED_STRUGGLING) seconds += 6;
+    return seconds < SPEED_MIN_SECONDS ? SPEED_MIN_SECONDS : seconds > SPEED_MAX_SECONDS ? SPEED_MAX_SECONDS : seconds;
+}
+
+void SpeedRoundStart(SpeedRound *round, const SpeedPlanItem *plan, int count, bool endOnMiss,
+                     SpeedFamiliarityLookup familiarity, uint32_t seed, double now)
 {
     memset(round, 0, sizeof *round);
-    if (skillCount > SPEED_SKILL_COUNT) skillCount = SPEED_SKILL_COUNT;
-    for (int i = 0; i < skillCount; i++) round->skills[i] = skills[i];
-    round->skillCount = skillCount > 0 ? skillCount : 1;  // no skills given: arithmetic (skills[0] is 0)
-    round->seed = seed ? seed : 1;
-    round->phase = SPEED_COUNTING_IN;
-    round->picked = -1;
-    NextQuestion(round, now);  // ready behind the count-in
+    if (count > SPEED_QUESTIONS) count = SPEED_QUESTIONS;
+    if (count < 0) count = 0;
+    round->count = count;
+    round->endOnMiss = endOnMiss;
+    if (seed == 0) seed = 1;
+    for (int i = 0; i < count; i++) {
+        round->plan[i] = plan[i];
+        round->picked[i] = -1;
+        // Generated questions grow with the run, so its end is the hardest part.
+        if (!plan[i].bank) SpeedGenerate(plan[i].skill, i, &seed, &round->generated[i]);
+        SpeedFamiliarity known = familiarity ? familiarity(plan[i].reviewId) : SPEED_KNOWN;
+        round->seconds[i] = SpeedSecondsFor(plan[i].bank, plan[i].bank ? NULL : &round->generated[i], known);
+    }
+    round->phase = count > 0 ? SPEED_COUNTING_IN : SPEED_WON;
+    round->phaseStart = now;
+    round->lastAnswered = -1;
 }
 
-void SpeedRoundUpdate(SpeedRound *round, double now)
+// After question number has been answered (or timed out): the next one, or the end.
+static void MoveOn(SpeedRound *round, double now)
+{
+    if (round->number + 1 >= round->count) {
+        round->phase = SPEED_WON;
+        round->endedAt = now;
+        return;
+    }
+    round->number++;
+    round->phaseStart = now;  // no breather: the next question starts now
+}
+
+SpeedOutcome SpeedRoundUpdate(SpeedRound *round, double now)
 {
     if (round->phase == SPEED_COUNTING_IN && now - round->phaseStart >= SPEED_COUNT_IN) {
         round->phase = SPEED_PLAYING;
         round->phaseStart += SPEED_COUNT_IN;
     }
-    if (round->phase == SPEED_PLAYING && now - round->phaseStart >= SPEED_SECONDS) {
+    if (round->phase != SPEED_PLAYING) return SPEED_IGNORED;
+    double limit = round->seconds[round->number];
+    if (now - round->phaseStart < limit) return SPEED_IGNORED;
+    double timedOutAt = round->phaseStart + limit;
+    round->lastAnswered = round->number;
+    if (round->endOnMiss) {
         round->phase = SPEED_FAILED;
-        round->picked = -1;
-        round->endedAt = round->phaseStart + SPEED_SECONDS;
+        round->endedAt = timedOutAt;
+    } else {
+        MoveOn(round, timedOutAt);
     }
+    return SPEED_TIMED_OUT;
 }
 
 SpeedOutcome SpeedRoundAnswer(SpeedRound *round, int choice, double now)
 {
-    SpeedRoundUpdate(round, now);  // an answer after the time limit is too late
-    if (round->phase != SPEED_PLAYING || choice < 0 || choice >= SPEED_CHOICES) return SPEED_IGNORED;
-    if (choice != round->question.correct) {
-        round->phase = SPEED_FAILED;
-        round->picked = choice;
-        round->endedAt = now;
+    if (SpeedRoundUpdate(round, now) == SPEED_TIMED_OUT) return SPEED_IGNORED;  // too late: the timeout counts
+    if (round->phase != SPEED_PLAYING || choice < 0 || choice >= SpeedRoundChoiceCount(round, round->number))
+        return SPEED_IGNORED;
+    round->picked[round->number] = choice;
+    round->lastAnswered = round->number;
+    if (choice != SpeedRoundCorrect(round, round->number)) {
+        if (round->endOnMiss) {
+            round->phase = SPEED_FAILED;
+            round->endedAt = now;
+        } else {
+            MoveOn(round, now);
+        }
         return SPEED_WRONG;
     }
-    round->number++;
-    if (round->number >= SPEED_QUESTIONS) {
-        round->number = SPEED_QUESTIONS - 1;  // stays a valid question number
-        round->phase = SPEED_WON;
-        round->endedAt = now;
-    } else {
-        NextQuestion(round, now);  // no breather: the next question starts now
-    }
+    MoveOn(round, now);
     return SPEED_RIGHT;
+}
+
+int SpeedRoundRight(const SpeedRound *round)
+{
+    int right = 0;
+    for (int i = 0; i < round->count; i++) right += round->picked[i] >= 0 && round->picked[i] == SpeedRoundCorrect(round, i);
+    return right;
 }
 
 double SpeedRoundTimeLeft(const SpeedRound *round, double now)
 {
-    if (round->phase == SPEED_COUNTING_IN) return SPEED_SECONDS;
+    if (round->phase == SPEED_COUNTING_IN) return round->count ? round->seconds[0] : 0;
     if (round->phase != SPEED_PLAYING) return 0;
-    double left = SPEED_SECONDS - (now - round->phaseStart);
+    double left = round->seconds[round->number] - (now - round->phaseStart);
     return left < 0 ? 0 : left;
 }
 
 float SpeedRoundTension(const SpeedRound *round, double now)
 {
     if (round->phase != SPEED_PLAYING) return 0;
-    float t = (float)((now - round->phaseStart) / SPEED_SECONDS);
+    float t = (float)((now - round->phaseStart) / round->seconds[round->number]);
     return t < 0 ? 0 : t > 1 ? 1 : t;
 }

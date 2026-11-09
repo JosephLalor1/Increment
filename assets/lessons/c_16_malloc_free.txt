@@ -204,6 +204,48 @@ free(p);
 - It makes the program faster
 ! A dangling pointer looks just like a valid one; NULL makes the state clear.
 
+? What does this print?
+```
+int *p = (int*)malloc(3 * sizeof(int));
+p[0] = 2;
+p[1] = 4;
+p[2] = 6;
+printf("%d\n", p[0] + p[2]);
+free(p);
+```
+- 6
+* 8
+- 12
+! Heap memory from malloc is used like an array.
+
+? Which call asks for room for 20 doubles?
+- malloc(20)
+* malloc(20 * sizeof(double))
+- malloc(sizeof(20))
+- malloc(double[20])
+! malloc counts in bytes, so multiply the number of items by the size of one.
+
+? After free(p), what may you still do with p?
+- Read *p, as long as you don't write to it
+* Give p a new value, such as NULL
+- free(p) again, to be sure
+- Use p as before until the program ends
+! The memory is gone, so the old address mustn't be used, but p itself is still a variable you can assign.
+
+? Who frees memory that came from malloc?
+* Your program, with free, once it no longer needs the memory
+- The computer, at the end of the function
+- C, as soon as the pointer goes out of scope
+- Nobody: heap memory can't be freed
+! Heap memory lasts until free is called; forgetting is a memory leak.
+
+? Why check whether malloc returned NULL?
+- To make sure the memory is set to zero
+* It returns NULL when it can't find enough memory, and using NULL crashes
+- free needs it
+- To find out how many bytes were allocated
+! A failed allocation has to be handled before the pointer is used.
+
 ?code Finish the program: allocate room for n ints on the heap with malloc, and free it at the end. The rest already fills in and prints the squares.
 @hint malloc takes a number of bytes: n * sizeof(int) for n ints.
 @hint Every malloc needs a matching free(squares) once you're done.

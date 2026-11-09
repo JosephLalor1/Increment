@@ -195,6 +195,65 @@ int main() {
 - 9 1
 ! Assignment copies the fields; afterwards a and b are separate.
 
+? What does this print?
+```
+class Point {
+public:
+    int x, y;
+};
+int main() {
+    Point p;
+    p.x = 3;
+    p.y = 4;
+    cout << p.x + p.y << endl;
+}
+```
+- 34
+* 7
+- 12
+! The dot reaches the fields of instance p.
+
+? What does this print?
+```
+class Point {
+public:
+    int x, y;
+};
+int main() {
+    Point a;
+    a.x = 1;
+    a.y = 2;
+    Point b = a;
+    b.x = 9;
+    cout << a.x << endl;
+}
+```
+* 1
+- 9
+- 2
+! Point b = a copies every field; b and a are separate instances.
+
+? What does public: mean in a class?
+* Code outside the class can use the members that follow
+- The class can be used in other programs
+- The fields are constants
+- The class is shared by all instances
+! Without it, a class's members are private.
+
+? How many fields does each instance of a class with fields xStart, xEnd, yStart and yEnd have?
+- One, shared by all instances
+* Four, its own copy of each
+- None until they are set
+- Eight
+! Every instance has its own set of values.
+
+? What must come after the closing brace of a class definition?
+* A semicolon
+- Nothing
+- A comma
+- The word end
+! Forgetting it gives a confusing error on the line after the class.
+
 ?code Give Vector a field for its colour, an int called color as in the lesson. Set vector1's color to 3 and print it on a second line as color: 3.
 @hint Add int color; inside the class, after the other fields.
 @hint Set it with vector1.color = 3; and print it with cout.

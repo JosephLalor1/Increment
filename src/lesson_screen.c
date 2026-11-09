@@ -9,6 +9,7 @@
 #include "progress.h"
 #include "quiz_attempt.h"
 #include "quiz_view.h"
+#include "review.h"
 #include "roadmap_view.h"
 #include "ui.h"
 
@@ -90,7 +91,7 @@ static void StartQuiz(void)
 {
     const Lesson *lesson = CurrentLesson();
     reader.question = 0;
-    QuizAttemptBegin(&reader.attempt, lesson);
+    QuizAttemptBeginDrawn(&reader.attempt, lesson, (unsigned)GetRandomValue(1, 0x7fffffff));  // a fresh draw each time
     memset(reader.codeOpened, 0, sizeof reader.codeOpened);
     reader.milestone = FOX_MILESTONE_NONE;
     MascotResetActor(FOX_QUIZ, FOX_THINKING);
@@ -109,10 +110,24 @@ static void FinishQuiz(void)
     RecordCompletion(reader.lastPercent);
 }
 
+// Answers the current question, and if that took, records it in the learner's review
+// history and lets the fox react. Returns whether the answer was taken.
+static bool Answer(int choice)
+{
+    if (!QuizAttemptPick(&reader.attempt, reader.question, choice)) return false;
+    const Question *q = QuizAttemptQuestion(&reader.attempt, reader.question);
+    bool right = QuizAnswerCorrect(q, choice);
+    char id[64];
+    LessonQuestionId(CurrentLesson(), q, id, sizeof id);
+    ReviewRecord(id, right, ReviewToday());
+    MascotReact(FOX_QUIZ, right ? FOX_CORRECT : FOX_INCORRECT);
+    return true;
+}
+
 void LessonScreenQuizCodeResult(bool solved)
 {
     if (reader.page != LESSON_PAGE_QUIZ || !solved) return;
-    if (QuizAttemptPick(&reader.attempt, reader.question, QUIZ_CODE_PASSED)) MascotReact(FOX_QUIZ, FOX_CORRECT);
+    Answer(QUIZ_CODE_PASSED);
 }
 
 // A synthetic answer for the demo pages: right for even questions, wrong for odd ones.
@@ -330,8 +345,9 @@ static LessonAction ReadingPage(void)
     if (lesson->exerciseCount > 0) y += DrawExercises(lesson, x, y, w, scale, &openExercise);
 
     y += 16;
-    const char *label = lesson->questionCount
-        ? TextFormat("Start quiz (%d question%s)", lesson->questionCount, lesson->questionCount == 1 ? "" : "s")
+    int quizLength = QuizLength(lesson);  // a draw from the lesson's question bank
+    const char *label = quizLength
+        ? TextFormat("Start quiz (%d question%s)", quizLength, quizLength == 1 ? "" : "s")
         : "Mark as complete";
     Icon icon = lesson->questionCount ? ICON_PLAY : ICON_CHECK;
     bool enterKey = IsKeyPressed(KEY_ENTER) && !UiAnyFocus();  // Enter in the notes is a new line, not "start"
@@ -410,14 +426,13 @@ static float CodingQuestion(const Question *q, bool answered, float x, float y, 
         if (UiButtonIcon((Rectangle){ x, y, 320, 52 }, ICON_CODE, opened ? "Continue in code editor" : "Open in code editor",
                          true)) {
             action->kind = LESSON_OPEN_QUIZ_CODE;
-            action->questionIndex = reader.question;
+            action->questionIndex = reader.attempt.order[reader.question];  // its place in the lesson
             action->startFresh = !opened;
             reader.codeOpened[reader.question] = true;
         }
         if (UiButtonIconEx((Rectangle){ x + 336, y, 220, 52 }, ICON_NEXT, "Skip question", 22, COL_PANEL,
-                           COL_SECONDARY_HOVER, COL_TEXT, true)
-            && QuizAttemptPick(&reader.attempt, reader.question, QUIZ_CODE_SKIPPED)) {
-            MascotReact(FOX_QUIZ, FOX_INCORRECT);
+                           COL_SECONDARY_HOVER, COL_TEXT, true)) {
+            Answer(QUIZ_CODE_SKIPPED);
         }
         y += 52 + 12;
     }
@@ -427,7 +442,7 @@ static float CodingQuestion(const Question *q, bool answered, float x, float y, 
 static LessonAction QuizPage(void)
 {
     const Lesson *lesson = CurrentLesson();
-    const Question *q = &lesson->questions[reader.question];
+    const Question *q = QuizAttemptQuestion(&reader.attempt, reader.question);
     LessonAction action = { LESSON_STAY, NULL, 0 };
     if (TopBar(TextFormat("Quiz: %s", lesson->title))) {
         ShowPage(LESSON_PAGE_READING);
@@ -445,9 +460,9 @@ static LessonAction QuizPage(void)
     y += MascotCompanionActor(FOX_QUIZ, x, y, w, 72, 18 * scale, FOX_THINKING,
                               "Take your time. Think through what the code does.") + 14;
 
-    UiText(gFonts.text, TextFormat("Question %d of %d", reader.question + 1, lesson->questionCount), x, y, 20, COL_DIM);
+    UiText(gFonts.text, TextFormat("Question %d of %d", reader.question + 1, reader.attempt.count), x, y, 20, COL_DIM);
     y += 32;
-    ProgressBar((Rectangle){ x, y, w, 6 }, (float)reader.question / lesson->questionCount, COL_PANEL_HI, COL_ACCENT);
+    ProgressBar((Rectangle){ x, y, w, 6 }, (float)reader.question / reader.attempt.count, COL_PANEL_HI, COL_ACCENT);
     y += 30;
 
     bool answered = reader.attempt.answers[reader.question] >= 0;
@@ -461,8 +476,7 @@ static LessonAction QuizPage(void)
             bool chosen;
             y += DrawChoice(q, i, answered, x, y, w, scale, &chosen) + 12;
             if (chosen) {
-                if (QuizAttemptPick(&reader.attempt, reader.question, i))
-                    MascotReact(FOX_QUIZ, i == q->correct ? FOX_CORRECT : FOX_INCORRECT);
+                Answer(i);
                 answered = true;
             }
         }
@@ -483,7 +497,7 @@ static LessonAction QuizPage(void)
             y += UiCodeBlock(q->task->solution, (Vector2){ x, y }, w, 20 * scale, true) + 20;
         }
 
-        bool lastQuestion = reader.question + 1 >= lesson->questionCount;
+        bool lastQuestion = reader.question + 1 >= reader.attempt.count;
         bool next = UiButtonIcon((Rectangle){ x, y, 240, 50 }, lastQuestion ? ICON_TROPHY : ICON_NEXT,
                                  lastQuestion ? "See results" : "Next question", true)
                  || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE);
@@ -536,7 +550,7 @@ static LessonAction ResultPage(void)
     } else {
         UiTextCentered(gFonts.text, TextFormat("%d%%", reader.lastPercent), cx, y, 96, passed ? COL_GOOD : COL_BAD);
         y += 120;
-        UiTextCentered(gFonts.text, TextFormat("%d of %d correct", QuizAttemptCorrect(&reader.attempt), lesson->questionCount), cx, y,
+        UiTextCentered(gFonts.text, TextFormat("%d of %d correct", QuizAttemptCorrect(&reader.attempt), reader.attempt.count), cx, y,
                        26, COL_TEXT);
         y += 44;
         const char *verdict = passed ? "Amazing work! Keep going!"
@@ -598,7 +612,7 @@ static LessonAction ReviewPage(void)
     y += MascotCompanionActor(FOX_REVIEW, x, y, w, 72, 18 * scale, FOX_THINKING, "Let's understand what happened!") + 14;
     y += UiWrappedText(gFonts.text, "This attempt's answers. Reviewing does not change your saved best score.",
                        (Vector2){ x, y }, w, 18 * scale, COL_DIM, true) + 24;
-    for (int i = 0; i < lesson->questionCount; i++) {
+    for (int i = 0; i < reader.attempt.count; i++) {
         QuizReviewItem item;
         if (!QuizAttemptReview(&reader.attempt, i, &item)) continue;
         float h = ReviewContents(&item, i + 1, 0, 0, w - 40, scale, false) + 40;

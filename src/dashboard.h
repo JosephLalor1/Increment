@@ -22,6 +22,7 @@ typedef enum {
     HOME_STAY,          // nothing to do
     HOME_OPEN_LESSON,   // open HomeAction.lessonIndex
     HOME_SPEED_ROUND,   // start HomeAction.lessonIndex's speed round (from the statistics)
+    HOME_CHALLENGE,     // a short challenge of the learner's most necessary questions
     HOME_CODE_EDITOR,
     HOME_PRACTICE,
     HOME_COURSES,

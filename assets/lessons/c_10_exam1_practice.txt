@@ -636,6 +636,66 @@ for (int r = 1; r <= 3; r++) {
 - AAA|AA|A|
 ! Row r prints r A's, then a separator.
 
+? What does this print?
+```
+int n = 123, r = 0;
+while (n > 0) {
+    r = r * 10 + n % 10;
+    n /= 10;
+}
+printf("%d\n", r);
+```
+- 123
+* 321
+- 6
+- 0
+! Each pass takes the last digit with % 10 and adds it to the end of r.
+
+? Is 1900 a leap year?
+- Yes: it is divisible by 4
+* No: it is divisible by 100 but not by 400
+- Yes: it is divisible by 100
+- No: it is not divisible by 4
+! Century years are leap years only when divisible by 400, like 2000.
+
+? What does this print?
+```
+int count = 0;
+for (int i = 2; i <= 10; i++) {
+    int prime = 1;
+    for (int d = 2; d * d <= i; d++)
+        if (i % d == 0) prime = 0;
+    count += prime;
+}
+printf("%d\n", count);
+```
+- 5
+* 4
+- 3
+- 9
+! The primes up to 10 are 2, 3, 5 and 7.
+
+? What is the binary number 110 in decimal?
+- 3
+* 6
+- 110
+- 12
+! 110 is 1 x 4 + 1 x 2 + 0 x 1.
+
+? What does this print?
+```
+int a[] = {2, 5, 2, 8, 2};
+int c = 0;
+for (int i = 0; i < 5; i++)
+    if (a[i] == 2) c++;
+printf("%d\n", c);
+```
+- 2
+* 3
+- 5
+- 1
+! This is the lab's frequency count: 2 appears three times.
+
 ?code isLeapYear gets 1900 wrong: 1900 was not a leap year, because it is divisible by 100 but not by 400. Fix the function.
 @hint Every year divisible by 100 is also divisible by 4, so the first test already returns true for 1900.
 @hint Check the special cases first: 400, then 100, then 4.
