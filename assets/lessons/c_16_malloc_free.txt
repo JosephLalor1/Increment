@@ -158,6 +158,7 @@ say free(p) frees the block p points to, the second one. The first block stays a
 
 @quiz
 ? Which header declares malloc and free?
+~ 2 dynamic_memory:1 memory_safety:0.5
 - <stdio.h>
 * <stdlib.h>
 - <string.h>
@@ -165,6 +166,7 @@ say free(p) frees the block p points to, the second one. The first block stays a
 ! malloc, free and friends live in the standard library header stdlib.h.
 
 ? How many bytes does malloc(10 * sizeof(int)) request when an int is 4 bytes?
+~ 2 dynamic_memory:1 memory_safety:0.5
 - 10
 - 14
 * 40
@@ -172,6 +174,7 @@ say free(p) frees the block p points to, the second one. The first block stays a
 ! 10 elements of 4 bytes each.
 
 ? What does malloc return if the allocation fails?
+~ 2 dynamic_memory:1 memory_safety:0.5 functions:0.4
 - 0 bytes of memory
 - A random address
 * NULL
@@ -179,6 +182,7 @@ say free(p) frees the block p points to, the second one. The first block stays a
 ! That is why you must check for NULL before using the result.
 
 ? What is a memory leak?
+~ 2 dynamic_memory:1 memory_safety:0.5 pointers:0.4
 - Reading past the end of an array
 * Allocated memory that is never freed because the program lost its pointer to it
 - Freeing the same memory twice
@@ -186,6 +190,7 @@ say free(p) frees the block p points to, the second one. The first block stays a
 ! Leaked memory stays allocated but can never be used or freed.
 
 ? What is wrong with this code?
+~ 3 tracing:1 debugging:0.8 dynamic_memory:0.6 pointers:0.4
 ```
 int *p = (int*)malloc(sizeof(int));
 free(p);
@@ -198,6 +203,7 @@ free(p);
 ! After free(p) the memory is no longer yours. Writing to it is undefined behaviour.
 
 ? Why set a pointer to NULL after freeing it?
+~ 2 dynamic_memory:1 memory_safety:0.5 loops:0.4 pointers:0.4
 - free requires it
 - It frees the memory a second time
 * A NULL pointer can be checked, while a freed pointer still looks valid
@@ -205,6 +211,7 @@ free(p);
 ! A dangling pointer looks just like a valid one; NULL makes the state clear.
 
 ? What does this print?
+~ 3 tracing:1 dynamic_memory:0.6 pointers:0.4 arrays:0.4
 ```
 int *p = (int*)malloc(3 * sizeof(int));
 p[0] = 2;
@@ -219,6 +226,7 @@ free(p);
 ! Heap memory from malloc is used like an array.
 
 ? Which call asks for room for 20 doubles?
+~ 2 dynamic_memory:1 memory_safety:0.5
 - malloc(20)
 * malloc(20 * sizeof(double))
 - malloc(sizeof(20))
@@ -226,6 +234,7 @@ free(p);
 ! malloc counts in bytes, so multiply the number of items by the size of one.
 
 ? After free(p), what may you still do with p?
+~ 2 dynamic_memory:1 memory_safety:0.5
 - Read *p, as long as you don't write to it
 * Give p a new value, such as NULL
 - free(p) again, to be sure
@@ -233,6 +242,7 @@ free(p);
 ! The memory is gone, so the old address mustn't be used, but p itself is still a variable you can assign.
 
 ? Who frees memory that came from malloc?
+~ 2 dynamic_memory:1 memory_safety:0.5
 * Your program, with free, once it no longer needs the memory
 - The computer, at the end of the function
 - C, as soon as the pointer goes out of scope
@@ -240,6 +250,7 @@ free(p);
 ! Heap memory lasts until free is called; forgetting is a memory leak.
 
 ? Why check whether malloc returned NULL?
+~ 2 dynamic_memory:1 memory_safety:0.5
 - To make sure the memory is set to zero
 * It returns NULL when it can't find enough memory, and using NULL crashes
 - free needs it
@@ -247,6 +258,7 @@ free(p);
 ! A failed allocation has to be handled before the pointer is used.
 
 ?code Finish the program: allocate room for n ints on the heap with malloc, and free it at the end. The rest already fills in and prints the squares.
+~ 3 problem_solving:1 dynamic_memory:0.8 tracing:0.4 memory_safety:0.3
 @hint malloc takes a number of bytes: n * sizeof(int) for n ints.
 @hint Every malloc needs a matching free(squares) once you're done.
 ```

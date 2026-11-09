@@ -90,6 +90,7 @@ Max score: 100
 
 @quiz
 ? Which type would you use to store 3.14159 with the most precision?
+~ 1 types:1 output:0.3
 - int
 - float
 * double
@@ -97,6 +98,7 @@ Max score: 100
 ! double is double precision (typically 8 bytes) and float is single precision (4 bytes).
 
 ? Which format specifier prints a char?
+~ 1 types:1 output:0.3
 - %d
 - %f
 * %c
@@ -104,6 +106,7 @@ Max score: 100
 ! %c prints a single character. %s is for whole strings.
 
 ? What does this print?
+~ 2 tracing:1 types:0.6 output:0.2
 ```
 double pi = 3.14159;
 printf("%.2f", pi);
@@ -115,6 +118,7 @@ printf("%.2f", pi);
 ! %.2f rounds to exactly 2 decimal places.
 
 ? What value does x hold after int x; with no initialiser?
+~ 1 types:1 output:0.3
 - Always 0
 - Always -1
 * Whatever value was already in that memory
@@ -122,6 +126,7 @@ printf("%.2f", pi);
 ! An uninitialised local variable holds leftover, unpredictable data.
 
 ? What happens if your code assigns a new value to a const variable?
+~ 1 types:1 output:0.3
 - The value changes as normal
 - The program crashes when it runs
 * The compiler reports an error
@@ -129,6 +134,7 @@ printf("%.2f", pi);
 ! const tells the compiler the value must never change, so it refuses to compile the assignment.
 
 ? Which of these is a valid char literal?
+~ 1 types:1 output:0.3
 - "A"
 * 'A'
 - A
@@ -136,6 +142,7 @@ printf("%.2f", pi);
 ! Single quotes make a char. Double quotes make a string.
 
 ? Why is there an f at the end of 19.99f?
+~ 1 types:1 output:0.3
 - It stands for "fixed" and stops the value changing
 * It marks the literal as a float instead of a double
 - It formats the value with 2 decimal places
@@ -143,6 +150,7 @@ printf("%.2f", pi);
 ! A decimal literal is a double by default. The f suffix makes it a float.
 
 ? What does this print?
+~ 2 tracing:1 types:0.6 output:0.2
 ```
 int a = 7;
 int b = a;
@@ -155,6 +163,7 @@ printf("%d\n", b);
 ! int b = a; copies the value 7 into b. Changing a afterwards doesn't change b.
 
 ? What does this print?
+~ 2 tracing:1 types:0.6 output:0.2
 ```
 double d = 2.9;
 int i = d;
@@ -166,6 +175,7 @@ printf("%d\n", i);
 ! Storing a double in an int drops the fractional part. It doesn't round.
 
 ? What does this print?
+~ 2 tracing:1 types:0.6 output:0.2
 ```
 printf("%.1f\n", 3.14159);
 ```
@@ -176,6 +186,7 @@ printf("%.1f\n", 3.14159);
 ! .1 asks for one digit after the decimal point.
 
 ? Which declares a value that can never change?
+~ 1 types:1 output:0.3
 - #const MAX 10
 - constant int MAX = 10;
 * const int MAX = 10;
@@ -183,6 +194,7 @@ printf("%.1f\n", 3.14159);
 ! const before the type makes the variable read-only; assigning to it later is a compile error.
 
 ? What does this print?
+~ 2 tracing:1 types:0.6 output:0.2
 ```
 char c = 'A';
 printf("%d\n", c);
@@ -193,6 +205,7 @@ printf("%d\n", c);
 ! A char is a small number. Printed with %d, 'A' shows its character code, 65.
 
 ?code Finish the program: declare a double called price holding 4.5, then print the total cost, quantity times price, with 2 decimal places.
+~ 2 problem_solving:1 types:0.8 tracing:0.4 output:0.2
 @hint Use %f to print a double, and %.2f for exactly 2 decimal places.
 @hint An int times a double gives a double, so quantity * price is 13.5.
 ```

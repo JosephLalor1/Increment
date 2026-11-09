@@ -119,6 +119,40 @@ static void CheckLessonCodingQuestions(const LessonSet *lessons)
     printf("%d lesson coding questions parse\n", found);
 }
 
+// Every lesson question arrives with a difficulty and the skills it exercises, from its "~"
+// line, and the parser reads such a line exactly.
+static void CheckSkillTags(const LessonSet *lessons)
+{
+    int tagged = 0;
+    for (int l = 0; l < lessons->count; l++) {
+        const Lesson *lesson = &lessons->items[l];
+        for (int q = 0; q < lesson->questionCount; q++) {
+            const Question *question = &lesson->questions[q];
+            assert(question->difficulty >= 1 && question->difficulty <= SKILL_MAX_DIFFICULTY);
+            assert(question->skillCount >= 1 && question->skillCount <= MAX_QUESTION_SKILLS);
+            for (int s = 0; s < question->skillCount; s++) {
+                assert(question->skills[s].skill < SKILL_COUNT);
+                assert(question->skills[s].weight > 0 && question->skills[s].weight <= 1);
+            }
+            tagged++;
+        }
+    }
+    assert(tagged > 300);
+
+    // A lesson written here: the "~" line's difficulty, skills and weights, and bad parts skipped.
+    const char *path = "build/test_skill_tags/a_lesson.txt";
+    MakeDirectory("build/test_skill_tags");
+    SaveFileText(path, "@quiz\n? Q?\n~ 3 tracing:1 pointers:0.3 nonsense:1 loops:2\n- a\n* b\n! e\n");
+    LessonSet one;
+    assert(LessonsLoad(&one, "build/test_skill_tags"));
+    const Question *q = &one.items[0].questions[0];
+    assert(q->difficulty == 3 && q->skillCount == 2);
+    assert(q->skills[0].skill == SKILL_TRACING && q->skills[0].weight == 1);
+    assert(q->skills[1].skill == SKILL_POINTERS && q->skills[1].weight > 0.29f && q->skills[1].weight < 0.31f);
+    LessonsUnload(&one);
+    remove(path);
+}
+
 // Drawn quizzes: up to QUIZ_CHOICE_QUESTIONS different multiple-choice questions, then
 // every coding question; the same seed gives the same quiz, and different seeds vary it.
 static void CheckDrawn(const LessonSet *lessons)
@@ -168,6 +202,7 @@ int main(void)
     assert(checked[TRACK_C] && checked[TRACK_CPP]);
     CheckCodingQuestions();
     CheckDrawn(&lessons);
+    CheckSkillTags(&lessons);
     CheckLessonCodingQuestions(&lessons);
 
     Lesson *fixture = calloc(1, sizeof *fixture);

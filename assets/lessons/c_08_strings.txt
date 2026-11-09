@@ -84,6 +84,7 @@ ba
 
 @quiz
 ? What marks the end of a string in C?
+~ 1 strings:1 arrays:0.4
 - A stored length at the start of the array
 - The last element of the array
 * The null terminator '\0'
@@ -91,6 +92,7 @@ ba
 ! C strings have no stored length; printf and friends stop when they reach '\0'.
 
 ? How many chars of the array does "Alice" use, including the terminator?
+~ 1 strings:1 arrays:0.4
 - 5
 * 6
 - 20
@@ -98,6 +100,7 @@ ba
 ! 5 letters plus the '\0' the compiler adds.
 
 ? What is wrong here?
+~ 2 tracing:1 debugging:0.8 strings:0.6 arrays:0.2
 ```
 char s[3] = {'H', 'i', '!'};
 printf("%s", s);
@@ -109,6 +112,7 @@ printf("%s", s);
 ! Without a terminator printf keeps reading into whatever memory follows.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char w[] = "hello";
 w[1] = 'a';
@@ -121,6 +125,7 @@ printf("%s", w);
 ! Index 1 is the second character, 'e', which becomes 'a'.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char w[] = "planet";
 w[4] = '\0';
@@ -133,6 +138,7 @@ printf("%s", w);
 ! printf stops at the first '\0', which is now at index 4.
 
 ? Which is true about '\0' and '0'?
+~ 1 strings:1 arrays:0.4
 - They are the same character
 * '\0' has value 0; '0' is the digit character with value 48
 - '\0' is a newline
@@ -140,6 +146,7 @@ printf("%s", w);
 ! Only the character with value 0 terminates a string.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char s[] = "hello";
 printf("%d\n", (int)strlen(s));
@@ -150,6 +157,7 @@ printf("%d\n", (int)strlen(s));
 ! strlen counts the characters before the '\0', which it doesn't include.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char s[] = "cat";
 s[0] = 'b';
@@ -161,6 +169,7 @@ printf("%s\n", s);
 ! The array holds its own copy of the characters, so they can be changed one at a time.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char s[] = "hello";
 s[2] = '\0';
@@ -173,6 +182,7 @@ printf("%s\n", s);
 ! %s stops at the first '\0', which is now in position 2.
 
 ? What does this print?
+~ 2 tracing:1 strings:0.6 arrays:0.2
 ```
 char s[] = "abc";
 printf("%d\n", (int)sizeof(s));
@@ -184,6 +194,7 @@ printf("%d\n", (int)sizeof(s));
 ! The array has room for the 3 letters plus the '\0' at the end.
 
 ? Which function from <string.h> copies one string into another?
+~ 1 strings:1 arrays:0.4
 - strlen
 * strcpy
 - strcmp
@@ -191,6 +202,7 @@ printf("%d\n", (int)sizeof(s));
 ! strcpy(dest, src) copies src, including its '\0', into dest.
 
 ?code This loop should replace every 'a' in the string with '*', but it stops partway through. Make it go all the way to the end of the string.
+~ 3 debugging:1 strings:0.8 tracing:0.4 loops:0.4
 @hint The loop always stops at 5, whatever the string's length.
 @hint Keep going until text[i] is the null terminator, '\0'.
 ```

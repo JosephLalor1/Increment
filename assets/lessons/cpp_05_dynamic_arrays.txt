@@ -138,6 +138,7 @@ Output:
 
 @quiz
 ? Why is int arr[numItems]; not allowed in standard C++ when numItems is read from the user?
+~ 1 dynamic_memory:1 arrays:0.6
 - numItems might be negative
 * Stack array sizes must be constants known at compile time
 - Arrays cannot hold ints
@@ -145,6 +146,7 @@ Output:
 ! Use new int[numItems] for a size only known at run time.
 
 ? Which statement frees int *arr = new int[10]; correctly?
+~ 1 dynamic_memory:1 arrays:0.6 pointers:0.4
 - delete arr;
 * delete[] arr;
 - free(arr);
@@ -152,6 +154,7 @@ Output:
 ! Arrays from new[] are freed with delete[].
 
 ? What type does new int*[rows] return?
+~ 1 dynamic_memory:1 arrays:0.6 indirection:0.4 pointers:0.4
 - int *
 * int **
 - int
@@ -159,6 +162,7 @@ Output:
 ! It is an array of int pointers, so a pointer to it is int **.
 
 ? To free a dynamic 2D array, what must you delete first?
+~ 1 dynamic_memory:1 arrays:0.6
 * Each row
 - The array of row pointers
 - It does not matter
@@ -166,6 +170,7 @@ Output:
 ! Deleting the row-pointer array first would lose the pointers to the rows.
 
 ? How many separate new[] allocations does a 3 x 4 dynamic 2D array need, as in this lesson?
+~ 1 dynamic_memory:1 arrays:0.6
 - 1
 - 3
 * 4
@@ -173,6 +178,7 @@ Output:
 ! One for the array of row pointers, plus one for each of the 3 rows.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 arrays:0.4 loops:0.4
 ```
 int *a = new int[3];
 for (int i = 0; i < 3; i++) a[i] = i * i;
@@ -186,6 +192,7 @@ delete[] a;
 ! a[2] holds 2 * 2.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 arrays:0.4 loops:0.4
 ```
 int n = 4;
 int *a = new int[n];
@@ -201,6 +208,7 @@ delete[] a;
 ! a[3] holds 3 * 3.
 
 ? What is wrong with delete a; when a = new int[5]?
+~ 1 dynamic_memory:1 debugging:0.8 arrays:0.6
 * Arrays from new[] must be freed with delete[]
 - Nothing; delete and delete[] are the same
 - a must be set to nullptr first
@@ -208,6 +216,7 @@ delete[] a;
 ! Mixing them up is undefined behaviour.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 arrays:0.4 loops:0.4
 ```
 int *a = new int[3]{5, 6, 7};
 int s = 0;
@@ -221,6 +230,7 @@ delete[] a;
 ! The braces give the three elements their starting values.
 
 ? Why use new int[n] rather than int a[n] when n is read from the user?
+~ 1 dynamic_memory:1 arrays:0.6
 * Standard C++ needs a fixed size for arrays on the stack; new[] takes a size known only at run time
 - new[] arrays are faster
 - int a[n] can't hold ints
@@ -228,6 +238,7 @@ delete[] a;
 ! The size of a plain array has to be known when the program is compiled.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 arrays:0.4 indirection:0.4
 ```
 int **m = new int*[2];
 for (int r = 0; r < 2; r++) m[r] = new int[3];
@@ -242,6 +253,7 @@ delete[] m;
 ! Each row is its own array, reached through the array of row pointers.
 
 ?code The program reads n numbers into an array made with new[]. Finish it: print them in reverse order, then free the array.
+~ 2 problem_solving:1 dynamic_memory:0.8 arrays:0.4 tracing:0.4
 @hint Start the loop at the last index, n - 1, and count down to 0.
 @hint An array from new[] is freed with delete[].
 ```

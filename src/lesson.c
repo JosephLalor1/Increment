@@ -181,6 +181,35 @@ static void AppendParaLine(Parser *ps, BlockType type, const char *text)
     SbAppend(&ps->para, text, strlen(text));
 }
 
+// A question's "~" line: its difficulty (1 to 3), then up to MAX_QUESTION_SKILLS skills,
+// each name:weight with a weight from 0 to 1.
+static void ParseSkillLine(Parser *ps, Question *q, const char *text)
+{
+    char *end;
+    long difficulty = strtol(text, &end, 10);
+    if (end == text || difficulty < 1 || difficulty > SKILL_MAX_DIFFICULTY) {
+        TraceLog(LOG_WARNING, "LESSON: %s:%d: a skills line starts with a difficulty from 1 to 3", ps->file, ps->lineNo);
+        return;
+    }
+    q->difficulty = (int)difficulty;
+    q->skillCount = 0;
+    for (const char *p = end; *p;) {
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
+        const char *colon = strchr(p, ':');
+        size_t tokenLength = strcspn(p, " \t");
+        Skill skill;
+        float weight = 0;
+        if (!colon || (size_t)(colon - p) > tokenLength || !SkillFromName(p, (int)(colon - p), &skill)
+            || (weight = strtof(colon + 1, NULL)) <= 0 || weight > 1) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: bad skill \"%.*s\"", ps->file, ps->lineNo, (int)tokenLength, p);
+        } else if (q->skillCount < MAX_QUESTION_SKILLS) {
+            q->skills[q->skillCount++] = (SkillWeight){ skill, weight };
+        }
+        p += tokenLength;
+    }
+}
+
 static void ParseQuizLine(Parser *ps, const char *line)
 {
     Lesson *L = ps->lesson;
@@ -197,12 +226,15 @@ static void ParseQuizLine(Parser *ps, const char *line)
         while (*prompt == ' ') prompt++;
         q->prompt = CopyStr(prompt);
         q->correct = -1;
+        q->difficulty = 2;  // until its "~" line says otherwise
         ps->fenceTarget = NULL;
         if (coding) {  // the prompt doubles as the task description in the code editor
             q->task = calloc(1, sizeof *q->task);
             q->task->title = CopyStr("Coding question");
             q->task->description = CopyStr(prompt);
         }
+    } else if (StartsWith(line, "~ ")) {  // "~ 2 tracing:1 pointers:0.4": difficulty, then weighted skills
+        if (q) ParseSkillLine(ps, q, line + 2);
     } else if (q && q->task && ParseTaskLine(ps, q->task, line)) {
         return;
     } else if (StartsWith(line, "- ") || StartsWith(line, "* ")) {

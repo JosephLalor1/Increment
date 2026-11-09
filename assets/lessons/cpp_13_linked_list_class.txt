@@ -417,6 +417,7 @@ int main() {
 
 @quiz
 ? Why make head a private field of LinkedList?
+~ 2 data_structures:1 classes:0.6 encapsulation:0.4
 - Private fields are faster
 * So outside code can only change the list through its methods
 - Because head is a pointer
@@ -424,6 +425,7 @@ int main() {
 ! The class controls every change to the list's structure.
 
 ? What would go wrong if LinkedList used the default copy constructor?
+~ 2 data_structures:1 classes:0.6 dynamic_memory:0.4 constructors:0.4
 - Nothing
 - The copy would be empty
 * Both lists would share the same nodes, and both destructors would delete them
@@ -431,6 +433,7 @@ int main() {
 ! The default copy only copies the head pointer, which is a shallow copy.
 
 ? Which runs for list3 = list2; when list3 already exists?
+~ 2 data_structures:1 classes:0.6
 - The copy constructor
 * The assignment operator
 - The destructor only
@@ -438,6 +441,7 @@ int main() {
 ! Assignment to an existing object uses operator=.
 
 ? Why does operator= call clear() before copying?
+~ 2 data_structures:1 classes:0.6 memory_safety:0.4 copying:0.4
 - To make the list faster
 * To free list3's old nodes, which would otherwise leak
 - clear() copies the nodes
@@ -445,6 +449,7 @@ int main() {
 ! The old contents are being replaced, so their memory must be freed.
 
 ? Using this lesson's LinkedList class, what does a.printList() show?
+~ 3 tracing:1 data_structures:0.6 classes:0.4
 ```
 LinkedList a;
 a.insertAtEnd(1);
@@ -459,6 +464,7 @@ a.printList();
 ! 1 goes in, 2 goes in front of it, and 3 goes at the end.
 
 ? Inserting a new node between A and B in a doubly linked list changes how many pointers?
+~ 2 data_structures:1 classes:0.6 dynamic_memory:0.4 pointers:0.4
 - 1
 - 2
 * 4
@@ -466,6 +472,7 @@ a.printList();
 ! The new node's prev and next, A's next and B's prev.
 
 ? What does ~LinkedList() need to do?
+~ 2 data_structures:1 classes:0.6 dynamic_memory:0.4 memory_safety:0.4
 * Delete every node, so the list doesn't leak
 - Set head to nullptr only
 - Delete head only
@@ -473,6 +480,7 @@ a.printList();
 ! Each node was made with new, so each needs a delete.
 
 ? What does each node of a doubly linked list have?
+~ 2 data_structures:1 classes:0.6 pointers:0.4
 * A pointer to the next node and one to the previous node
 - Two data values
 - A pointer to the head
@@ -480,6 +488,7 @@ a.printList();
 ! The extra link lets the list be walked in both directions.
 
 ? What does the rule of three say?
+~ 2 data_structures:1 classes:0.6 constructors:0.4 copying:0.4
 * A class that needs a custom destructor, copy constructor or operator= usually needs all three
 - A class should have at most three fields
 - Every class needs three constructors
@@ -487,6 +496,7 @@ a.printList();
 ! They all deal with the same thing: memory the object owns.
 
 ? What does this print?
+~ 3 tracing:1 data_structures:0.6 classes:0.4 dynamic_memory:0.4
 ```
 class Node {
 public:
@@ -512,6 +522,7 @@ int main() {
 ! head->next is the second node. The loop then frees every node, as a destructor would.
 
 ? Why does operator= return *this?
+~ 2 data_structures:1 classes:0.6 functions:0.4
 * So assignments can be chained, as in a = b = c;
 - To delete the old list
 - So it can be called as a function
@@ -519,6 +530,7 @@ int main() {
 ! a = b = c assigns c to b, then the result (b) to a.
 
 ?code Write the size method so it counts the nodes in the list.
+~ 3 problem_solving:1 data_structures:0.8 classes:0.4 tracing:0.4
 @hint Walk from head to nullptr, as the other methods do.
 @hint Keep a count, add one for each node, and return it.
 ```

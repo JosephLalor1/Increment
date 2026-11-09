@@ -57,6 +57,8 @@ int SpeedSkillsParse(const char *names, SpeedSkill *out, int max);
 
 // Makes a question. difficulty (0 = easiest) adds more lines; seed advances.
 void SpeedGenerate(SpeedSkill skill, int difficulty, uint32_t *seed, SpeedQuestion *out);
+// How hard a generated question is, 1 to 3, from how many lines there are to trace.
+int SpeedQuestionDifficulty(const SpeedQuestion *q);
 // The snippet as one string, lines joined with '\n' (from..lineCount-1); returns out.
 char *SpeedQuestionCode(const SpeedQuestion *q, int from, char *out, int size);
 

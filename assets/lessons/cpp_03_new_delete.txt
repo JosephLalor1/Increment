@@ -164,6 +164,7 @@ Output:
 
 @quiz
 ? What is a dangling pointer?
+~ 1 dynamic_memory:1 scope:0.4 memory_safety:0.4 pointers:0.4
 - A pointer set to nullptr
 * A pointer to memory whose contents are no longer valid
 - A pointer created with new
@@ -171,6 +172,7 @@ Output:
 ! For example, a pointer to a local variable that has gone out of scope.
 
 ? Why is this function wrong?
+~ 2 tracing:1 dynamic_memory:0.6 pointers:0.4 functions:0.4
 ```
 int *getPtrToFive() {
     int x = 5;
@@ -184,6 +186,7 @@ int *getPtrToFive() {
 ! x lives on the stack inside the function and is gone after it returns.
 
 ? Where does new int allocate memory?
+~ 1 dynamic_memory:1 scope:0.4
 - On the stack
 * On the heap
 - In a register
@@ -191,6 +194,7 @@ int *getPtrToFive() {
 ! Heap memory stays allocated until you delete it.
 
 ? What does int *p = new int(5); create?
+~ 1 dynamic_memory:1 scope:0.4 pointers:0.4
 * One int holding the value 5
 - An array of 5 ints
 - An int pointer holding address 5
@@ -198,6 +202,7 @@ int *getPtrToFive() {
 ! Round brackets initialise one int. Square brackets would create an array.
 
 ? How long does memory from new stay allocated?
+~ 1 dynamic_memory:1 scope:0.4
 - Until the function that called new returns
 - Until the end of the current block
 * Until it is freed with delete (or the program ends)
@@ -205,6 +210,7 @@ int *getPtrToFive() {
 ! That is what makes it safe to return from a function, and why you must delete it.
 
 ? Which operator frees memory allocated with new?
+~ 1 dynamic_memory:1 scope:0.4
 - free
 * delete
 - remove
@@ -212,6 +218,7 @@ int *getPtrToFive() {
 ! Memory from new is returned with delete.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 pointers:0.4 scope:0.2
 ```
 int *p = new int(7);
 *p += 1;
@@ -224,6 +231,7 @@ delete p;
 ! new int(7) makes an int holding 7 on the heap, and p points at it.
 
 ? Which creates an int on the heap holding 3?
+~ 1 dynamic_memory:1 scope:0.4
 - int x = 3;
 * new int(3)
 - new int[3]
@@ -231,6 +239,7 @@ delete p;
 ! new int[3] would be an array of three ints, not one int holding 3.
 
 ? What happens to a local variable when its function returns?
+~ 1 dynamic_memory:1 scope:0.4
 * It goes away; its memory can be reused
 - It moves to the heap
 - It keeps its value until the next call
@@ -238,6 +247,7 @@ delete p;
 ! That's why returning a local's address leaves a dangling pointer.
 
 ? What does this print?
+~ 2 tracing:1 dynamic_memory:0.6 pointers:0.4 scope:0.2
 ```
 int *p = new int(2);
 int *q = p;
@@ -251,6 +261,7 @@ delete p;
 ! p and q hold the same address, so they reach the same int.
 
 ? After delete p; what is in p?
+~ 1 dynamic_memory:1 scope:0.4 memory_safety:0.4
 - nullptr, set by delete
 * The same address as before, which must not be used
 - A new int with the value 0
@@ -258,6 +269,7 @@ delete p;
 ! delete frees the memory but leaves p unchanged, so p is now dangling.
 
 ?code getPtrToFive has to return the address of an int holding 5 that still exists after the function returns. Finish it with new.
+~ 2 problem_solving:1 dynamic_memory:0.8 tracing:0.4 functions:0.4
 @hint A local variable is gone when the function returns, so its address would dangle.
 @hint return new int(5); makes the int on the heap, where it lasts until delete.
 ```

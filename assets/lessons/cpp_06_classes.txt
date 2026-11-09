@@ -141,6 +141,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 
 @quiz
 ? What is a class?
+~ 1 classes:1
 - A function that groups statements
 * A user-defined datatype that groups related pieces of information
 - A kind of loop
@@ -148,6 +149,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 ! A class bundles fields (and later, methods) into a new type.
 
 ? What is another word for a class's fields?
+~ 1 classes:1
 - Methods
 - Instances
 * Members
@@ -155,6 +157,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 ! Fields are also called member variables, or members.
 
 ? What is the most likely cause of a cryptic error just after a class definition?
+~ 1 classes:1
 - Using public:
 * A missing semicolon after the class's closing brace
 - Fields of different types
@@ -162,6 +165,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 ! class Name { ... }; needs the final semicolon.
 
 ? What is an instance?
+~ 1 classes:1
 - The class definition itself
 * An occurrence of a class, with its own field values
 - A field of a class
@@ -169,6 +173,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 ! Vector vector1; creates an instance called vector1.
 
 ? With the Point and Vector classes in this lesson, how do you set the y coordinate of vec's end point?
+~ 1 classes:1
 - vec.y.end = 2.0;
 - vec->end->y = 2.0;
 * vec.end.y = 2.0;
@@ -176,6 +181,7 @@ vec2.start got its own copy of x = 3 and y = 4. Changing vec2.start.x to 7 left 
 ! Use one dot per level: the instance, then the field, then the field's field.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6
 ```
 class Point {
 public:
@@ -196,6 +202,7 @@ int main() {
 ! Assignment copies the fields; afterwards a and b are separate.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6
 ```
 class Point {
 public:
@@ -214,6 +221,7 @@ int main() {
 ! The dot reaches the fields of instance p.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6
 ```
 class Point {
 public:
@@ -234,6 +242,7 @@ int main() {
 ! Point b = a copies every field; b and a are separate instances.
 
 ? What does public: mean in a class?
+~ 1 classes:1
 * Code outside the class can use the members that follow
 - The class can be used in other programs
 - The fields are constants
@@ -241,6 +250,7 @@ int main() {
 ! Without it, a class's members are private.
 
 ? How many fields does each instance of a class with fields xStart, xEnd, yStart and yEnd have?
+~ 1 classes:1 copying:0.4
 - One, shared by all instances
 * Four, its own copy of each
 - None until they are set
@@ -248,6 +258,7 @@ int main() {
 ! Every instance has its own set of values.
 
 ? What must come after the closing brace of a class definition?
+~ 1 classes:1
 * A semicolon
 - Nothing
 - A comma
@@ -255,6 +266,7 @@ int main() {
 ! Forgetting it gives a confusing error on the line after the class.
 
 ?code Give Vector a field for its colour, an int called color as in the lesson. Set vector1's color to 3 and print it on a second line as color: 3.
+~ 3 problem_solving:1 classes:0.8 tracing:0.4
 @hint Add int color; inside the class, after the other fields.
 @hint Set it with vector1.color = 3; and print it with cout.
 ```

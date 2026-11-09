@@ -321,6 +321,7 @@ int main() {
 
 @quiz
 ? In the lab, which loop condition walks a string without knowing its length?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4 loops:0.4
 - p < str + size
 * *p != '\0'
 - p != NULL
@@ -328,6 +329,7 @@ int main() {
 ! Strings end at the null terminator, so stop when the pointer reaches it.
 
 ? What does strlen_ptr return when p has walked from str to the terminator of "Hello"?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4 functions:0.4
 - 6
 * 5
 - 4
@@ -335,6 +337,7 @@ int main() {
 ! p - str counts the elements between them: the 5 letters, not the terminator.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 loops:0.4
 ```
 int a[] = {3, 9, 2, 8, 5};
 int max = *a;
@@ -349,6 +352,7 @@ printf("%d", max);
 ! The loop keeps the largest value it sees.
 
 ? Why does copy_string write *dest = '\0'; after the loop?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4 loops:0.4
 - To free the memory
 * The loop stops before copying the terminator, so it must be added
 - To make the string shorter
@@ -356,6 +360,7 @@ printf("%d", max);
 ! Without the terminator, dest is not a valid string.
 
 ? What sign does compare_strings("apple", "banana") return?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4
 * Negative
 - Zero
 - Positive
@@ -363,6 +368,7 @@ printf("%d", max);
 ! 'a' comes before 'b', and 'a' - 'b' is negative.
 
 ? In reverse_array, when does the loop stop?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4 loops:0.4
 - When left reaches the end of the array
 * When left and right meet or cross
 - After size iterations
@@ -370,6 +376,7 @@ printf("%d", max);
 ! Each swap moves both pointers inward; once they meet, every pair has been swapped.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 arrays:0.4
 ```
 char s[] = "abc";
 char *p = s;
@@ -383,6 +390,7 @@ printf("%c%s", *p, p);
 ! After p++ it points at 'b', and as a string it is "bc".
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 loops:0.4
 ```
 char s[] = "pointer";
 char *p = s;
@@ -395,6 +403,7 @@ printf("%d\n", (int)(p - s));
 ! The loop stops on the '\0', seven characters after the start: that's strlen_ptr.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 loops:0.4
 ```
 int a[] = {1, 2, 3, 4};
 int sum = 0;
@@ -408,6 +417,7 @@ printf("%d\n", sum);
 ! sum_array walks a pointer from the first element to one past the last.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 loops:0.4
 ```
 int a[] = {3, 9, 2};
 int *best = a;
@@ -422,6 +432,7 @@ printf("%d\n", (int)(best - a));
 ! best ends up pointing at the 9, which is one element from the start.
 
 ? What does *dest++ = *src++; do?
+~ 2 pointers:0.8 pointer_arithmetic:0.6 strings:0.4
 * Copies one char, then moves both pointers on by one
 - Adds 1 to the char at src and copies it
 - Moves both pointers, then copies the char
@@ -429,6 +440,7 @@ printf("%d\n", (int)(best - a));
 ! ++ after a pointer moves the pointer, after its old value has been used.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6 pointer_arithmetic:0.4 loops:0.4
 ```
 char s[] = "banana";
 int v = 0;
@@ -442,6 +454,7 @@ printf("%d\n", v);
 ! *p is false only at the '\0', so the loop visits each letter once.
 
 ?code reverse_array should turn 1 2 3 4 5 into 5 4 3 2 1, but it prints 5 1 2 3 4. Find the missing line.
+~ 3 debugging:1 pointers:0.8 pointer_arithmetic:0.4 tracing:0.4
 @hint Watch right: does it ever move?
 @hint After each swap, left moves forward and right should move back.
 ```

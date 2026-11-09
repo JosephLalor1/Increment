@@ -11,7 +11,7 @@ enum {
 
 // How many multiple-choice questions a lesson quiz asks, drawn at random from the lesson's
 // bank each time (its coding questions are always asked, last).
-#define QUIZ_CHOICE_QUESTIONS 8
+#define QUIZ_CHOICE_QUESTIONS 5
 
 // One in-memory attempt. Lesson owns the questions; the attempt keeps which of them it asks,
 // in what order, and the selections. Positions (0 .. count-1) index both.

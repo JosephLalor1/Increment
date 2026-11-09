@@ -113,6 +113,7 @@ Both swaps worked: the second one swapped the values back.
 
 @quiz
 ? What does this print?
+~ 3 tracing:1 references:0.6 parameter_passing:0.4
 ```
 void setTo10(int &n) {
     n = 10;
@@ -130,6 +131,7 @@ int main() {
 ! n is a reference to a, so the assignment changes a.
 
 ? What does this print?
+~ 3 tracing:1 references:0.6 parameter_passing:0.4
 ```
 void setTo10(int n) {
     n = 10;
@@ -147,6 +149,7 @@ int main() {
 ! Without the &, n is a copy.
 
 ? Which can be passed "nothing" (a null value)?
+~ 1 references:1 parameter_passing:0.7 pointers:0.4
 - A reference parameter
 * A pointer parameter
 - Both
@@ -154,6 +157,7 @@ int main() {
 ! A pointer can be nullptr. A reference must always refer to a real variable.
 
 ? What does this print?
+~ 2 tracing:1 references:0.6 parameter_passing:0.4
 ```
 int a = 5;
 int &r = a;
@@ -167,6 +171,7 @@ cout << a;
 ! r is another name for a.
 
 ? Why pass a large object as const Type & rather than by value?
+~ 1 references:1 parameter_passing:0.7 loops:0.4 classes:0.4
 - So the function can modify it
 * To avoid copying it while promising not to change it
 - Because large objects cannot be passed by value
@@ -174,6 +179,7 @@ cout << a;
 ! The reference avoids the copy; const prevents accidental changes.
 
 ? Which declaration does not compile?
+~ 1 references:1 parameter_passing:0.7
 * int &r;
 - int x = 1; int &r = x;
 - const int &r = 42;
@@ -181,6 +187,7 @@ cout << a;
 ! A reference must be initialised to refer to something.
 
 ? What does this print?
+~ 2 tracing:1 references:0.6 parameter_passing:0.4
 ```
 void addTen(int &n) { n += 10; }
 int main() {
@@ -195,6 +202,7 @@ int main() {
 ! n is a reference to x, so the change happens to x.
 
 ? What does this print?
+~ 2 tracing:1 references:0.6 parameter_passing:0.4
 ```
 int a = 5;
 int &r = a;
@@ -207,6 +215,7 @@ cout << a << endl;
 ! r is another name for a.
 
 ? What does this print?
+~ 2 tracing:1 references:0.6 parameter_passing:0.4
 ```
 int a = 1, b = 2;
 int &r = a;
@@ -220,6 +229,7 @@ cout << a << endl;
 ! r = b copies b's value into a. A reference can't be re-pointed at another variable.
 
 ? Must a reference be given something to refer to when it's declared?
+~ 1 references:1 parameter_passing:0.7
 * Yes: int &r; on its own doesn't compile
 - No: it can be set later with r = x;
 - Only for references to objects
@@ -227,6 +237,7 @@ cout << a << endl;
 ! A reference is always another name for some variable, from the start.
 
 ? What does const int &x as a parameter promise?
+~ 1 references:1 parameter_passing:0.7 pointers:0.4
 * The function won't change the caller's variable through x
 - x is copied
 - x can't be changed by anyone
@@ -234,6 +245,7 @@ cout << a << endl;
 ! It's passed by reference (no copy) but read-only inside the function.
 
 ?code doubleIt should double the caller's variable, but n is still 5 afterwards. Fix it with a reference: only the function's parameter needs to change.
+~ 2 debugging:1 references:0.8 parameter_passing:0.4 tracing:0.4
 @hint The function changes its own copy, x.
 @hint Write int &x to make x another name for the caller's variable.
 ```

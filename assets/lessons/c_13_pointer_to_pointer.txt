@@ -157,6 +157,7 @@ say pointAt's frame disappears, but p still points to b, so *p is 2.
 
 @quiz
 ? What is a pointer to a pointer?
+~ 2 indirection:1 pointers:0.6
 - A pointer that stores two addresses
 * A pointer that stores the address of another pointer
 - A pointer to an array
@@ -164,6 +165,7 @@ say pointAt's frame disappears, but p still points to b, so *p is 2.
 ! It holds the address of a pointer variable.
 
 ? If pp points to p, and p points to x, what does **pp give?
+~ 2 indirection:1 pointers:0.6
 - The address of x
 - The address of p
 * The value stored in x
@@ -171,6 +173,7 @@ say pointAt's frame disappears, but p still points to b, so *p is 2.
 ! *pp is p, and *p is x.
 
 ? Which declaration creates a pointer to a pointer to an integer?
+~ 2 indirection:1 pointers:0.6
 - int p;
 - int *p;
 * int **p;
@@ -178,6 +181,7 @@ say pointAt's frame disappears, but p still points to b, so *p is 2.
 ! Each * adds one level of indirection.
 
 ? What does this print?
+~ 3 tracing:1 indirection:0.6 pointers:0.4
 ```
 int x = 4;
 int *p = &x;
@@ -192,6 +196,7 @@ printf("%d", x);
 ! **pp leads through p to x, so x becomes 8.
 
 ? With int **pp = &p;, what does *pp = &y; change?
+~ 2 indirection:1 pointers:0.6
 - y
 - pp
 * p, which now points to y
@@ -199,6 +204,7 @@ printf("%d", x);
 ! *pp is p itself, so this assignment makes p point to y.
 
 ? A function needs to change which int the caller's pointer points to. What type should its parameter be?
+~ 2 indirection:1 pointers:0.6
 - int
 - int *
 * int **
@@ -206,6 +212,7 @@ printf("%d", x);
 ! To change a caller's int * you pass its address, which is an int **.
 
 ? What does this print?
+~ 3 tracing:1 indirection:0.6 pointers:0.4
 ```
 int x = 1;
 int *p = &x;
@@ -219,6 +226,7 @@ printf("%d\n", x);
 ! *pp is p, and **pp is *p, which is x.
 
 ? What does this print?
+~ 3 tracing:1 indirection:0.6 pointers:0.4
 ```
 int a = 1, b = 2;
 int *p = &a;
@@ -232,6 +240,7 @@ printf("%d\n", *p);
 ! *pp = &b changes p itself, so p now points at b.
 
 ? If p is an int *, what type is &p?
+~ 2 indirection:1 pointers:0.6
 - int *
 * int **
 - int &
@@ -239,6 +248,7 @@ printf("%d\n", *p);
 ! The address of a pointer to int is a pointer to a pointer to int.
 
 ? What does this print?
+~ 3 tracing:1 indirection:0.6 pointers:0.4
 ```
 void point(int **pp, int *t) { *pp = t; }
 int main() {
@@ -254,6 +264,7 @@ int main() {
 ! Given p's address, the function can change where main's p points.
 
 ? How many dereferences reach the int from int **pp?
+~ 2 indirection:1 pointers:0.6 references:0.4
 - One: *pp
 * Two: **pp
 - None: pp is the int
@@ -261,6 +272,7 @@ int main() {
 ! *pp is the int pointer, and **pp is the int it points at.
 
 ?code pointAt should make main's ptr point at b, but *ptr is still 1 afterwards. Fix pointAt and the way it is called.
+~ 3 debugging:1 indirection:0.8 pointers:0.4 tracing:0.4
 @hint pointAt gets a copy of ptr, so changing p doesn't change main's ptr.
 @hint Pass &ptr, take an int **pp, and set *pp = target.
 ```

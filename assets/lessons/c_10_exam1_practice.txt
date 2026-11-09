@@ -574,6 +574,7 @@ int main() {
 
 @quiz
 ? Which of these years is a leap year?
+~ 2 problem_solving:1 loops:0.5
 - 1700
 - 1900
 * 2000
@@ -581,6 +582,7 @@ int main() {
 ! 2000 is divisible by 400. The others are divisible by 100 but not 400.
 
 ? What does Reversed(4071) return?
+~ 2 problem_solving:1 loops:0.5
 - 4071
 * 1704
 - 1740
@@ -588,6 +590,7 @@ int main() {
 ! The digits come off the end one by one: 1, 7, 0, 4.
 
 ? What does this print?
+~ 2 tracing:1 problem_solving:0.6 loops:0.3
 ```
 int n = 345, sum = 0;
 while (n > 0) {
@@ -603,6 +606,7 @@ printf("%d", sum);
 ! The loop adds the digits 5, 4 and 3.
 
 ? Why does the prime check use i <= n / i instead of i * i <= n?
+~ 2 problem_solving:1 loops:0.5
 - It is faster to divide than multiply
 * i * i can overflow an int when n is very large
 - n / i skips even numbers
@@ -610,6 +614,7 @@ printf("%d", sum);
 ! For n near the int limit, i * i exceeds the largest int before the loop finishes.
 
 ? What is the binary number 1011 in decimal?
+~ 2 problem_solving:1 loops:0.5
 - 9
 * 11
 - 13
@@ -617,6 +622,7 @@ printf("%d", sum);
 ! 1*1 + 1*2 + 0*4 + 1*8 = 11.
 
 ? What does find return when the value is not in the array?
+~ 2 problem_solving:1 loops:0.5 functions:0.4
 - 0
 - The size of the array
 * -1
@@ -624,6 +630,7 @@ printf("%d", sum);
 ! -1 can never be a valid index, so it clearly signals "not found".
 
 ? What does this print?
+~ 2 tracing:1 problem_solving:0.6 loops:0.3
 ```
 for (int r = 1; r <= 3; r++) {
     for (int c = 1; c <= r; c++) printf("A");
@@ -637,6 +644,7 @@ for (int r = 1; r <= 3; r++) {
 ! Row r prints r A's, then a separator.
 
 ? What does this print?
+~ 2 tracing:1 problem_solving:0.6 loops:0.3
 ```
 int n = 123, r = 0;
 while (n > 0) {
@@ -652,6 +660,7 @@ printf("%d\n", r);
 ! Each pass takes the last digit with % 10 and adds it to the end of r.
 
 ? Is 1900 a leap year?
+~ 2 problem_solving:1 loops:0.5
 - Yes: it is divisible by 4
 * No: it is divisible by 100 but not by 400
 - Yes: it is divisible by 100
@@ -659,6 +668,7 @@ printf("%d\n", r);
 ! Century years are leap years only when divisible by 400, like 2000.
 
 ? What does this print?
+~ 3 tracing:1 problem_solving:0.6 conditions:0.4 loops:0.3
 ```
 int count = 0;
 for (int i = 2; i <= 10; i++) {
@@ -676,6 +686,7 @@ printf("%d\n", count);
 ! The primes up to 10 are 2, 3, 5 and 7.
 
 ? What is the binary number 110 in decimal?
+~ 2 problem_solving:1 loops:0.5
 - 3
 * 6
 - 110
@@ -683,6 +694,7 @@ printf("%d\n", count);
 ! 110 is 1 x 4 + 1 x 2 + 0 x 1.
 
 ? What does this print?
+~ 2 tracing:1 problem_solving:0.6 conditions:0.4 arrays:0.4
 ```
 int a[] = {2, 5, 2, 8, 2};
 int c = 0;
@@ -697,6 +709,7 @@ printf("%d\n", c);
 ! This is the lab's frequency count: 2 appears three times.
 
 ?code isLeapYear gets 1900 wrong: 1900 was not a leap year, because it is divisible by 100 but not by 400. Fix the function.
+~ 3 debugging:1 problem_solving:0.8 tracing:0.4 loops:0.3
 @hint Every year divisible by 100 is also divisible by 4, so the first test already returns true for 1900.
 @hint Check the special cases first: 400, then 100, then 4.
 ```

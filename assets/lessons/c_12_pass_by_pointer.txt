@@ -177,6 +177,7 @@ min 2, max 9
 
 @quiz
 ? Which parameter allows a function to modify the original variable?
+~ 2 parameter_passing:1 pointers:0.6
 - int x
 - float x
 - char x
@@ -184,6 +185,7 @@ min 2, max 9
 ! Only a pointer parameter gives the function the caller's address.
 
 ? What is x after the call?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4
 ```
 void change(int *p) {
     *p = 50;
@@ -200,6 +202,7 @@ int main() {
 ! p holds the address of x, so *p = 50 sets x to 50.
 
 ? What does this print?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4
 ```
 void addTen(int n) {
     n = n + 10;
@@ -217,6 +220,7 @@ int main() {
 ! addTen gets a copy of a, so a is unchanged.
 
 ? What does this print?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4
 ```
 void addTen(int *n) {
     *n = *n + 10;
@@ -234,6 +238,7 @@ int main() {
 ! This time the function works through a's address.
 
 ? How do you call void swap_ints(int *a, int *b) to swap x and y?
+~ 2 parameter_passing:1 pointers:0.6
 - swap_ints(x, y);
 * swap_ints(&x, &y);
 - swap_ints(*x, *y);
@@ -241,6 +246,7 @@ int main() {
 ! Both parameters are pointers, so pass both addresses.
 
 ? Why does scanf("%d", &n) need the & ?
+~ 2 parameter_passing:1 pointers:0.6 input:0.4
 - To tell scanf n is an int
 * Like any function that fills in a variable, scanf needs its address
 - & reads the number faster
@@ -248,6 +254,7 @@ int main() {
 ! scanf is passed by pointer so it can store the value in n.
 
 ? What is the difference between (*p)++ and *p++ ?
+~ 2 parameter_passing:1 pointers:0.6 pointer_arithmetic:0.4
 - There is none
 * (*p)++ increments the value p points to; *p++ moves the pointer itself
 - (*p)++ moves the pointer; *p++ increments the value
@@ -255,6 +262,7 @@ int main() {
 ! ++ binds tighter than *, so *p++ increments p, not *p.
 
 ? What does this print?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4
 ```
 void triple(int *n) { *n = *n * 3; }
 int main() {
@@ -269,6 +277,7 @@ int main() {
 ! The function gets x's address, so *n is x itself.
 
 ? What does this print?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4
 ```
 void setZero(int n) { n = 0; }
 int main() {
@@ -283,6 +292,7 @@ int main() {
 ! Passed by value, the function only changes its own copy.
 
 ? How can one function give back both a quotient and a remainder?
+~ 2 parameter_passing:1 pointers:0.6
 - Return both, separated by a comma
 * Take pointers to two variables and fill them in
 - Use two return statements
@@ -290,6 +300,7 @@ int main() {
 ! A function returns one value, but it can write through as many pointers as it's given.
 
 ? What does this print?
+~ 3 tracing:1 parameter_passing:0.6 pointers:0.4 conditions:0.4
 ```
 void minMax(int a, int b, int *lo, int *hi) {
     *lo = a < b ? a : b;
@@ -308,6 +319,7 @@ int main() {
 ! minMax writes the smaller value through lo and the larger through hi.
 
 ? Inside void f(int *p), what does p = NULL; change?
+~ 2 parameter_passing:1 pointers:0.6 copying:0.4
 * Only the function's own copy of the pointer
 - The caller's pointer
 - The int the caller's pointer points at
@@ -315,6 +327,7 @@ int main() {
 ! The pointer itself was passed by value. To change the caller's pointer, f would need an int **.
 
 ?code swap_ints should swap the caller's two variables, but x and y come out unchanged. Fix the function.
+~ 3 debugging:1 parameter_passing:0.8 pointers:0.4 tracing:0.4
 @hint The function swaps a and b, its own copies of the addresses. What should be swapped instead?
 @hint Use *a and *b, and make temp an int.
 ```

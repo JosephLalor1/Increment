@@ -132,6 +132,7 @@ That is why add(5, 3) is safe: add gets copies and cannot accidentally change an
 
 @quiz
 ? What does a void return type mean?
+~ 2 functions:1 parameter_passing:0.3
 - The function returns 0
 * The function does not return a value
 - The function takes no parameters
@@ -139,6 +140,7 @@ That is why add(5, 3) is safe: add gets copies and cannot accidentally change an
 ! void means "nothing": the function just runs and returns no value.
 
 ? What does this print?
+~ 3 tracing:1 functions:0.6 parameter_passing:0.2
 ```
 void setTo10(int n) {
     n = 10;
@@ -156,6 +158,7 @@ int main() {
 ! a is passed by value, so the function only changes its own copy.
 
 ? What does this print?
+~ 3 tracing:1 functions:0.6 arrays:0.4 parameter_passing:0.2
 ```
 void setFirst(int arr[]) {
     arr[0] = 10;
@@ -173,6 +176,7 @@ int main() {
 ! Arrays are not copied. The function works on the caller's array.
 
 ? Why is the size passed as a separate parameter to calculateAverage?
+~ 2 functions:1 parameter_passing:0.3
 - C requires every function to take two parameters
 * The function only receives where the array starts, so it cannot work out the length itself
 - It makes the function faster
@@ -180,6 +184,7 @@ int main() {
 ! Inside the function the array parameter is just the address of the first element.
 
 ? What is a function prototype?
+~ 2 functions:1 parameter_passing:0.3
 - The first version of a function, before it is finished
 * A declaration of the function's name, return type and parameters, ending with a semicolon
 - A function with no body that does nothing
@@ -187,6 +192,7 @@ int main() {
 ! A prototype lets you call a function before its full definition appears in the file.
 
 ? What does add(add(1, 2), 3) return, using add from this lesson?
+~ 2 functions:1 parameter_passing:0.3
 - 3
 - 5
 * 6
@@ -194,6 +200,7 @@ int main() {
 ! The inner call returns 3, then add(3, 3) returns 6.
 
 ? What does this print?
+~ 2 tracing:1 functions:0.6 parameter_passing:0.2
 ```
 int square(int n) { return n * n; }
 int main() {
@@ -207,6 +214,7 @@ int main() {
 ! square(3) is 9 and square(2) is 4.
 
 ? What does this print?
+~ 2 tracing:1 functions:0.6 parameter_passing:0.2
 ```
 void addOne(int n) { n = n + 1; }
 int main() {
@@ -221,6 +229,7 @@ int main() {
 ! The function gets a copy of x. Changing the copy doesn't change x.
 
 ? What does a return statement do?
+~ 2 functions:1 parameter_passing:0.3
 * Ends the function and gives a value back to the caller
 - Prints the value
 - Restarts the function
@@ -228,6 +237,7 @@ int main() {
 ! The call is replaced by the returned value where it was made. (Only return in main ends the program.)
 
 ? main calls a function defined below it. What must come before main?
+~ 2 functions:1 parameter_passing:0.3
 - Nothing: C finds functions anywhere
 * A prototype of the function
 - A copy of the whole function
@@ -235,6 +245,7 @@ int main() {
 ! The compiler reads top to bottom, so it needs the function's prototype (or definition) before the call.
 
 ? What does this print?
+~ 2 tracing:1 functions:0.6 conditions:0.4 parameter_passing:0.2
 ```
 int max(int a, int b) { return a > b ? a : b; }
 int main() {
@@ -248,6 +259,7 @@ int main() {
 ! The inner call returns 9, and max(9, 4) is 9.
 
 ?code main uses a function max that returns the larger of its two arguments, but its body hasn't been written yet. Write it.
+~ 3 debugging:1 functions:0.8 tracing:0.4 parameter_passing:0.2
 @hint Compare a and b with an if, or with the ?: operator.
 @hint Return a if it is bigger than b, otherwise return b.
 ```

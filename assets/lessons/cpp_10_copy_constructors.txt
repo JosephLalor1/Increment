@@ -136,6 +136,7 @@ Changing student2's name no longer affects student1's name.
 
 @quiz
 ? When does the copy constructor run?
+~ 2 copying:1 constructors:0.5 classes:0.4
 - Every time a field is assigned
 * When a new object is created as a copy of an existing one, as in Point r = q;
 - When an object is deleted
@@ -143,6 +144,7 @@ Changing student2's name no longer affects student1's name.
 ! It initialises a brand new object from an existing one.
 
 ? What does the default copy constructor do?
+~ 2 copying:1 constructors:0.5
 - Nothing
 * Copies every field
 - Copies only public fields
@@ -150,6 +152,7 @@ Changing student2's name no longer affects student1's name.
 ! For a pointer field, that copies the address, not the data.
 
 ? Why did changing student2.name[0] also change student1.name?
+~ 2 copying:1 constructors:0.5 pointers:0.4 arrays:0.4
 - Both objects were the same object
 * The default copy copied the pointer, so both names pointed to the same characters
 - strcpy was used
@@ -157,6 +160,7 @@ Changing student2's name no longer affects student1's name.
 ! A shallow copy shares the pointed-to data.
 
 ? Why is the copy constructor's parameter a reference?
+~ 2 copying:1 constructors:0.5 references:0.4
 - References are faster to type
 * Passing by value would need a copy, which needs the copy constructor itself, endlessly
 - Copy constructors cannot take parameters
@@ -164,6 +168,7 @@ Changing student2's name no longer affects student1's name.
 ! Pass by value would recurse forever, so C++ requires a reference.
 
 ? Why new char[strlen(n) + 1] rather than strlen(n)?
+~ 2 copying:1 constructors:0.5 dynamic_memory:0.4 strings:0.4
 - strlen counts one character too many
 * The extra byte holds the '\0' terminator
 - new needs an extra byte for itself
@@ -171,6 +176,7 @@ Changing student2's name no longer affects student1's name.
 ! strlen does not count the terminator, but the copy needs room for it.
 
 ? What does this print?
+~ 3 tracing:1 copying:0.6 classes:0.4 constructors:0.3
 ```
 class Box {
 public:
@@ -191,6 +197,7 @@ int main() {
 ! The custom copy constructor doubles the value as it copies.
 
 ? What does this print?
+~ 3 tracing:1 copying:0.6 classes:0.4 constructors:0.3
 ```
 class P {
 public:
@@ -210,6 +217,7 @@ int main() {
 ! P b = a runs the copy constructor, which adds 1.
 
 ? Which line runs the copy constructor?
+~ 2 copying:1 constructors:0.5
 * Point q = p;
 - q = p; when q already exists
 - Point q;
@@ -217,6 +225,7 @@ int main() {
 ! A new object made as a copy of another uses the copy constructor; assigning to an existing one uses operator=.
 
 ? What is a shallow copy?
+~ 2 copying:1 constructors:0.5 classes:0.4 pointers:0.4
 * Copying pointer fields as they are, so both objects share what they point at
 - Copying only some of the fields
 - A copy that is deleted straight away
@@ -224,6 +233,7 @@ int main() {
 ! The default copy constructor makes shallow copies.
 
 ? What does this print?
+~ 3 tracing:1 copying:0.6 dynamic_memory:0.4 classes:0.4
 ```
 class Box {
 public:
@@ -243,6 +253,7 @@ int main() {
 ! The default copy is shallow: a.v and b.v point at the same int.
 
 ? Why does a class that owns heap memory usually need a deep copy?
+~ 2 copying:1 constructors:0.5 dynamic_memory:0.4 classes:0.4
 * So each object has its own memory, and changing one doesn't change the other
 - So copying is faster
 - Because the heap can't be shared
@@ -250,6 +261,7 @@ int main() {
 ! Sharing would also mean both destructors free the same memory.
 
 ?code Changing student2's name also changes student1's, because the default copy shares one name. Write a copy constructor that makes a deep copy, so this prints foo boo.
+~ 3 problem_solving:1 copying:0.8 tracing:0.4 constructors:0.3
 @hint The default copy copies the name pointer, not the characters it points at.
 @hint In MITStudent(const MITStudent &o), allocate new char[strlen(o.name) + 1] and strcpy into it.
 ```

@@ -11,6 +11,7 @@
 #include "app_screen.h"
 #include "bookmarks.h"
 #include "review.h"
+#include "skill_progress.h"
 #include "code_screen.h"
 #include "courses_screen.h"
 #include "practice_screen.h"
@@ -88,7 +89,8 @@ static void ShowLogin(void)
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
-    ReviewLoad("");  // and their answer history
+    ReviewLoad("");  // and their answer history and skill XP
+    SkillsLoad("");
     NotesPanelSetFolder(NULL);  // the next user mustn't see (or save into) these notes
     LoginReset();
     ApplyUserAppearance();
@@ -118,6 +120,7 @@ static void SignedIn(void)
     ProgressLoad(AccountProgressPath());
     BookmarksLoad(AccountBookmarksPath());
     ReviewLoad(AccountReviewPath());
+    SkillsLoad(AccountSkillsPath());
     if (VerifyNeeded()) {  // the account isn't usable until its email is verified
         VerifyOpen(false);
         app.screen = SCREEN_VERIFY;

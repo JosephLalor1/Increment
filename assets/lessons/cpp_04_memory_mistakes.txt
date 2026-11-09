@@ -123,6 +123,7 @@ x lives on the stack and is freed automatically. Only memory that came from new 
 
 @quiz
 ? What is a memory leak?
+~ 1 memory_safety:1 dynamic_memory:0.6
 * Allocated memory that can no longer be reached or freed
 - Reading past the end of an array
 - Using a variable after it goes out of scope
@@ -130,6 +131,7 @@ x lives on the stack and is freed automatically. Only memory that came from new 
 ! The memory stays allocated but nothing points to it.
 
 ? A loop calls new three times, storing each result in the same pointer p, and deletes p once after the loop. How many allocations leak?
+~ 1 memory_safety:1 dynamic_memory:0.6 loops:0.4 pointers:0.4
 - 0
 - 1
 * 2
@@ -137,6 +139,7 @@ x lives on the stack and is freed automatically. Only memory that came from new 
 ! The single delete only frees the last allocation.
 
 ? Where should the delete go to fix the leak in the loop?
+~ 1 memory_safety:1 dynamic_memory:0.6 loops:0.4
 - Before the loop
 * Inside the loop, after the value has been used
 - After the loop
@@ -144,6 +147,7 @@ x lives on the stack and is freed automatically. Only memory that came from new 
 ! Each allocation must be freed before p is pointed somewhere else.
 
 ? What is wrong with this code?
+~ 2 tracing:1 debugging:0.8 memory_safety:0.6 dynamic_memory:0.4
 ```
 int *x = new int(5);
 delete x;
@@ -156,6 +160,7 @@ cout << *x;
 ! Once deleted, the memory may be reused for something else.
 
 ? Which of these is safe?
+~ 1 memory_safety:1 dynamic_memory:0.6 pointers:0.4
 - Deleting the same pointer twice
 - Deleting a pointer to a stack variable
 * Deleting a pointer that is nullptr
@@ -163,6 +168,7 @@ cout << *x;
 ! delete nullptr does nothing, which is why setting pointers to nullptr after delete is a good habit.
 
 ? What is wrong with this code?
+~ 2 tracing:1 debugging:0.8 memory_safety:0.6 dynamic_memory:0.4
 ```
 int x = 5;
 int *p = &x;
@@ -175,6 +181,7 @@ delete p;
 ! Only memory from new can be deleted. x is freed automatically when it goes out of scope.
 
 ? What happens when the same pointer is deleted twice?
+~ 1 memory_safety:1 dynamic_memory:0.6 pointers:0.4
 - The second delete is ignored
 * Undefined behaviour: it often crashes
 - The memory is freed twice as fast
@@ -182,6 +189,7 @@ delete p;
 ! After the first delete the memory isn't yours to delete again. (delete on nullptr is the safe exception.)
 
 ? int x = 5; int *p = &x; delete p; What is wrong?
+~ 1 memory_safety:1 debugging:0.8 dynamic_memory:0.6 pointers:0.4
 * x wasn't created with new, so it must not be deleted
 - p should have been set to nullptr first
 - delete needs square brackets
@@ -189,6 +197,7 @@ delete p;
 ! Only memory from new may be given to delete. x lives on the stack.
 
 ? A function does int *p = new int(1); and returns without deleting p or returning it. What happens?
+~ 1 memory_safety:1 dynamic_memory:0.6 pointers:0.4
 - The int is deleted when the function ends
 * The int leaks: nothing can free it now
 - A compile error
@@ -196,6 +205,7 @@ delete p;
 ! The only pointer to it went away with the function, so the memory can't be reached.
 
 ? What does this print?
+~ 2 tracing:1 memory_safety:0.6 dynamic_memory:0.4 pointers:0.4
 ```
 int *p = new int(4);
 delete p;
@@ -209,6 +219,7 @@ cout << "ok" << endl;
 ! delete on nullptr does nothing, which is why setting pointers to nullptr after delete is a good habit.
 
 ? Which habit helps catch use of memory after delete?
+~ 1 memory_safety:1 dynamic_memory:0.6 pointers:0.4
 - Deleting every pointer twice
 * Setting the pointer to nullptr straight after the delete
 - Never using new
@@ -216,6 +227,7 @@ cout << "ok" << endl;
 ! A nullptr can be tested and doesn't hide a stale address.
 
 ?code After delete, p still holds the old address, so the program says it is dangling. Add the good habit from this lesson so p is safe to test.
+~ 2 problem_solving:1 memory_safety:0.8 dynamic_memory:0.4 tracing:0.4
 @hint delete frees the memory but doesn't change the pointer.
 @hint Set p to nullptr straight after deleting it.
 ```

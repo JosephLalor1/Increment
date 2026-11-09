@@ -180,6 +180,7 @@ That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the proce
 
 @quiz
 ? What does Point points[20]; require of the Point class?
+~ 2 constructors:1 dynamic_memory:0.5 classes:0.4 arrays:0.4
 - A copy constructor
 * A default constructor
 - A destructor
@@ -187,6 +188,7 @@ That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the proce
 ! Each of the 20 elements is created with no arguments.
 
 ? How do you free Point *points = new Point[30]; ?
+~ 2 constructors:1 dynamic_memory:0.5 pointers:0.4 arrays:0.4
 - delete points;
 * delete[] points;
 - delete points[30];
@@ -194,6 +196,7 @@ That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the proce
 ! Arrays from new[] are freed with delete[].
 
 ? When is a destructor called?
+~ 2 constructors:1 dynamic_memory:0.5 classes:0.4 scope:0.4
 - When the object is created
 * When the object goes out of scope or is deleted
 - Only when you call it by name
@@ -201,6 +204,7 @@ That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the proce
 ! It is the counterpart of the constructor.
 
 ? How is the destructor of class Point written?
+~ 2 constructors:1 dynamic_memory:0.5 classes:0.4
 - Point~()
 * ~Point()
 - delete Point()
@@ -208,6 +212,7 @@ That is 10,000 x 20,000 Points of 8 bytes each, about 1.6 GB. Watching the proce
 ! A tilde followed by the class name, with no parameters.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.4 dynamic_memory:0.3
 ```
 class T {
 public:
@@ -229,6 +234,7 @@ int main() {
 ! y is destroyed at the end of the inner block, before C; x is destroyed at the end of main.
 
 ? With Point **pp = new Point*[30]; and new Point for each element, what must be deleted?
+~ 2 constructors:1 dynamic_memory:0.5 indirection:0.4 pointers:0.4
 - Only pp, with delete[]
 - Only each element, with delete
 * Each element with delete, then pp with delete[]
@@ -236,6 +242,7 @@ int main() {
 ! Every new needs a delete and every new[] a delete[].
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.4 dynamic_memory:0.3
 ```
 class N {
 public:
@@ -254,6 +261,7 @@ int main() {
 ! Local objects are destroyed in the reverse order they were made.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.4 arrays:0.4
 ```
 class T {
 public:
@@ -273,6 +281,7 @@ int main() {
 ! new[] constructs every element and delete[] destroys every element.
 
 ? Can a destructor take parameters?
+~ 2 constructors:1 dynamic_memory:0.5 functions:0.4
 * No: it never takes parameters and has no return type
 - Yes, any number
 - Only one, the object to destroy
@@ -280,6 +289,7 @@ int main() {
 ! There is exactly one destructor per class, written ~ClassName().
 
 ? Point *p = new Point; When does its destructor run?
+~ 2 constructors:1 dynamic_memory:0.5 pointers:0.4
 * When delete p; is called
 - At the end of the block
 - When p goes out of scope
@@ -287,6 +297,7 @@ int main() {
 ! Heap objects live until they're deleted.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.4 dynamic_memory:0.3
 ```
 class T {
 public:
@@ -303,6 +314,7 @@ int main() {
 ! t is destroyed at the end of its own block, before "end" is printed.
 
 ?code Each Noisy object says when it is destroyed, but these three are made with new and never deleted, so no destructor runs. Delete them at the end of main.
+~ 3 debugging:1 constructors:0.8 tracing:0.4 classes:0.4
 @hint Objects made with new are only destroyed by delete.
 @hint Loop over items and delete each pointer.
 ```

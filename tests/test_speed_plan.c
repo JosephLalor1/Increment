@@ -6,6 +6,7 @@
 #include "../src/progress.h"
 #include "../src/quiz_attempt.h"
 #include "../src/review.h"
+#include "../src/skill_progress.h"
 #include "raylib.h"
 
 #include <assert.h>
@@ -118,6 +119,61 @@ static void TestChallenges(const LessonSet *set, const char *folder)
     remove(reviewPath);
 }
 
+// Challenges lean towards the learner's weakest skills: with loops weak and everything else
+// strong, two started lessons' new questions are mostly the loop ones.
+static void TestWeakSkills(const LessonSet *set, const char *folder)
+{
+    char progressPath[1024], reviewPath[1024], skillsPath[1024];
+    snprintf(progressPath, sizeof progressPath, "%s/weak_progress.txt", folder);
+    snprintf(reviewPath, sizeof reviewPath, "%s/weak_review.txt", folder);
+    snprintf(skillsPath, sizeof skillsPath, "%s/weak_skills.txt", folder);
+    remove(progressPath);
+    remove(reviewPath);
+    remove(skillsPath);
+    ProgressLoad(progressPath);
+    ReviewLoad(reviewPath);
+    SkillsLoad(skillsPath);
+    const Lesson *loops = LessonById(set, "c_06_loops"), *arrays = LessonById(set, "c_07_arrays");
+    assert(loops && arrays);
+    ProgressRecord(loops->id, 50);
+    ProgressRecord(arrays->id, 50);
+    SkillAnswer answer = { 2, 0, 0, -1 };
+    for (int s = 0; s < SKILL_COUNT; s++) {  // strong at everything...
+        SkillWeight one = { (Skill)s, 1 };
+        for (int i = 0; i < 30; i++) SkillsRecord(&one, 1, true, answer);
+    }
+    SkillWeight loopSkill = { SKILL_LOOPS, 1 };  // ...but loops
+    for (int i = 0; i < 40; i++) SkillsRecord(&loopSkill, 1, false, answer);
+    assert(SkillWeakness(SKILL_LOOPS) > 0.8f && SkillWeakness(SKILL_ARRAYS) < 0.3f);
+
+    uint32_t seed = 21;
+    SpeedPlanItem plan[SPEED_QUESTIONS];
+    int count = SpeedPlanChallenge(set, 20400, &seed, plan), aboutLoops = 0;
+    for (int i = 0; i < count; i++) {
+        const Question *q = plan[i].bank;
+        assert(q);
+        for (int s = 0; s < q->skillCount; s++) {
+            if (q->skills[s].skill == SKILL_LOOPS) {
+                aboutLoops++;
+                break;
+            }
+        }
+    }
+    assert(count == SPEED_QUESTIONS && aboutLoops >= 8);
+
+    // Generated questions' skills: tracing first, then the topic.
+    SkillWeight weights[MAX_QUESTION_SKILLS];
+    int n = SpeedSkillWeights(SPEED_POINTER_TO_POINTER, weights);
+    assert(n == 3 && weights[0].skill == SKILL_TRACING && weights[1].skill == SKILL_INDIRECTION);
+
+    ProgressLoad("");
+    ReviewLoad("");
+    SkillsLoad("");
+    remove(progressPath);
+    remove(reviewPath);
+    remove(skillsPath);
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
@@ -126,6 +182,7 @@ int main(int argc, char **argv)
     assert(LessonsLoad(&set, "assets/lessons"));
     TestLessonPlans(&set);
     TestChallenges(&set, argv[1]);
+    TestWeakSkills(&set, argv[1]);
     LessonsUnload(&set);
     puts("speed plan: all tests passed");
     return 0;

@@ -226,6 +226,7 @@ void Vector::print() {
 
 @quiz
 ? An object is passed by value and the function changes a field. What happens to the original?
+~ 1 classes:1 parameter_passing:0.4 copying:0.4
 - It changes too
 * It is unchanged: the function worked on a copy
 - The program does not compile
@@ -233,6 +234,7 @@ void Vector::print() {
 ! Passing by value copies the whole instance.
 
 ? Which line sets the x field through Point *pp?
+~ 1 classes:1 parameter_passing:0.4 pointers:0.4
 - pp.x = 1;
 * pp->x = 1;
 - *pp->x = 1;
@@ -240,6 +242,7 @@ void Vector::print() {
 ! -> reaches a member through a pointer. (*pp).x = 1; also works.
 
 ? What is a method?
+~ 1 classes:1 parameter_passing:0.4
 - A variable inside a class
 * A function that is part of a class
 - A way of passing parameters
@@ -247,6 +250,7 @@ void Vector::print() {
 ! Methods are called on an instance, like vec.print().
 
 ? In vec1.print(), which object does print work on?
+~ 1 classes:1 parameter_passing:0.4
 * vec1
 - Every Vector instance
 - The first Vector ever created
@@ -254,6 +258,7 @@ void Vector::print() {
 ! A method implicitly receives the instance it was called on.
 
 ? What does :: mean in void Vector::print() { ... } ?
+~ 1 classes:1 parameter_passing:0.4
 - print is a static variable
 * This is the implementation of the print method of the Vector class
 - print is private
@@ -261,6 +266,7 @@ void Vector::print() {
 ! ClassName:: says which class the method belongs to.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6 parameter_passing:0.2
 ```
 class Counter {
 public:
@@ -282,6 +288,7 @@ int main() {
 ! Each call adds to the same instance's n: 1 + 4 + 5.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6 parameter_passing:0.2
 ```
 class Counter {
 public:
@@ -302,6 +309,7 @@ int main() {
 ! Each call to add works on c's own n.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6 pointers:0.4 parameter_passing:0.2
 ```
 class Point {
 public:
@@ -321,6 +329,7 @@ int main() {
 ! Through the pointer, shift changes a itself.
 
 ? What does p->x mean when p is a Point *?
+~ 1 classes:1 parameter_passing:0.4 pointers:0.4
 * (*p).x: the x field of the object p points at
 - x is a pointer inside p
 - The address of x
@@ -328,6 +337,7 @@ int main() {
 ! -> is a shorthand for dereferencing and then using the dot.
 
 ? What does this print?
+~ 3 tracing:1 classes:0.6 parameter_passing:0.2
 ```
 class Point {
 public:
@@ -347,6 +357,7 @@ int main() {
 ! Passed by value, reset changes a copy.
 
 ? Where can a method's body be written?
+~ 1 classes:1 parameter_passing:0.4
 * Inside the class, or outside it as ClassName::method
 - Only inside the class
 - Only outside the class
@@ -354,6 +365,7 @@ int main() {
 ! Outside the class, :: says which class the method belongs to.
 
 ?code offsetVector should move the vector by (1, 2), but main's v doesn't move. Fix it by passing a pointer, as in the lesson.
+~ 3 debugging:1 classes:0.8 tracing:0.4 pointers:0.4
 @hint The function gets a copy of v and moves the copy.
 @hint Take a Vector *v, use v-> for the fields, and call it with &v.
 ```

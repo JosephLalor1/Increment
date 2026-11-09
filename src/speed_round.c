@@ -825,6 +825,12 @@ void SpeedGenerate(SpeedSkill skill, int difficulty, uint32_t *seed, SpeedQuesti
     }
 }
 
+int SpeedQuestionDifficulty(const SpeedQuestion *q)
+{
+    int lines = q->lineCount - q->firstBodyLine;
+    return lines <= 4 ? 1 : lines <= 7 ? 2 : 3;
+}
+
 char *SpeedQuestionCode(const SpeedQuestion *q, int from, char *out, int size)
 {
     int used = 0;

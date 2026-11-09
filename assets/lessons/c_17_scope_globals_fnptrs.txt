@@ -148,6 +148,7 @@ Output:
 
 @quiz
 ? When does a local variable go out of scope?
+~ 2 scope:1
 - When the program ends
 * At the closing brace of the block it was declared in
 - When it is assigned a new value
@@ -155,6 +156,7 @@ Output:
 ! A variable only exists inside the block where it is declared.
 
 ? What is a dangling pointer?
+~ 2 scope:1 memory_safety:0.4 pointers:0.4
 - A pointer set to NULL
 * A pointer to memory whose contents are no longer valid
 - A pointer to a pointer
@@ -162,6 +164,7 @@ Output:
 ! Using it is undefined behaviour: the memory may now hold anything.
 
 ? Why is returning &x from a function wrong when x is a local variable?
+~ 2 scope:1 pointers:0.4
 - & cannot be used in a return statement
 * x goes out of scope when the function returns, so the pointer dangles
 - It returns the value instead of the address
@@ -169,6 +172,7 @@ Output:
 ! The local x is gone once the function returns.
 
 ? What does this print?
+~ 3 tracing:1 scope:0.6
 ```
 int g = 1;
 void f() {
@@ -187,6 +191,7 @@ int main() {
 ! f declares its own local g, which hides the global. The global g stays 1.
 
 ? Which declares p as a pointer to a function taking two ints and returning an int?
+~ 2 scope:1 function_pointers:0.4 pointers:0.4
 - int *p(int, int);
 * int (*p)(int, int);
 - int p*(int, int);
@@ -194,6 +199,7 @@ int main() {
 ! The brackets around *p make p a pointer rather than a function returning int *.
 
 ? What can you NOT do with a function pointer?
+~ 2 scope:1 function_pointers:0.4 pointers:0.4
 - Assign a function to it
 - Call the function through it
 * Add 1 to it to reach the next function
@@ -201,6 +207,7 @@ int main() {
 ! Arithmetic on function pointers is not allowed.
 
 ? What does this print?
+~ 3 tracing:1 scope:0.6
 ```
 int g = 1;
 void setGlobal() { g = 5; }
@@ -215,6 +222,7 @@ int main() {
 ! There's only one g, the global one, and setGlobal changes it.
 
 ? What does this print?
+~ 3 tracing:1 scope:0.6
 ```
 int g = 1;
 void setLocal() { int g = 5; g++; }
@@ -229,6 +237,7 @@ int main() {
 ! setLocal declares its own g, which hides the global one and disappears when the function ends.
 
 ? What does this print?
+~ 3 tracing:1 scope:0.6 function_pointers:0.4 functions:0.4
 ```
 int add(int a, int b) { return a + b; }
 int mul(int a, int b) { return a * b; }
@@ -243,6 +252,7 @@ int main() {
 ! op points at mul, so op(3, 4) calls mul.
 
 ? Where does a variable declared inside a block { } exist?
+~ 2 scope:1
 * From its declaration to the end of that block
 - Everywhere in the file
 - Until the program ends
@@ -250,6 +260,7 @@ int main() {
 ! That's its scope. Outside the block the name means nothing (or a different variable).
 
 ? Why are global variables often avoided?
+~ 2 scope:1 debugging:0.8
 - They are slower than local variables
 * Any function can change them, which makes bugs hard to trace
 - They can only hold ints
@@ -257,6 +268,7 @@ int main() {
 ! When many functions can change a value, finding which one changed it wrongly is hard.
 
 ?code The second line should print 10 - 4 = 6, but op still points at Add. Point op at Subtract before the second call, still calling through op.
+~ 3 debugging:1 scope:0.8 tracing:0.4
 @hint A function's name, without brackets, is its address.
 @hint op = Subtract; makes op point at the other function.
 ```

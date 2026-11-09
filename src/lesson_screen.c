@@ -9,7 +9,7 @@
 #include "progress.h"
 #include "quiz_attempt.h"
 #include "quiz_view.h"
-#include "review.h"
+#include "answers.h"
 #include "roadmap_view.h"
 #include "ui.h"
 
@@ -110,16 +110,14 @@ static void FinishQuiz(void)
     RecordCompletion(reader.lastPercent);
 }
 
-// Answers the current question, and if that took, records it in the learner's review
-// history and lets the fox react. Returns whether the answer was taken.
+// Answers the current question, and if that took, records it (review schedule and skill
+// XP) and lets the fox react. Returns whether the answer was taken.
 static bool Answer(int choice)
 {
     if (!QuizAttemptPick(&reader.attempt, reader.question, choice)) return false;
     const Question *q = QuizAttemptQuestion(&reader.attempt, reader.question);
     bool right = QuizAnswerCorrect(q, choice);
-    char id[64];
-    LessonQuestionId(CurrentLesson(), q, id, sizeof id);
-    ReviewRecord(id, right, ReviewToday());
+    AnswerRecordQuestion(CurrentLesson(), q, right);  // review schedule and skill XP
     MascotReact(FOX_QUIZ, right ? FOX_CORRECT : FOX_INCORRECT);
     return true;
 }

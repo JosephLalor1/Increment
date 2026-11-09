@@ -15,6 +15,7 @@
 #include "lesson_screen.h"
 #include "progress.h"
 #include "review.h"
+#include "skill_progress.h"
 #include "speed_screen.h"
 #include "ui.h"
 
@@ -208,6 +209,7 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
         ProgressLoad(AccountProgressPath());
         BookmarksLoad(AccountBookmarksPath());
         ReviewLoad(AccountReviewPath());
+        SkillsLoad(AccountSkillsPath());
     }
     ApplyUserAppearance();
 

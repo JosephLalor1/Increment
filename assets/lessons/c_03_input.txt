@@ -72,6 +72,7 @@ if (scanf_s("%d", &age) != 1) {
 
 @quiz
 ? Why does scanf("%d", &age) need the & ?
+~ 1 input:1 pointers:0.4 types:0.3
 - & tells scanf the value is an integer
 * scanf needs the address of age so it can store the value there
 - & converts the input to a number
@@ -79,6 +80,7 @@ if (scanf_s("%d", &age) != 1) {
 ! &age is the address of age. scanf writes the value it reads into that address.
 
 ? What does the space before %c in scanf(" %c", &initial) do?
+~ 1 input:1 types:0.3
 - It reads a space character into initial
 * It skips whitespace, such as a leftover newline, before reading the character
 - It limits the input to one character
@@ -86,6 +88,7 @@ if (scanf_s("%d", &age) != 1) {
 ! Without the space, %c would read the newline left over from pressing Enter.
 
 ? What does scanf return?
+~ 1 input:1 types:0.3
 - The value it read
 - Always 0
 * The number of values it successfully read
@@ -93,6 +96,7 @@ if (scanf_s("%d", &age) != 1) {
 ! That is why checking scanf(...) != 1 detects invalid input for a single value.
 
 ? On cpp.sh the prompts only appear when the program ends. What fixes this?
+~ 1 input:1 types:0.3
 - Using scanf_s instead of scanf
 * Ending each prompt with \n
 - Removing return 0;
@@ -100,6 +104,7 @@ if (scanf_s("%d", &age) != 1) {
 ! The output is held back until a newline is printed, so adding \n makes each prompt appear straight away.
 
 ? The user types abc when this runs. What is the value of n afterwards?
+~ 2 tracing:1 input:0.6 types:0.2
 ```
 int n = 7;
 int ok = scanf("%d", &n);
@@ -111,6 +116,7 @@ int ok = scanf("%d", &n);
 ! scanf cannot read a number from "abc", so it stores nothing and returns 0.
 
 ? Visual Studio rejects scanf with error C4996. Which of these is a correct fix?
+~ 1 input:1 types:0.3
 - Add an extra & to every variable
 - Change %d to %i
 * Use scanf_s, or define _CRT_SECURE_NO_WARNINGS at the top of the file
@@ -118,6 +124,7 @@ int ok = scanf("%d", &n);
 ! Visual Studio wants the safer scanf_s, or you can turn the warning off with _CRT_SECURE_NO_WARNINGS.
 
 ? Which format specifier reads a double with scanf?
+~ 1 input:1 types:0.3
 - %f
 * %lf
 - %d
@@ -125,6 +132,7 @@ int ok = scanf("%d", &n);
 ! scanf needs %lf for a double. (%f is for a float; printf accepts %f for both.)
 
 ? The user types 12 7 for scanf("%d %d", &a, &b). What is b?
+~ 1 input:1 pointers:0.4 types:0.3
 - 12
 * 7
 - 127
@@ -132,6 +140,7 @@ int ok = scanf("%d", &n);
 ! scanf fills the variables in order, so a gets 12 and b gets 7.
 
 ? The user types hello for scanf("%d", &n). What does scanf return?
+~ 1 input:1 types:0.3
 * 0
 - 1
 - 5
@@ -139,6 +148,7 @@ int ok = scanf("%d", &n);
 ! scanf returns how many values it stored. hello isn't a number, so it stores none.
 
 ? Which reads one character, skipping spaces and newlines first?
+~ 1 input:1 types:0.3
 - scanf("%c", &c);
 * scanf(" %c", &c);
 - scanf("%s", c);
@@ -146,6 +156,7 @@ int ok = scanf("%d", &n);
 ! The space before %c tells scanf to skip any whitespace, such as the newline left over from an earlier input.
 
 ? Why print a prompt before calling scanf?
+~ 1 input:1 types:0.3
 - scanf needs a printf before it to work
 * So the user knows what to type
 - It makes the program run faster
@@ -153,6 +164,7 @@ int ok = scanf("%d", &n);
 ! scanf just waits silently for input; the prompt is for the person at the keyboard.
 
 ?code This program should read two numbers and add them, but it crashes. Find the mistake in the scanf call and fix it.
+~ 2 debugging:1 input:0.8 tracing:0.4 types:0.2
 @hint Look at what scanf is given for each %d.
 @hint scanf needs the address of every variable it fills in.
 ```

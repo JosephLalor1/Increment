@@ -4,7 +4,7 @@
 #include "quiz_view.h"
 #include "layout.h"
 #include "mascot.h"
-#include "review.h"
+#include "answers.h"
 #include "ui.h"
 
 typedef enum { SETUP, QUESTIONS, RESULTS, REVIEW } PracticePage;
@@ -140,9 +140,7 @@ static PracticeAction Questions(void)
         y += QuizViewChoice(q, c, s->questions[s->current].answer, x, y, w, scale, &chosen) + 12;
         if (chosen && PracticePick(s, c)) {
             bool right = QuizAnswerCorrect(q, c);
-            char id[64];  // practice answers count towards the question's review history too
-            LessonQuestionId(PracticeSource(s, s->current), q, id, sizeof id);
-            ReviewRecord(id, right, ReviewToday());
+            AnswerRecordQuestion(PracticeSource(s, s->current), q, right);  // counts for review and skill XP too
             MascotReact(FOX_PRACTICE, right ? FOX_CORRECT : FOX_INCORRECT);
         }
     }

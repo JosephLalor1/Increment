@@ -385,6 +385,7 @@ int main() {
 
 @quiz
 ? What does each node in a singly linked list contain?
+~ 2 data_structures:1 pointers:0.6
 - Only data
 * Data and a pointer to the next node
 - Data and the index of the node
@@ -392,6 +393,7 @@ int main() {
 ! The nextPtr links each node to the one after it.
 
 ? How do you know you have reached the end of the list?
+~ 2 data_structures:1 pointers:0.6
 - The data is 0
 * The node's nextPtr is nullptr
 - The node is the head
@@ -399,6 +401,7 @@ int main() {
 ! The last node points to nothing.
 
 ? Why does InsertAtEnd take Node ** instead of Node * ?
+~ 2 data_structures:1 pointers:0.6 indirection:0.4
 - Node ** is faster
 * Inserting into an empty list has to change the caller's head pointer
 - Node * cannot point to a struct
@@ -406,6 +409,7 @@ int main() {
 ! To change the caller's pointer, the function needs the address of that pointer.
 
 ? To delete a node in the middle, which pointer must change?
+~ 2 data_structures:1 pointers:0.6 dynamic_memory:0.4
 - The head pointer
 * The previous node's nextPtr
 - The next node's data
@@ -413,6 +417,7 @@ int main() {
 ! prev->nextPtr = cur->nextPtr; skips over the node being removed.
 
 ? What does this list contain after the code runs?
+~ 3 tracing:1 data_structures:0.6 pointers:0.4
 ```
 Node *head = nullptr;
 InsertAtEnd(&head, 1);
@@ -428,6 +433,7 @@ InsertAtEnd(&head, 4);
 ! 1 is removed from the front, then 4 is added at the end.
 
 ? Why does FreeList save cur->nextPtr before calling delete cur?
+~ 2 data_structures:1 pointers:0.6 dynamic_memory:0.4 memory_safety:0.4
 - delete needs the next node
 * After delete, cur's memory is freed, so reading cur->nextPtr would be invalid
 - To print it later
@@ -435,6 +441,7 @@ InsertAtEnd(&head, 4);
 ! Reading a deleted node is use-after-free.
 
 ? What does this print?
+~ 3 tracing:1 data_structures:0.6 pointers:0.4 loops:0.4
 ```
 struct Node { int data; Node *nextPtr; };
 int main() {
@@ -453,6 +460,7 @@ int main() {
 ! The loop follows nextPtr from a until it reaches nullptr.
 
 ? What is headPtr for an empty list?
+~ 2 data_structures:1 pointers:0.6
 * nullptr
 - A node with data 0
 - The address of the last node
@@ -460,6 +468,7 @@ int main() {
 ! With no first node, there's nothing for the head to point at.
 
 ? Where does InsertAtBeginning make the new node's nextPtr point?
+~ 2 data_structures:1 pointers:0.6 dynamic_memory:0.4
 * At the node that used to be first
 - At nullptr
 - At itself
@@ -467,6 +476,7 @@ int main() {
 ! Then the head is moved to the new node.
 
 ? What does this print?
+~ 3 tracing:1 data_structures:0.6 pointers:0.4 loops:0.4
 ```
 struct Node { int data; Node *nextPtr; };
 int main() {
@@ -484,6 +494,7 @@ int main() {
 ! Cutting a's link leaves a list of one node; b still exists but is no longer in the list.
 
 ? What does traversing a list mean?
+~ 2 data_structures:1 pointers:0.6
 * Visiting each node in turn, from the head, by following the next pointers
 - Reversing the list
 - Deleting every node
@@ -491,6 +502,7 @@ int main() {
 ! It's how PrintList and FreeList work.
 
 ?code PrintList should print all three nodes, 10 20 30, but it stops before the last one. Fix the loop.
+~ 3 debugging:1 data_structures:0.8 pointers:0.4 tracing:0.4
 @hint The last node's nextPtr is nullptr. What happens to it in the loop?
 @hint Keep going while current itself is not nullptr.
 ```

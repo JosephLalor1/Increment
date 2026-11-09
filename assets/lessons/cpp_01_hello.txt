@@ -87,6 +87,7 @@ The std:: prefix says that cout lives in the std namespace, where the standard l
 
 @quiz
 ? Which header provides cout and cin?
+~ 1 cpp_basics:1 output:0.4 input:0.4
 - <stdio.h>
 * <iostream>
 - <string>
@@ -94,6 +95,7 @@ The std:: prefix says that cout lives in the std namespace, where the standard l
 ! iostream is the C++ input/output stream header.
 
 ? What does using namespace std; allow?
+~ 1 cpp_basics:1 output:0.4
 - Using C functions in C++
 * Writing cout instead of std::cout
 - Using the std:: prefix
@@ -101,6 +103,7 @@ The std:: prefix says that cout lives in the std namespace, where the standard l
 ! It brings the standard library's names into scope.
 
 ? What does this print?
+~ 2 tracing:1 cpp_basics:0.6 output:0.2
 ```
 int n = 2;
 cout << "n = " << n << "\n";
@@ -112,6 +115,7 @@ cout << "n = " << n << "\n";
 ! Each << sends the next value to the stream in order.
 
 ? How do you read an int into x with cin?
+~ 1 cpp_basics:1 output:0.4 input:0.4
 - cin << x;
 * cin >> x;
 - cin >> &x;
@@ -119,6 +123,7 @@ cout << "n = " << n << "\n";
 ! The arrows point the way the data flows: from cin into x.
 
 ? What does this print?
+~ 2 tracing:1 cpp_basics:0.6 output:0.2
 ```
 double d = 4.0;
 cout << d;
@@ -130,6 +135,7 @@ cout << d;
 ! cout drops trailing zeros, so 4.0 prints as 4.
 
 ? Which compiler command is normally used for C++ files?
+~ 1 cpp_basics:1 output:0.4
 - gcc
 * g++
 - cpp
@@ -137,6 +143,7 @@ cout << d;
 ! g++ is the GNU C++ compiler.
 
 ? What does this print?
+~ 2 tracing:1 cpp_basics:0.6 output:0.2
 ```
 cout << 3 + 4 << endl;
 ```
@@ -146,6 +153,7 @@ cout << 3 + 4 << endl;
 ! The expression is worked out first, then its value is printed.
 
 ? What does this print?
+~ 2 tracing:1 cpp_basics:0.6 output:0.2
 ```
 int x = 5;
 cout << "x is " << x << endl;
@@ -156,6 +164,7 @@ cout << "x is " << x << endl;
 ! Each << sends the next item to cout in turn.
 
 ? What does endl do?
+~ 1 cpp_basics:1 output:0.4
 * Ends the line and flushes the output
 - Ends the program
 - Clears the screen
@@ -163,6 +172,7 @@ cout << "x is " << x << endl;
 ! It's like printing "\n", and it also makes sure the text is shown straight away.
 
 ? What does this print?
+~ 2 tracing:1 cpp_basics:0.6 strings:0.4 output:0.2
 ```
 string s = "hi";
 cout << s << s.length() << endl;
@@ -174,6 +184,7 @@ cout << s << s.length() << endl;
 ! s.length() is 2, printed straight after the string.
 
 ? Which reads one word into string name?
+~ 1 cpp_basics:1 output:0.4 strings:0.4 input:0.4
 - cout >> name;
 * cin >> name;
 - cin << name;
@@ -181,6 +192,7 @@ cout << s << s.length() << endl;
 ! cin uses >>, pointing from the input into the variable. It stops at whitespace.
 
 ?code The program should read a name and an age, but it never reads the age, so it always says 1. Add the missing input.
+~ 2 debugging:1 cpp_basics:0.8 tracing:0.4 output:0.2
 @hint cin >> reads one value each time you use >>.
 @hint You can chain them: cin >> name >> age;
 ```

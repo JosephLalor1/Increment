@@ -162,6 +162,7 @@ struct Point {
 
 @quiz
 ? How many copies of a static field are there?
+~ 2 encapsulation:1 classes:0.5
 - One per instance
 * One, shared by the whole class
 - Two
@@ -169,6 +170,7 @@ struct Point {
 ! A static member belongs to the class, not to any instance.
 
 ? How do you call a static method Mul of class Maths?
+~ 2 encapsulation:1 classes:0.5
 - Maths.Mul(a, b)
 * Maths::Mul(a, b)
 - Maths->Mul(a, b)
@@ -176,6 +178,7 @@ struct Point {
 ! Statics are reached through the class name with ::.
 
 ? Why can a static method not use this?
+~ 2 encapsulation:1 classes:0.5
 - this only works in constructors
 * It is not called on an instance, so there is no current object
 - this is private
@@ -183,6 +186,7 @@ struct Point {
 ! Without an instance, there is no object for this to point to.
 
 ? What can access a private field?
+~ 2 encapsulation:1 classes:0.5
 - Any code in the same file
 * Only code inside the class itself, such as its methods
 - Only main
@@ -190,6 +194,7 @@ struct Point {
 ! Outside code must go through public methods such as getters.
 
 ? What is the default access in a class, and in a struct?
+~ 2 encapsulation:1 classes:0.5
 * class: private; struct: public
 - class: public; struct: private
 - Both public
@@ -197,6 +202,7 @@ struct Point {
 ! That default is the only real difference between them.
 
 ? Why use a getter instead of making a field public?
+~ 2 encapsulation:1 classes:0.5 loops:0.4
 - Getters are faster
 * It gives read-only access while keeping the field private
 - Public fields are not allowed in C++
@@ -204,6 +210,7 @@ struct Point {
 ! Code outside can read the value but cannot change it directly.
 
 ? What does this print?
+~ 3 tracing:1 encapsulation:0.6 classes:0.3
 ```
 class Box {
 public:
@@ -222,6 +229,7 @@ int main() {
 ! There is one count shared by every Box, and each constructor adds to it.
 
 ? Which members can a static method use directly?
+~ 2 encapsulation:1 classes:0.5
 * Only static members
 - Any member
 - Only private members
@@ -229,6 +237,7 @@ int main() {
 ! A static method isn't called on an instance, so there are no non-static fields for it to use.
 
 ? What does this print?
+~ 3 tracing:1 encapsulation:0.6 conditions:0.4 functions:0.4
 ```
 class Account {
 private:
@@ -250,6 +259,7 @@ int main() {
 ! deposit refuses amounts that aren't positive: the kind of check private fields make possible.
 
 ? main does a.balance = 5; but balance is private. What happens?
+~ 2 encapsulation:1 classes:0.5
 * The program doesn't compile
 - balance becomes 5
 - The program crashes when it runs
@@ -257,6 +267,7 @@ int main() {
 ! Private members can only be used inside the class.
 
 ? What is the main difference between struct and class in C++?
+~ 2 encapsulation:1 classes:0.5
 * Default access: public in a struct, private in a class
 - A struct can't have methods
 - A struct can't have constructors
@@ -264,6 +275,7 @@ int main() {
 ! Otherwise they work the same way.
 
 ?code Point has a static count of how many points have been made, but it stays 0. Make the constructor add one to it.
+~ 3 debugging:1 encapsulation:0.8 tracing:0.4 constructors:0.4
 @hint There is one count shared by every Point, not one per object.
 @hint count++; in the constructor counts each new point.
 ```

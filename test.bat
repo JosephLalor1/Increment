@@ -15,10 +15,10 @@ set FAILED=0
 
 if not exist build mkdir build
 
-"%CC%" %CFLAGS% tests\test_practice.c src\practice.c src\quiz_attempt.c src\lesson.c src\progress.c -o build\test_practice.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_practice.c src\practice.c src\quiz_attempt.c src\lesson.c src\skills.c src\progress.c -o build\test_practice.exe %LIBS%
 if errorlevel 1 exit /b 1
 
-"%CC%" %CFLAGS% tests\test_exercise_hints.c src\exercise_hints.c src\lesson.c src\progress.c -o build\test_exercise_hints.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_exercise_hints.c src\exercise_hints.c src\lesson.c src\skills.c src\progress.c -o build\test_exercise_hints.exe %LIBS%
 if errorlevel 1 exit /b 1
 
 "%CC%" %CFLAGS% tests\test_account.c src\account.c src\email_address.c src\platform.c -o build\test_account.exe %LIBS%
@@ -31,31 +31,33 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_dashboard.c src\dashboard_stats.c src\progress.c -o build\test_dashboard.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_quiz_attempt.c src\quiz_attempt.c src\lesson.c src\progress.c -o build\test_quiz_attempt.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_quiz_attempt.c src\quiz_attempt.c src\lesson.c src\skills.c src\progress.c -o build\test_quiz_attempt.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_quiz_attempt.exe
 if errorlevel 1 set FAILED=1
-"%CC%" %CFLAGS% tests\test_journey_view.c src\journey_view.c src\mascot.c src\mascot_state.c src\roadmap.c src\lesson.c src\progress.c src\ui.c src\icons.c -o build\test_journey_view.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_journey_view.c src\journey_view.c src\mascot.c src\mascot_state.c src\roadmap.c src\lesson.c src\skills.c src\progress.c src\ui.c src\icons.c -o build\test_journey_view.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_mascot.c src\mascot_state.c src\mascot_events.c src\roadmap.c src\lesson.c src\progress.c -o build\test_mascot.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_mascot.c src\mascot_state.c src\mascot_events.c src\roadmap.c src\lesson.c src\skills.c src\progress.c -o build\test_mascot.exe %LIBS%
 if errorlevel 1 exit /b 1
 
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
-"%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\progress.c -o build\test_roadmap.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_roadmap.c src\roadmap.c src\lesson.c src\skills.c src\progress.c -o build\test_roadmap.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_roadmap.exe
 if errorlevel 1 set FAILED=1
-"%CC%" %CFLAGS% tests\test_search.c src\search.c src\lesson.c -o build\test_search.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_search.c src\search.c src\lesson.c src\skills.c -o build\test_search.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_search.exe
 if errorlevel 1 set FAILED=1
-"%CC%" %CFLAGS% tests\test_memory_model.c src\memory_model.c src\lesson.c -o build\test_memory_model.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_memory_model.c src\memory_model.c src\lesson.c src\skills.c -o build\test_memory_model.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_memory_model.exe
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_skills.c src\skills.c src\skill_progress.c src\platform.c -o build\test_skills.exe %LIBS%
+if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_review.c src\review.c src\platform.c -o build\test_review.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_speed_plan.c src\speed_plan.c src\speed_round.c src\review.c src\progress.c src\quiz_attempt.c src\lesson.c src\platform.c -o build\test_speed_plan.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_speed_plan.c src\speed_plan.c src\skill_progress.c src\speed_round.c src\review.c src\progress.c src\quiz_attempt.c src\lesson.c src\skills.c src\platform.c -o build\test_speed_plan.exe %LIBS%
 if errorlevel 1 exit /b 1
 rem Compiles a few hundred generated speed round questions with gcc and g++ to check their answers.
 "%CC%" %CFLAGS% tests\test_speed_round.c src\speed_round.c -o build\test_speed_round.exe
@@ -73,6 +75,8 @@ mkdir "%TESTDIR%"
 build\test_practice.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_exercise_hints.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_skills.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_review.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

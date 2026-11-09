@@ -36,6 +36,12 @@ MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many col
 MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 32, 6
 MAX_EXERCISE_HINTS = 8
 # The skill names an "@speed" line may use (src/speed_round.c generates their questions).
+# The skills a question's "~" line may name, and how many (src/skills.c).
+SKILLS = ('program_structure', 'output', 'input', 'types', 'operators', 'conditions', 'loops', 'arrays', 'strings',
+          'functions', 'scope', 'pointers', 'indirection', 'parameter_passing', 'pointer_arithmetic', 'dynamic_memory',
+          'memory_safety', 'function_pointers', 'cpp_basics', 'references', 'classes', 'constructors', 'encapsulation',
+          'copying', 'data_structures', 'tracing', 'debugging', 'problem_solving')
+MAX_QUESTION_SKILLS = 4
 SPEED_SKILLS = ('variables', 'arithmetic', 'conditions', 'loops', 'arrays', 'strings', 'functions',
                 'pointers', 'pointer_to_pointer', 'pass_by_pointer', 'pointer_arithmetic', 'malloc',
                 'function_pointers', 'references', 'new_delete', 'objects', 'linked_list')
@@ -124,8 +130,11 @@ def parse(path):
                 coding = line.startswith('?code ')
                 prompt = line[6:].strip() if coding else line[2:]
                 questions.append({'prompt': prompt, 'choices': [], 'correct': [], 'explain': None, 'code': None,
-                                  'line': n, 'task': new_task('Coding question', n, prompt) if coding else None})
+                                  'line': n, 'task': new_task('Coding question', n, prompt) if coding else None,
+                                  'skills': None})
                 target = None
+            elif line.startswith('~ ') and questions:
+                questions[-1]['skills'] = line[2:].split()
             elif field is not None:
                 if field:
                     target = field
@@ -224,6 +233,29 @@ def check_task(ex, where, tag, cpp, workdir):
     return problems
 
 
+def check_skills(tokens, where):
+    """Problems with a question's "~ <difficulty> skill:weight ..." line (tokens split on spaces)."""
+    if not tokens:
+        return [f'{where}: no skills line ("~ <difficulty 1-3> skill:weight ...")']
+    problems = []
+    if tokens[0] not in ('1', '2', '3'):
+        problems.append(f'{where}: the skills line must start with a difficulty from 1 to 3')
+    if not tokens[1:]:
+        problems.append(f'{where}: the skills line names no skills')
+    if len(tokens[1:]) > MAX_QUESTION_SKILLS:
+        problems.append(f'{where}: more than {MAX_QUESTION_SKILLS} skills')
+    for token in tokens[1:]:
+        name, _, weight = token.partition(':')
+        if name not in SKILLS:
+            problems.append(f'{where}: unknown skill {name!r}')
+        try:
+            if not 0 < float(weight) <= 1:
+                problems.append(f'{where}: weight of {name} must be over 0 and at most 1')
+        except ValueError:
+            problems.append(f'{where}: skill {token!r} needs a weight, as in {name}:0.5')
+    return problems
+
+
 def check(path, workdir):
     name = os.path.basename(path)
     problems = []
@@ -263,6 +295,7 @@ def check(path, workdir):
         problems.append('the quiz has no coding question (?code)')
     for q in questions:
         where = f'question at line {q["line"]}'
+        problems += check_skills(q['skills'], where)
         if q['task']:
             if q['choices']:
                 problems.append(f'{where}: a coding question has no choices')

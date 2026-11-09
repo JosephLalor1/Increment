@@ -54,6 +54,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 
 @quiz
 ? Where does execution start in every C program?
+~ 1 program_structure:1 output:0.6
 - At the first line of the file
 * In the main() function
 - In the first function that is defined
@@ -61,6 +62,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! The operating system calls main() when the program starts, wherever it is in the file.
 
 ? What does #include <stdio.h> give the program?
+~ 1 program_structure:1 output:0.6
 - It makes the program run faster
 * Declarations of the standard input/output functions, such as printf
 - The main() function
@@ -68,6 +70,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! Headers declare functions so the compiler knows they exist and how to call them.
 
 ? What does return 0; at the end of main usually mean?
+~ 1 program_structure:1 output:0.6 functions:0.4
 * The program finished successfully
 - The program crashed
 - main returns nothing
@@ -75,6 +78,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! By convention 0 means success and any other value signals an error.
 
 ? C is described as a compiled language. What does that mean?
+~ 1 program_structure:1 output:0.6
 - Each line is translated and run one at a time while the program executes
 * The source code is turned into machine code before the program runs
 - The code only runs inside a web browser
@@ -82,6 +86,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! A compiler such as gcc translates the whole program into machine code first.
 
 ? Which group of keywords does typedef belong to?
+~ 1 program_structure:1 output:0.6
 - Data types
 - Control flow
 - Storage class
@@ -89,6 +94,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! struct, union, enum and typedef let you define your own types.
 
 ? Which of these can NOT be used as a variable name?
+~ 1 program_structure:1 output:0.6 loops:0.4
 - total
 - my_int
 * while
@@ -96,6 +102,7 @@ C has a small set of keywords that are reserved by the language. You cannot use 
 ! while is a reserved keyword. C is case-sensitive, so Main is a different name from main.
 
 ? What does this print?
+~ 2 tracing:1 program_structure:0.6 output:0.4
 ```
 printf("Hi");
 printf("there\n");
@@ -106,6 +113,7 @@ printf("there\n");
 ! printf doesn't add spaces or new lines by itself, so the second message carries straight on from the first.
 
 ? Which character ends most statements in C?
+~ 1 program_structure:1 output:0.6
 - .
 - :
 * ;
@@ -113,6 +121,7 @@ printf("there\n");
 ! Statements end with a semicolon. Braces group statements; they don't end them.
 
 ? What does this print?
+~ 2 tracing:1 program_structure:0.6 output:0.4
 ```
 printf("%d\n", 2 + 3);
 ```
@@ -122,6 +131,7 @@ printf("%d\n", 2 + 3);
 ! %d prints the value of the expression after the comma, and 2 + 3 is worked out first.
 
 ? Which escape sequence starts a new line?
+~ 1 program_structure:1 output:0.6
 - \t
 * \n
 - /n
@@ -129,6 +139,7 @@ printf("%d\n", 2 + 3);
 ! \n is the newline character. \t is a tab, \\ is a backslash, and /n is just two ordinary characters.
 
 ? Where do #include lines normally go?
+~ 1 program_structure:1 output:0.6
 * At the top of the file, before anything that uses them
 - Inside main, before the first printf
 - At the end of the file
@@ -136,6 +147,7 @@ printf("%d\n", 2 + 3);
 ! The preprocessor pastes the header in where the #include is, so it has to come before the code that uses what it declares.
 
 ?code This program should print its two messages on two separate lines, but they come out joined together. Fix it.
+~ 2 debugging:1 program_structure:0.8 output:0.4 tracing:0.4
 @hint printf only starts a new line where you ask it to.
 @hint The escape sequence for a new line is \n.
 ```

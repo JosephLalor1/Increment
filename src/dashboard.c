@@ -8,6 +8,7 @@
 #include "layout.h"
 #include "review_view.h"
 #include "search_view.h"
+#include "skills_view.h"
 #include "mascot.h"
 #include "progress.h"
 #include "saved_view.h"
@@ -414,10 +415,12 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
     y += TrackSection(set, x, y, w, scale, &selected);
     y += QuizSection(all, x, y, w, scale);
     y += SpeedRoundSection(set, all, x, y, w, scale, speedRound);
+    bool practiseSkills;
+    y += SkillsViewDraw(x, y, w, scale, &practiseSkills);
     ReviewChoice reviewed;
     y += ReviewViewDraw(questions, set, x, y, w, scale, &reviewed);
     if (reviewed.openLesson >= 0) selected = reviewed.openLesson;
-    *challenge = reviewed.challenge;
+    *challenge = reviewed.challenge || practiseSkills;  // challenges favour the weakest skills
     y += RecommendationSection(set, x, y, w, scale, &selected);
     y += TopicSection(set, x, y, w, scale, &selected);
     *height = y - top + 32;

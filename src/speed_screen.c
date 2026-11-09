@@ -2,6 +2,7 @@
 // failed lesson round, gold, a short challenge's results). See speed_screen.h; the questions
 // and the clock are in speed_round.c, and what goes into a run in speed_plan.c.
 #include "speed_screen.h"
+#include "answers.h"
 #include "code_rain.h"
 #include "layout.h"
 #include "mascot.h"
@@ -81,11 +82,23 @@ static void StartRun(void)
     CodeRainClear();
 }
 
-// Puts an answer (or a timeout) into the learner's review history.
-static void Record(SpeedOutcome outcome)
+// Puts an answer (or a timeout) into the learner's review history and skill XP. timeLeft is
+// the share of the question's time that was left when it was answered.
+static void Record(SpeedOutcome outcome, float timeLeft)
 {
     if (outcome == SPEED_IGNORED || !speed.recording || speed.round.lastAnswered < 0) return;
-    ReviewRecord(speed.round.plan[speed.round.lastAnswered].reviewId, outcome == SPEED_RIGHT, ReviewToday());
+    int index = speed.round.lastAnswered;
+    const SpeedPlanItem *item = &speed.round.plan[index];
+    bool right = outcome == SPEED_RIGHT;
+    if (item->bank) {
+        AnswerRecordTimed(item->reviewId, item->bank->skills, item->bank->skillCount, item->bank->difficulty, right,
+                          timeLeft);
+    } else {
+        SkillWeight skills[MAX_QUESTION_SKILLS];
+        int count = SpeedSkillWeights(item->skill, skills);
+        AnswerRecordTimed(item->reviewId, skills, count, SpeedQuestionDifficulty(&speed.round.generated[index]), right,
+                          timeLeft);
+    }
 }
 
 static float Clamp01(float t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
@@ -376,8 +389,9 @@ static void RunPage(double now)
     }
     int choice = clicked >= 0 ? clicked : PressedChoice(SpeedRoundChoiceCount(&speed.round, number));
     if (choice < 0) return;
+    float timeLeft = (float)(SpeedRoundTimeLeft(&speed.round, now) / speed.round.seconds[number]);
     SpeedOutcome outcome = SpeedRoundAnswer(&speed.round, choice, now);
-    Record(outcome);
+    Record(outcome, timeLeft);
     if (outcome == SPEED_RIGHT) speed.rightAt = now;
     if (outcome == SPEED_WRONG) speed.wrongAt = now;
 }
@@ -544,7 +558,7 @@ SpeedScreenAction SpeedScreen(void)
 {
     if (speed.stage == STAGE_INTRO) return IntroPage();
     double now = Now();
-    Record(SpeedRoundUpdate(&speed.round, now));
+    Record(SpeedRoundUpdate(&speed.round, now), 0);  // a timeout: no time left
     if (speed.round.phase != speed.lastPhase) {  // the moment the run ends
         if (speed.round.phase == SPEED_WON && !IsChallenge() && speed.recording) {
             speed.newGold = !ProgressGold(speed.lesson->id);

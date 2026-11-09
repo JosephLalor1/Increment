@@ -148,6 +148,7 @@ if (p != NULL) {
 
 @quiz
 ? Which of the following best describes a pointer?
+~ 2 pointers:1
 - A variable that stores a character
 * A variable that stores a memory address
 - A variable that stores multiple values
@@ -155,6 +156,7 @@ if (p != NULL) {
 ! A pointer holds the address of another variable.
 
 ? Which statement correctly declares a pointer to an integer?
+~ 2 pointers:1
 - int p;
 - pointer p;
 * int *p;
@@ -162,6 +164,7 @@ if (p != NULL) {
 ! The * between the type and the name makes p a pointer to int.
 
 ? Which operator is used to obtain the address of a variable?
+~ 2 pointers:1
 - *
 - %
 * &
@@ -169,6 +172,7 @@ if (p != NULL) {
 ! & is the address-of operator.
 
 ? What is stored in p?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 10;
 int *p = &x;
@@ -180,6 +184,7 @@ int *p = &x;
 ! &x is the address of x, and that is what p holds.
 
 ? What is the value of *p here?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 15;
 int *p = &x;
@@ -191,6 +196,7 @@ int *p = &x;
 ! Dereferencing p gives the value stored at the address it holds, which is x.
 
 ? What does printf("%p", p) display when p points to x?
+~ 2 pointers:1
 - The value of x
 - 0
 * The address of x
@@ -198,6 +204,7 @@ int *p = &x;
 ! %p prints a pointer value, which is an address.
 
 ? What happens to x?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 20;
 int *p = &x;
@@ -210,6 +217,7 @@ int *p = &x;
 ! *p = 12 writes 12 into the memory p points to, which is x.
 
 ? Which is the safest way to initialize an unused pointer?
+~ 2 pointers:1
 - int *p;
 * int *p = NULL;
 - int p = NULL;
@@ -217,6 +225,7 @@ int *p = &x;
 ! NULL clearly means "points at nothing" and can be checked before use.
 
 ? What is wrong with this code?
+~ 3 tracing:1 debugging:0.8 pointers:0.6
 ```
 int *p;
 *p = 50;
@@ -228,6 +237,7 @@ int *p;
 ! p holds a random address, so *p = 50 writes to an unknown place in memory.
 
 ? Which statement correctly stores the address of x in p?
+~ 2 pointers:1
 - p = x;
 - *p = x;
 * p = &x;
@@ -235,6 +245,7 @@ int *p;
 ! p needs an address, and &x is the address of x.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 25;
 int *p = &x;
@@ -247,6 +258,7 @@ printf("%d %d", x, *p);
 ! x is 25 and *p is the value at x's address, also 25.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 4;
 int *p = &x;
@@ -259,6 +271,7 @@ printf("%d\n", x);
 ! *p is x, so the line triples x.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6
 ```
 int a = 1, b = 2;
 int *p = &a;
@@ -273,6 +286,7 @@ printf("%d %d\n", a, b);
 ! p was moved to point at b before *p = 9, so only b changes.
 
 ? What does int *p; declare?
+~ 2 pointers:1
 * p, a pointer that can hold the address of an int
 - p, an int that is multiplied by something
 - a pointer called *p
@@ -280,6 +294,7 @@ printf("%d %d\n", a, b);
 ! The * in a declaration means "pointer to". The variable's name is p.
 
 ? What does this print?
+~ 3 tracing:1 pointers:0.6
 ```
 int x = 5;
 int *p = &x;
@@ -293,6 +308,7 @@ printf("%d\n", *p);
 ! q is a copy of p, so both hold x's address and *q = 8 changes x.
 
 ? What happens when a program dereferences a NULL pointer?
+~ 2 pointers:1 references:0.4
 - It reads the value 0
 * It's an error: usually the program crashes
 - Nothing: the line is skipped
@@ -300,6 +316,7 @@ printf("%d\n", *p);
 ! NULL means "points at nothing", so there's no int there to read or write.
 
 ?code Change i to 20 using only ptr: the new line must not mention i by name.
+~ 3 problem_solving:1 pointers:0.8 tracing:0.4
 @hint ptr holds i's address. Which operator reaches the variable at that address?
 @hint *ptr = 20; stores 20 in the int that ptr points at.
 ```

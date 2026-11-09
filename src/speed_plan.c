@@ -3,6 +3,7 @@
 #include "progress.h"
 #include "review.h"
 #include "quiz_attempt.h"
+#include "skill_progress.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +30,49 @@ bool SpeedSkillFromReviewId(const char *id, SpeedSkill *skill)
     if (strncmp(id, "skill:", 6) != 0) return false;
     return SpeedSkillsParse(id + 6, skill, 1) == 1;
 }
+
+int SpeedSkillWeights(SpeedSkill skill, SkillWeight *out)
+{
+    // Generated questions are all "what is x after these lines?", so tracing comes first.
+    static const struct { Skill topic; float topicWeight; Skill extra; float extraWeight; } map[SPEED_SKILL_COUNT] = {
+        [SPEED_VARIABLES]          = { SKILL_TYPES, 0.8f, SKILL_COUNT, 0 },
+        [SPEED_ARITHMETIC]         = { SKILL_OPERATORS, 0.8f, SKILL_COUNT, 0 },
+        [SPEED_CONDITIONS]         = { SKILL_CONDITIONS, 0.8f, SKILL_OPERATORS, 0.3f },
+        [SPEED_LOOPS]              = { SKILL_LOOPS, 0.8f, SKILL_COUNT, 0 },
+        [SPEED_ARRAYS]             = { SKILL_ARRAYS, 0.8f, SKILL_COUNT, 0 },
+        [SPEED_STRINGS]            = { SKILL_STRINGS, 1.0f, SKILL_ARRAYS, 0.3f },
+        [SPEED_FUNCTIONS]          = { SKILL_FUNCTIONS, 0.8f, SKILL_PARAMETER_PASSING, 0.3f },
+        [SPEED_POINTERS]           = { SKILL_POINTERS, 0.8f, SKILL_COUNT, 0 },
+        [SPEED_POINTER_TO_POINTER] = { SKILL_INDIRECTION, 0.8f, SKILL_POINTERS, 0.4f },
+        [SPEED_PASS_BY_POINTER]    = { SKILL_PARAMETER_PASSING, 0.8f, SKILL_POINTERS, 0.4f },
+        [SPEED_POINTER_ARITHMETIC] = { SKILL_POINTER_ARITHMETIC, 0.8f, SKILL_ARRAYS, 0.3f },
+        [SPEED_MALLOC]             = { SKILL_DYNAMIC_MEMORY, 0.8f, SKILL_POINTERS, 0.3f },
+        [SPEED_FUNCTION_POINTERS]  = { SKILL_FUNCTION_POINTERS, 0.8f, SKILL_FUNCTIONS, 0.3f },
+        [SPEED_REFERENCES]         = { SKILL_REFERENCES, 0.8f, SKILL_PARAMETER_PASSING, 0.4f },
+        [SPEED_NEW_DELETE]         = { SKILL_DYNAMIC_MEMORY, 0.8f, SKILL_POINTERS, 0.3f },
+        [SPEED_OBJECTS]            = { SKILL_CLASSES, 0.8f, SKILL_COPYING, 0.4f },
+        [SPEED_LINKED_LIST]        = { SKILL_DATA_STRUCTURES, 0.8f, SKILL_POINTERS, 0.4f },
+    };
+    int count = 0;
+    out[count++] = (SkillWeight){ SKILL_TRACING, 1.0f };
+    if (skill >= SPEED_SKILL_COUNT) return count;
+    out[count++] = (SkillWeight){ map[skill].topic, map[skill].topicWeight };
+    if (map[skill].extra != SKILL_COUNT) out[count++] = (SkillWeight){ map[skill].extra, map[skill].extraWeight };
+    return count;
+}
+
+// How much a question's skills need work: their weakness, averaged by weight (0 to 1).
+static float SkillsNeed(const SkillWeight *skills, int count)
+{
+    float total = 0, weights = 0;
+    for (int i = 0; i < count; i++) {
+        total += SkillWeakness(skills[i].skill) * skills[i].weight;
+        weights += skills[i].weight;
+    }
+    return weights > 0 ? total / weights : 0.5f;
+}
+
+#define WEAK_SKILL_BOOST 40  // need added for a question whose skills are all at their weakest
 
 static SpeedPlanItem BankItem(const Lesson *lesson, const Question *q)
 {
@@ -103,14 +147,19 @@ int SpeedPlanChallenge(const LessonSet *set, long today, uint32_t *seed, SpeedPl
             SpeedPlanItem item = BankItem(lesson, question);
             const ReviewItem *history = ReviewFind(item.reviewId);
             if (!history && !started) continue;
-            candidates[count++] = (Candidate){ ReviewNeed(history, today) + RandomBelow(seed, 400) / 100.0f, item };
+            float need = ReviewNeed(history, today) + WEAK_SKILL_BOOST * SkillsNeed(question->skills, question->skillCount);
+            candidates[count++] = (Candidate){ need + RandomBelow(seed, 400) / 100.0f, item };
         }
     }
     // Skills whose generated questions the learner has answered.
     for (int s = 0; s < SPEED_SKILL_COUNT; s++) {
         SpeedPlanItem item = SkillItem((SpeedSkill)s);
         const ReviewItem *history = ReviewFind(item.reviewId);
-        if (history) candidates[count++] = (Candidate){ ReviewNeed(history, today) + RandomBelow(seed, 400) / 100.0f, item };
+        if (!history) continue;
+        SkillWeight skills[MAX_QUESTION_SKILLS];
+        int skillCount = SpeedSkillWeights((SpeedSkill)s, skills);
+        float need = ReviewNeed(history, today) + WEAK_SKILL_BOOST * SkillsNeed(skills, skillCount);
+        candidates[count++] = (Candidate){ need + RandomBelow(seed, 400) / 100.0f, item };
     }
     // No history at all: begin at the beginning, with the first lessons' questions.
     if (count == 0) {

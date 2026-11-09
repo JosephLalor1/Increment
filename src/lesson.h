@@ -6,6 +6,8 @@
 
 #include <stdbool.h>
 
+#include "skills.h"
+
 #define MAX_BLOCKS    256
 #define MAX_QUESTIONS 32   // a lesson's whole question bank; a quiz asks some of them (quiz_attempt.h)
 #define MAX_CHOICES   6
@@ -47,6 +49,9 @@ typedef struct {
     int correct;     // index into choices (multiple choice only)
     char *explain;   // optional, may be NULL
     Exercise *task;  // a "?code" question's program to fix or finish; NULL for multiple choice
+    int difficulty;  // 1 (easy) to 3 (hard), from its "~" line (2 if it has none)
+    SkillWeight skills[MAX_QUESTION_SKILLS];  // what it exercises, from its "~" line
+    int skillCount;
 } Question;
 
 typedef struct {

@@ -164,6 +164,7 @@ total = 34
 
 @quiz
 ? Pointer arithmetic is commonly used for:
+~ 2 pointer_arithmetic:1 arrays:0.5 pointers:0.4
 - Multiplying addresses
 * Accessing array elements
 - Converting integers to strings
@@ -171,6 +172,7 @@ total = 34
 ! Moving a pointer by whole elements is a natural way to walk an array.
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int arr[] = {10, 20, 30};
 int *p = arr;
@@ -183,6 +185,7 @@ printf("%d", *(p + 1));
 ! p + 1 points to the next int, arr[1].
 
 ? In most expressions an array name represents:
+~ 2 pointer_arithmetic:1 arrays:0.5
 - The array size
 - The last element
 * The address of the first element
@@ -190,6 +193,7 @@ printf("%d", *(p + 1));
 ! a means the same as &a[0].
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int arr[] = {1, 2, 3};
 int *p = arr;
@@ -202,6 +206,7 @@ printf("%d", *p);
 ! p points to the first element.
 
 ? Which of these is an invalid pointer operation?
+~ 2 pointer_arithmetic:1 arrays:0.5 pointers:0.4
 - ptr + 1
 - ptr - 1
 - ptr++
@@ -209,6 +214,7 @@ printf("%d", *p);
 ! Pointers can move forward and back, but multiplying an address is meaningless and does not compile.
 
 ? double *p holds address 1000 and a double is 8 bytes. What address is p + 1?
+~ 2 pointer_arithmetic:1 arrays:0.5 pointers:0.4
 - 1001
 - 1004
 * 1008
@@ -216,6 +222,7 @@ printf("%d", *p);
 ! Pointer arithmetic moves by whole elements: 1000 + 1 * sizeof(double).
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int a[] = {5, 10, 15, 20};
 int *p = a + 3;
@@ -229,6 +236,7 @@ printf("%d", *p);
 ! a + 3 is a[3]; moving back 2 lands on a[1].
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int a[] = {10, 20, 30, 40};
 int *p = a;
@@ -242,6 +250,7 @@ printf("%d\n", *p);
 ! p + 2 moves two whole ints along, to a[2].
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int a[] = {1, 2, 3};
 int *p = a + 2;
@@ -253,6 +262,7 @@ printf("%d\n", *(p - 1));
 ! p points at a[2], so p - 1 points at a[1].
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 arrays:0.3
 ```
 int a[] = {5, 9, 7};
 printf("%d\n", *a + 1);
@@ -264,6 +274,7 @@ printf("%d\n", *a + 1);
 ! *a is a[0], 5, and then 1 is added. *(a + 1) would have been 9.
 
 ? What does this print?
+~ 3 tracing:1 pointer_arithmetic:0.6 pointers:0.4 arrays:0.3
 ```
 int a[] = {2, 4, 6, 8};
 int *p = a;
@@ -277,6 +288,7 @@ printf("%d\n", (int)(q - p));
 ! Subtracting pointers into the same array gives the number of elements between them, not bytes.
 
 ? If int *p points at a[1], what is p[2]?
+~ 2 pointer_arithmetic:1 arrays:0.5 pointers:0.4
 - a[2]
 * a[3]
 - a[1] + 2
@@ -284,6 +296,7 @@ printf("%d\n", (int)(q - p));
 ! p[2] means *(p + 2), two elements past a[1].
 
 ?code sum should add all five values (making 15), but it prints 10. Fix the function.
+~ 3 debugging:1 pointer_arithmetic:0.8 tracing:0.4 arrays:0.3
 @hint Which element does the loop leave out?
 @hint ptr + numValues is already one past the last element, and the loop stops before it.
 ```

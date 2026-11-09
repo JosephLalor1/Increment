@@ -168,6 +168,7 @@ int main() {
 
 @quiz
 ? What does numbers[2] hold?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int numbers[5] = {10, 20, 30, 40, 50};
 ```
@@ -178,6 +179,7 @@ int numbers[5] = {10, 20, 30, 40, 50};
 ! Indexes start at 0, so numbers[2] is the third element.
 
 ? What is the last valid index of int a[8]?
+~ 1 arrays:1 loops:0.3
 - 8
 * 7
 - 9
@@ -185,6 +187,7 @@ int numbers[5] = {10, 20, 30, 40, 50};
 ! An array of 8 elements has indexes 0 to 7.
 
 ? What is scores[5] here?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int scores[10] = {85, 92, 78};
 ```
@@ -195,6 +198,7 @@ int scores[10] = {85, 92, 78};
 ! Elements without an initial value are set to 0 when you give a partial list.
 
 ? What does count hold?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 double d[] = {1.5, 2.5, 3.5, 4.5};
 int count = sizeof(d) / sizeof(d[0]);
@@ -206,6 +210,7 @@ int count = sizeof(d) / sizeof(d[0]);
 ! The total size divided by the size of one element is the number of elements.
 
 ? What is m[1][2]?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int m[3][4] = {
     {1, 2, 3, 4},
@@ -220,6 +225,7 @@ int m[3][4] = {
 ! Row 1 is {5, 6, 7, 8}, and index 2 of that row is 7.
 
 ? What happens if you write to a[5] when a has 5 elements?
+~ 1 arrays:1 loops:0.3
 - C reports an error and stops the program
 - The array grows to 6 elements
 * It writes past the end of the array into memory used by something else
@@ -227,6 +233,7 @@ int m[3][4] = {
 ! C does no bounds checking. Writing past the end is undefined behaviour and corrupts other data.
 
 ? What does this print?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int a[] = {4, 8, 15, 16};
 printf("%d\n", a[1] + a[3]);
@@ -238,6 +245,7 @@ printf("%d\n", a[1] + a[3]);
 ! Indexes start at 0, so a[1] is 8 and a[3] is 16.
 
 ? What does this print?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int a[5] = {1, 2};
 printf("%d\n", a[4]);
@@ -249,6 +257,7 @@ printf("%d\n", a[4]);
 ! When an array is partly initialised, the remaining elements are set to 0.
 
 ? What does this print?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int a[4] = {3, 1, 4, 1};
 int s = 0;
@@ -263,6 +272,7 @@ printf("%d\n", s);
 ! The loop adds every element: 3 + 1 + 4 + 1.
 
 ? How many ints does int grid[3][4]; hold?
+~ 1 arrays:1 loops:0.3
 - 7
 * 12
 - 3
@@ -270,6 +280,7 @@ printf("%d\n", s);
 ! A 3 by 4 array has 3 rows of 4 elements each.
 
 ? What does this print?
+~ 2 tracing:1 arrays:0.6 loops:0.2
 ```
 int a[] = {1, 2, 3, 4, 5, 6};
 printf("%d\n", (int)(sizeof(a) / sizeof(a[0])));
@@ -281,6 +292,7 @@ printf("%d\n", (int)(sizeof(a) / sizeof(a[0])));
 ! sizeof(a) is the whole array's size in bytes; dividing by one element's size gives the number of elements.
 
 ?code This program should print the warmest temperature, which is -2, but it prints 0. Fix it.
+~ 3 debugging:1 arrays:0.8 tracing:0.4 loops:0.2
 @hint Every temperature is below 0. What does largest start as?
 @hint Start largest at the first element, temps[0], instead of 0.
 ```

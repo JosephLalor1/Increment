@@ -115,6 +115,7 @@ Stacking case 'B': and case 'b': with nothing between them uses fall-through on 
 
 @quiz
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 int score = 85;
 if (score >= 90) printf("A");
@@ -129,6 +130,7 @@ else printf("F");
 ! 85 is not >= 90 but is >= 80. Once a branch runs, the rest are skipped.
 
 ? When is (age >= 18 && age <= 65) true?
+~ 1 conditions:1 operators:0.4
 - When age is 18 or more, or 65 or less
 * When age is between 18 and 65 inclusive
 - Only when age is exactly 18 or exactly 65
@@ -136,6 +138,7 @@ else printf("F");
 ! && needs both conditions to be true.
 
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 int x = 2;
 switch (x) {
@@ -151,6 +154,7 @@ switch (x) {
 ! There are no break statements, so execution falls through from case 2 into case 3.
 
 ? In a switch, when does the default case run?
+~ 1 conditions:1 operators:0.4
 - Always, after the matching case
 * When none of the cases match
 - Only when the value is 0
@@ -158,6 +162,7 @@ switch (x) {
 ! default is the catch-all, like a final else.
 
 ? Which condition is true if n is NOT equal to 10?
+~ 1 conditions:1 operators:0.4
 - n == 10
 - n = 10
 * n != 10
@@ -165,6 +170,7 @@ switch (x) {
 ! != is the "not equal" operator.
 
 ? What is wrong with if (x = 5) ?
+~ 1 conditions:1 debugging:0.8 operators:0.4
 - Nothing, it checks whether x is 5
 * It assigns 5 to x, so the condition is always true
 - It does not compile
@@ -172,6 +178,7 @@ switch (x) {
 ! = is assignment. The value of x = 5 is 5, which is non-zero and so counts as true.
 
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 int x = 5;
 if (x > 3 && x < 10)
@@ -185,6 +192,7 @@ else
 ! 5 is greater than 3 and less than 10, so both sides of && are true.
 
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 int n = 2;
 switch (n) {
@@ -201,6 +209,7 @@ printf("\n");
 ! Without break, a case falls through into the cases below it, so case 3 runs too.
 
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 int a = 0;
 if (a)
@@ -214,6 +223,7 @@ else
 ! In C, 0 counts as false and any other number as true.
 
 ? What does ! do in !(x > 5)?
+~ 1 conditions:1 operators:0.4
 * Reverses the result: true becomes false and false becomes true
 - Makes the comparison stricter
 - Checks that x is not equal to 5
@@ -221,6 +231,7 @@ else
 ! ! is logical NOT. !(x > 5) is true exactly when x is 5 or less.
 
 ? What does this print?
+~ 2 tracing:1 conditions:0.6 operators:0.2
 ```
 printf("%d\n", 3 > 2 && 2 > 1);
 ```
@@ -231,6 +242,7 @@ printf("%d\n", 3 > 2 && 2 > 1);
 ! Both comparisons are true, and a true comparison in C has the value 1.
 
 ?code Scores of 80 or more should print Distinction, 50 to 79 Pass, and anything lower Fail. With the input 85 this program prints Pass. Fix the order of the tests.
+~ 2 debugging:1 conditions:0.8 tracing:0.4 operators:0.2
 @hint An if / else if chain stops at the first test that is true.
 @hint 85 >= 50 is true, so the Distinction test is never reached. Test the higher mark first.
 ```

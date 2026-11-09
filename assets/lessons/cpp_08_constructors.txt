@@ -187,6 +187,7 @@ public:
 
 @quiz
 ? When is a constructor called?
+~ 1 constructors:1 classes:0.5
 - When you call it like a normal method
 * Automatically, when an instance is created
 - When the program ends
@@ -194,6 +195,7 @@ public:
 ! Point p; runs the constructor immediately.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.3
 ```
 class A {
 public:
@@ -212,6 +214,7 @@ int main() {
 ! a uses the default constructor and b uses the one taking an int.
 
 ? Which correctly initialises x and y in an initialisation list?
+~ 1 constructors:1 classes:0.5
 - Point(double nx, double ny) { : x(nx), y(ny) }
 * Point(double nx, double ny) : x(nx), y(ny) {}
 - Point(double nx, double ny) = x(nx), y(ny) {}
@@ -219,6 +222,7 @@ int main() {
 ! The list goes after a colon, between the parameters and the body.
 
 ? What does Point *p; create?
+~ 1 constructors:1 classes:0.5 pointers:0.4
 - A Point instance
 * A pointer to a Point, but no instance
 - Two Point instances
@@ -226,6 +230,7 @@ int main() {
 ! Only new Point() or Point p; create an instance.
 
 ? Point *p = new Point(); Which line sets x?
+~ 1 constructors:1 classes:0.5 dynamic_memory:0.4 pointers:0.4
 - p.x = 5;
 * p->x = 5;
 - *p->x = 5;
@@ -233,6 +238,7 @@ int main() {
 ! p is a pointer, so use ->.
 
 ? Inside a method, what is this?
+~ 1 constructors:1 classes:0.5 pointers:0.4
 - A copy of the instance
 * A pointer to the instance the method was called on
 - The class itself
@@ -240,6 +246,7 @@ int main() {
 ! this->x reaches the current instance's field x.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.3
 ```
 class Point {
 public:
@@ -257,6 +264,7 @@ int main() {
 ! The constructor runs as p is created and sets both fields.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.3
 ```
 class Point {
 public:
@@ -274,6 +282,7 @@ int main() {
 ! The initialisation list sets y from b.
 
 ? What's special about a constructor's name?
+~ 1 constructors:1 classes:0.5 functions:0.4
 * It's the class's name, and it has no return type
 - It always starts with init
 - It must be called create
@@ -281,6 +290,7 @@ int main() {
 ! That's how C++ recognises it as the constructor.
 
 ? What does this print?
+~ 3 tracing:1 constructors:0.6 classes:0.3
 ```
 class A {
 public:
@@ -298,6 +308,7 @@ int main() {
 ! this->v is the field; plain v is the parameter.
 
 ? Point *p = new Point(1, 2); What must eventually free it?
+~ 1 constructors:1 classes:0.5 dynamic_memory:0.4 pointers:0.4
 * delete p;
 - delete[] p;
 - free(p);
@@ -305,6 +316,7 @@ int main() {
 ! An object made with new is freed with delete, which also runs its destructor.
 
 ?code The constructor's parameters have the same names as the fields, so the point stays at (0, 0). Fix the constructor with the this pointer.
+~ 3 debugging:1 constructors:0.8 tracing:0.4 pointers:0.4
 @hint Inside the constructor, x means the parameter, not the field.
 @hint this->x is the field x of the object being constructed.
 ```
