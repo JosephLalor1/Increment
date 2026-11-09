@@ -77,6 +77,157 @@ static Color Mix(Color a, Color b, float t)
                     (unsigned char)(a.b + (b.b - a.b) * t), 255 };
 }
 
+// ---------------------------------------------------------------------------
+// The journey's effects: which are on, and the ambience
+
+static bool ambienceOn = true, trailOn = true;
+
+#define AMBIENCE_MAX 48
+
+typedef struct {
+    Vector2 at;
+    float age, life;  // seconds
+    float size;
+    char glyph;
+} AmbientGlyph;
+
+static AmbientGlyph ambience[AMBIENCE_MAX];
+static int ambienceCount;
+static float ambienceDebt;  // fractional characters owed by the appear rate
+
+void CodeJourneyEffects(bool ambienceEnabled, bool trailEnabled)
+{
+    ambienceOn = ambienceEnabled;
+    trailOn = trailEnabled;
+    if (!ambienceOn) ambienceCount = 0;
+}
+
+void CodeAmbienceUpdate(Rectangle area, float dt)
+{
+    if (!ambienceOn) return;
+    for (int i = 0; i < ambienceCount; i++) {
+        ambience[i].age += dt;
+        ambience[i].at.y += 8 * dt;  // the slowest of drifts, a hint of the rain
+        if (ambience[i].age >= ambience[i].life) ambience[i--] = ambience[--ambienceCount];
+    }
+    ambienceDebt += dt * 7;  // characters appearing per second
+    while (ambienceDebt >= 1) {
+        ambienceDebt -= 1;
+        if (ambienceCount == AMBIENCE_MAX) continue;
+        ambience[ambienceCount++] = (AmbientGlyph){
+            { RandomBetween(area.x, area.x + area.width), RandomBetween(area.y, area.y + area.height) },
+            0, RandomBetween(2.5f, 5.0f), RandomBetween(12, 17), glyphSet[NextRandom() % (sizeof glyphSet - 1)] };
+    }
+}
+
+void CodeAmbienceDraw(void)
+{
+    if (!ambienceOn) return;
+    for (int i = 0; i < ambienceCount; i++) {
+        float fade = sinf(PI * ambience[i].age / ambience[i].life);  // in, then out again
+        char glyph[2] = { ambience[i].glyph, '\0' };
+        DrawTextEx(gFonts.mono, glyph, ambience[i].at, ambience[i].size, 0, Fade(COL_ACCENT, 0.24f * fade));
+    }
+}
+
+void CodeAmbienceWarm(Rectangle area)
+{
+    for (int frame = 0; frame < 300; frame++) CodeAmbienceUpdate(area, 1 / 60.0f);
+}
+
+// ---------------------------------------------------------------------------
+// The mouse trail
+
+#define TRAIL_MAX      24
+#define TRAIL_SPACING  16.0f   // pixels of mouse travel between characters
+#define TRAIL_LIFE     0.55f   // seconds a character lasts
+#define TRAIL_SIZE     18.0f
+
+typedef struct {
+    Vector2 at;
+    float age;       // seconds since it dropped off
+    char glyph;
+} TrailGlyph;
+
+static TrailGlyph trail[TRAIL_MAX];
+static int trailCount;
+static Vector2 trailLast;    // where the last character dropped off
+static bool trailStarted;    // trailLast is meaningful
+static bool trailFrozen;     // --shot: hold the demo trail still so the capture shows it
+
+static void TrailAdd(Vector2 at)
+{
+    if (trailCount == TRAIL_MAX) {  // drop the oldest
+        for (int i = 1; i < trailCount; i++) trail[i - 1] = trail[i];
+        trailCount--;
+    }
+    trail[trailCount++] = (TrailGlyph){ at, 0, glyphSet[NextRandom() % (sizeof glyphSet - 1)] };
+}
+
+void CodeTrailUpdate(Vector2 mouse, float dt, bool spawning)
+{
+    if (trailFrozen) return;
+    if (!trailOn) {
+        trailCount = 0;
+        trailStarted = false;
+        return;
+    }
+    for (int i = 0; i < trailCount; i++) {
+        trail[i].age += dt;
+        trail[i].at.y += 40 * dt;  // a gentle fall, like the rain
+        if (trail[i].age >= TRAIL_LIFE) {
+            for (int j = i + 1; j < trailCount; j++) trail[j - 1] = trail[j];
+            trailCount--;
+            i--;
+        }
+    }
+    if (!spawning) {
+        trailStarted = false;  // re-entering the area shouldn't draw a line from where it left
+        return;
+    }
+    if (!trailStarted) {
+        trailLast = mouse;
+        trailStarted = true;
+        return;
+    }
+    // One character every TRAIL_SPACING pixels along the path, so fast moves leave a line.
+    float dx = mouse.x - trailLast.x, dy = mouse.y - trailLast.y;
+    float distance = sqrtf(dx * dx + dy * dy);
+    int steps = (int)(distance / TRAIL_SPACING);
+    if (steps > 8) steps = 8;  // a jump across the window leaves a short trail, not a long one
+    for (int s = 1; s <= steps; s++) {
+        float t = (float)s / steps;
+        TrailAdd((Vector2){ trailLast.x + dx * t, trailLast.y + dy * t });
+    }
+    if (steps > 0) trailLast = mouse;
+}
+
+void CodeTrailDraw(void)
+{
+    if (!trailOn) return;
+    for (int i = 0; i < trailCount; i++) {
+        float life = 1 - trail[i].age / TRAIL_LIFE;
+        char glyph[2] = { trail[i].glyph, '\0' };
+        Vector2 at = { trail[i].at.x - TRAIL_SIZE * 0.3f, trail[i].at.y - TRAIL_SIZE * 0.5f };
+        DrawTextEx(gFonts.mono, glyph, at, TRAIL_SIZE, 0, Fade(COL_ACCENT, 0.5f * life));
+    }
+}
+
+void CodeTrailDemo(Vector2 from, Vector2 to)
+{
+    trailCount = 0;
+    trailStarted = false;
+    CodeTrailUpdate(from, 0, true);
+    for (int i = 1; i <= 12; i++) {  // the mouse moving along the line, a frame at a time
+        Vector2 at = { from.x + (to.x - from.x) * i / 12, from.y + (to.y - from.y) * i / 12 };
+        CodeTrailUpdate(at, 1 / 30.0f, true);
+    }
+    trailFrozen = true;
+}
+
+// ---------------------------------------------------------------------------
+// The rain
+
 void CodeRainDraw(float intensity)
 {
     Color base = Mix(COL_ACCENT, COL_BAD, powf(intensity, 1.5f));

@@ -12,18 +12,33 @@
 
 #define PER_SKILL 60
 
-// The functions questions may show above their code. The generated text must be exactly
-// one of these, so the program below (which defines each once) runs the same code.
+// The definitions questions may show above their code. Every line shown there must be one
+// of these lines, so the program below (which defines them all once) runs the same code.
 static const char *cFunctions[] = {
     "void addTen(int *n) { *n += 10; }",
     "void addFive(int n) { n += 5; }",
     "void doubleIt(int *n) { *n *= 2; }",
     "void swap_ints(int *a, int *b) { int t = *a; *a = *b; *b = t; }",
+    "int square(int n) { return n * n; }",
+    "int addOne(int n) { n++; return n; }",
+    "int twice(int n) { return n + n; }",
+    "int Add(int num1, int num2) { return num1 + num2; }",
+    "int Subtract(int num1, int num2) { return num1 - num2; }",
+    "int Multiply(int num1, int num2) { return num1 * num2; }",
 };
 static const char *cppFunctions[] = {
     "void addOne(int &n) { n++; }",
     "void addTwo(int n) { n += 2; }",
+    "class Counter {",
+    "public:",
+    "    int n;",
+    "    Counter(int start) { n = start; }",
+    "    void add(int k) { n += k; }",
+    "};",
+    "struct Node { int data; Node *next; };",
 };
+#define C_FUNCTIONS   (int)(sizeof cFunctions / sizeof cFunctions[0])
+#define CPP_FUNCTIONS (int)(sizeof cppFunctions / sizeof cppFunctions[0])
 
 static void TestSkillNames(void)
 {
@@ -48,7 +63,7 @@ static void TestRound(void)
     assert(SpeedRoundAnswer(&round, round.question.correct, 101.0) == SPEED_IGNORED);  // not yet
     SpeedRoundUpdate(&round, 103.0);
     assert(round.phase == SPEED_PLAYING && round.phaseStart == 103.0);
-    assert(SpeedRoundTension(&round, 105.5) == 0.5f);
+    assert(SpeedRoundTension(&round, 103.0 + SPEED_SECONDS / 2) == 0.5f);
     assert(SpeedRoundTimeLeft(&round, 104.0) == SPEED_SECONDS - 1);
 
     // Every right answer moves straight on, with a fresh clock; the tenth wins.
@@ -58,7 +73,7 @@ static void TestRound(void)
         assert(SpeedRoundAnswer(&round, -1, now) == SPEED_IGNORED);
         assert(SpeedRoundAnswer(&round, round.question.correct, now) == SPEED_RIGHT);
         if (i + 1 < SPEED_QUESTIONS) assert(round.phase == SPEED_PLAYING && round.phaseStart == now);
-        now += 4.9;  // just inside the limit every time
+        now += SPEED_SECONDS - 0.1;  // just inside the limit every time
     }
     assert(round.phase == SPEED_WON);
     assert(SpeedRoundAnswer(&round, 0, now) == SPEED_IGNORED);
@@ -86,7 +101,7 @@ static bool Listed(const char *line, const char **list, int count)
 // Checks a question's shape: choices, the answer's place, line widths, function lines.
 static void CheckShape(const SpeedQuestion *q)
 {
-    assert(q->lineCount > 0 && q->lineCount <= SPEED_MAX_LINES);
+    assert(q->lineCount > 0 && q->lineCount < SPEED_MAX_LINES);  // below the limit: no line was dropped
     assert(q->correct >= 0 && q->correct < SPEED_CHOICES);
     for (int i = 0; i < SPEED_CHOICES; i++)
         for (int j = i + 1; j < SPEED_CHOICES; j++) assert(q->choices[i] != q->choices[j]);
@@ -95,7 +110,7 @@ static void CheckShape(const SpeedQuestion *q)
         assert(strlen(q->lines[i]) <= 66);  // fits a code box at the largest text size
         assert(strlen(q->lines[i]) < SPEED_LINE_SIZE - 1);  // never cut off
         if (i < q->firstBodyLine && q->lines[i][0]) {
-            assert(q->cpp ? Listed(q->lines[i], cppFunctions, 2) : Listed(q->lines[i], cFunctions, 4));
+            assert(q->cpp ? Listed(q->lines[i], cppFunctions, CPP_FUNCTIONS) : Listed(q->lines[i], cFunctions, C_FUNCTIONS));
         }
     }
     assert(q->notes[q->lineCount - 1][0]);  // the last line always explains the result
@@ -111,9 +126,9 @@ static int WriteProgram(const char *path, bool cpp, SpeedQuestion *questions, in
 {
     FILE *f = fopen(path, "w");
     assert(f);
-    fprintf(f, "#include <stdio.h>\n");
+    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n");  // strlen, malloc
     const char **functions = cpp ? cppFunctions : cFunctions;
-    for (int i = 0; i < (cpp ? 2 : 4); i++) fprintf(f, "%s\n", functions[i]);
+    for (int i = 0; i < (cpp ? CPP_FUNCTIONS : C_FUNCTIONS); i++) fprintf(f, "%s\n", functions[i]);
     for (int i = 0; i < count; i++) {
         fprintf(f, "static int question%d(void) {\n", i);
         for (int line = questions[i].firstBodyLine; line < questions[i].lineCount; line++)
@@ -159,7 +174,7 @@ static void CompileAndCompare(const char *compilerDir, bool cpp, SpeedQuestion *
 
 static void TestGeneratedAnswers(const char *compilerDir)
 {
-    static SpeedQuestion cQuestions[SPEED_SKILL_COUNT * PER_SKILL], cppQuestions[PER_SKILL];
+    static SpeedQuestion cQuestions[SPEED_SKILL_COUNT * PER_SKILL], cppQuestions[SPEED_SKILL_COUNT * PER_SKILL];
     int cCount = 0, cppCount = 0;
     uint32_t seed = 12345;
     for (int s = 0; s < SPEED_SKILL_COUNT; s++) {

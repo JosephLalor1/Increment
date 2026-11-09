@@ -1,5 +1,6 @@
 @id cpp_06_classes
 @track C++
+@speed objects
 @title Classes: Grouping Related Data
 
 # Representing a geometric vector

@@ -1,5 +1,6 @@
 @id cpp_11_arrays_destructors
 @track C++
+@speed objects new_delete
 @title Arrays of Objects and Destructors
 
 # Arrays of objects

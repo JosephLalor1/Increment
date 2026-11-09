@@ -1,5 +1,6 @@
 @id cpp_12_linked_lists
 @track C++
+@speed linked_list pointer_to_pointer
 @title Linked Lists
 
 Pointers are essential for building data structures like linked lists, trees and graphs. A linked list is a dynamic data structure made of nodes, where each node contains:

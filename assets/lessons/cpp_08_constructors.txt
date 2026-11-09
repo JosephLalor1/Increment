@@ -1,5 +1,6 @@
 @id cpp_08_constructors
 @track C++
+@speed objects
 @title Constructors, Pointers to Objects and this
 
 Manually initialising your fields gets tedious:

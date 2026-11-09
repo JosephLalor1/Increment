@@ -3,6 +3,7 @@
 #include "account_screens.h"
 #include "account_screens_shared.h"
 #include "account.h"
+#include "code_rain.h"
 #include "email.h"
 #include "layout.h"
 #include "ui.h"
@@ -38,6 +39,7 @@ void ApplyUserAppearance(void)
     UiSetTheme(s.theme == THEME_LIGHT, s.accent);
     bool validSize = s.textSize >= 0 && s.textSize < TEXT_SIZE_COUNT;
     UiSetTextScale(validSize ? textScales[s.textSize] : 1.0f);
+    CodeJourneyEffects(s.codeAmbience, s.mouseTrail);
 }
 
 // ---------------------------------------------------------------------------
@@ -104,7 +106,8 @@ static bool DangerButton(Rectangle r, const char *label)
 // ---------------------------------------------------------------------------
 // Sections. Each draws from y and returns the y below it.
 
-// Theme, accent colour, lesson text size (with a preview) and window mode. Changes apply
+// Theme, accent colour, lesson text size (with a preview), the journey's code effects and
+// window mode. Changes apply
 // and save at once.
 static float AppearanceSection(float x, float y, float w)
 {
@@ -146,6 +149,18 @@ static float AppearanceSection(float x, float y, float w)
     UiRoundRect((Rectangle){ cx, y, w - 220, 22 * scale * 1.35f + 28 }, 8, COL_PANEL);
     UiText(gFonts.text, "Lessons will look like this.", cx + 16, y + 14, 22 * scale, COL_TEXT);
     y += 22 * scale * 1.35f + 28 + 20;
+
+    // The journey's code effects, each switchable on its own.
+    static const char *onOff[] = { "On", "Off" };
+    UiText(gFonts.text, "Background code", x, y + 9, 20, COL_TEXT);
+    s.codeAmbience = Segmented(cx, y, 90, onOff, 2, s.codeAmbience ? 0 : 1) == 0;
+    y += 56;
+    UiText(gFonts.text, "Mouse trail", x, y + 9, 20, COL_TEXT);
+    s.mouseTrail = Segmented(cx, y, 90, onOff, 2, s.mouseTrail ? 0 : 1) == 0;
+    y += 48;
+    UiText(gFonts.text, "Faint code characters on the journey: in the background, and following the mouse.", cx, y,
+           17, COL_DIM);
+    y += 40;
 
     if (memcmp(&s, &before, sizeof s) != 0) {
         AccountSetSettings(s);

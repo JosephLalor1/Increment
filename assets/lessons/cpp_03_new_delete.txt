@@ -1,5 +1,6 @@
 @id cpp_03_new_delete
 @track C++
+@speed new_delete
 @title Memory Management: new and delete
 
 # Scoping and memory

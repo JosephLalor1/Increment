@@ -15,6 +15,10 @@ DashboardStats DashboardCalculate(const LessonSet *set, Track track)
         int best = ProgressBest(lesson->id);
         if (ProgressLessonPassed(lesson->id)) stats.completed++;
         else if (stats.next < 0) stats.next = i;
+        if (lesson->speedSkills[0]) {
+            stats.speedRounds++;
+            if (ProgressGold(lesson->id)) stats.gold++;
+        }
         stats.exercises += lesson->exerciseCount;
         for (int e = 0; e < lesson->exerciseCount; e++)
             if (ProgressExerciseDone(lesson->id, e)) stats.exercisesCompleted++;

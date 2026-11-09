@@ -1,5 +1,6 @@
 @id c_09_functions
 @track C
+@speed functions
 @title Functions
 
 Functions break a big program into small, named pieces. Each function has a return type, a name, a list of parameters, and a body.

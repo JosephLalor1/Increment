@@ -1,6 +1,6 @@
 @id c_10_exam1_practice
 @track C
-@speed arithmetic loops arrays
+@speed arithmetic conditions loops arrays functions
 @kind practice
 @title Exam 1 Practice: Lab 1 Problems
 

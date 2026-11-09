@@ -1,5 +1,6 @@
 @id cpp_01_hello
 @track C++
+@speed variables arithmetic conditions
 @title From C to C++
 
 C++ grew out of C. Almost everything you learned in the C track still works, but C++ adds its own features: references, classes, new and delete, and a new way of doing input and output.

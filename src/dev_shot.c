@@ -4,6 +4,7 @@
 #include "account_screens.h"
 #include "bookmarks.h"
 #include "brand.h"
+#include "code_rain.h"
 #include "code_screen.h"
 #include "practice_screen.h"
 #include "courses_screen.h"
@@ -91,7 +92,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         return SCREEN_PRACTICE;
     }
     // speed: a lesson's speed round intro; speedready: the count-in; speedplay <index> <ms>:
-    // question 7, ms into its 5 seconds; speedfail: the explained failure; speedgold: gold.
+    // question 7, ms into its 10 seconds; speedfail: the explained failure; speedgold: gold.
     if (Is(name, "speed") || Is(name, "speedready") || Is(name, "speedplay") || Is(name, "speedfail")
         || Is(name, "speedgold")) {
         if (lessons->count == 0 || !lessons->items[lessonIndex].speedSkills[0]) return Home();
@@ -139,6 +140,10 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         DashboardShow(view, lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
         DashboardDemo(scroll);
         if (Is(name, "search")) DashboardDemoSearch(getenv("INCREMENT_SHOT_SEARCH"), ShotSearchFilter());
+        // INCREMENT_SHOT_TRAIL=1: the journey's mouse trail, as if the mouse swept across it.
+        const char *trail = getenv("INCREMENT_SHOT_TRAIL");
+        CodeAmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
+        if (trail && trail[0] == '1') CodeTrailDemo((Vector2){ 300, 640 }, (Vector2){ 760, 470 });
         return SCREEN_HOME;
     }
 

@@ -1,5 +1,6 @@
 @id cpp_07_objects_methods
 @track C++
+@speed objects
 @title Objects, Functions and Methods
 
 # Passing objects to functions

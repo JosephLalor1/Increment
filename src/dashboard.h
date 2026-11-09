@@ -21,6 +21,7 @@ typedef enum {
 typedef enum {
     HOME_STAY,          // nothing to do
     HOME_OPEN_LESSON,   // open HomeAction.lessonIndex
+    HOME_SPEED_ROUND,   // start HomeAction.lessonIndex's speed round (from the statistics)
     HOME_CODE_EDITOR,
     HOME_PRACTICE,
     HOME_COURSES,
@@ -31,7 +32,7 @@ typedef enum {
 
 typedef struct {
     HomeChoice kind;
-    int lessonIndex;  // HOME_OPEN_LESSON
+    int lessonIndex;  // HOME_OPEN_LESSON, HOME_SPEED_ROUND
 } HomeAction;
 
 // After signing in: the C journey, scrolled to the top, statistics filters reset and the

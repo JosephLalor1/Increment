@@ -1,5 +1,6 @@
 @id cpp_04_memory_mistakes
 @track C++
+@speed new_delete
 @title Memory Leaks and Other Mistakes
 
 new and delete give you control over memory, and with it a set of classic mistakes. Each one compiles without complaint.

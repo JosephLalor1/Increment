@@ -34,10 +34,18 @@ int main(int argc, char **argv)
         set.items[i].questionCount = i == 3 ? 0 : 2;
         set.items[i].exerciseCount = 2;
     }
+    snprintf(set.items[0].speedSkills, sizeof set.items[0].speedSkills, "arithmetic");
+    snprintf(set.items[1].speedSkills, sizeof set.items[1].speedSkills, "references");
     DashboardStats all = DashboardCalculate(&set, TRACK_COUNT);
     assert(all.lessons == 4 && all.completed == 0 && all.quizzes == 3);
     assert(all.attempted == 0 && all.highest == -1 && all.next == 0);
     assert(all.exercises == 8 && all.exercisesCompleted == 0);
+    assert(all.speedRounds == 2 && all.gold == 0);
+    ProgressRecordGold("cpp_first");
+    ProgressRecordGold("c_second");  // no speed round in this lesson: not counted
+    all = DashboardCalculate(&set, TRACK_COUNT);
+    assert(all.speedRounds == 2 && all.gold == 1);
+    assert(DashboardCalculate(&set, TRACK_C).gold == 0 && DashboardCalculate(&set, TRACK_CPP).gold == 1);
 
     ProgressRecord("c_first", 0); // zero is attempted, not an absent score
     ProgressRecord("c_second", PASS_PERCENT); // skip first incomplete lesson

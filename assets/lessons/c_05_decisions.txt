@@ -1,5 +1,6 @@
 @id c_05_decisions
 @track C
+@speed conditions
 @title Decisions: if, else and switch
 
 Programs make decisions with if. The condition in brackets is checked; if it is true, the block runs. else if adds more conditions, checked in order, and else catches everything that did not match.

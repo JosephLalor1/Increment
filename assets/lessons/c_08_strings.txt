@@ -1,5 +1,6 @@
 @id c_08_strings
 @track C
+@speed strings
 @title Strings and the Null Terminator
 
 C has no separate string type. A string is just an array of characters, and the only thing that makes it a string is that it ends with a special character called the null terminator, written '\0'.

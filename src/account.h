@@ -21,6 +21,8 @@ typedef struct {
     ThemeMode theme;
     int accent;        // 0 .. UI_ACCENT_COUNT-1
     TextSize textSize; // lesson and quiz text
+    bool codeAmbience; // faint code characters behind the journey (on by default)
+    bool mouseTrail;   // code characters trailing the mouse on the journey (on by default)
 } AccountSettings;
 
 // Local accounts stored in <dataDir>/accounts.txt; each user's progress lives in

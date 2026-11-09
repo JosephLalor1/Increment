@@ -13,12 +13,14 @@
 #include <string.h>
 
 static const char *skillNames[SPEED_SKILL_COUNT] = {
-    "arithmetic", "loops", "arrays", "pointers", "pointer_to_pointer",
-    "pass_by_pointer", "pointer_arithmetic", "references",
+    "variables", "arithmetic", "conditions", "loops", "arrays", "strings", "functions", "pointers",
+    "pointer_to_pointer", "pass_by_pointer", "pointer_arithmetic", "malloc", "function_pointers",
+    "references", "new_delete", "objects", "linked_list",
 };
 static const char *skillTitles[SPEED_SKILL_COUNT] = {
-    "Arithmetic", "Loops", "Arrays", "Pointers", "Pointers to pointers",
-    "Pass by pointer", "Pointer arithmetic", "References",
+    "Variables", "Arithmetic", "Conditions", "Loops", "Arrays", "Strings", "Functions", "Pointers",
+    "Pointers to pointers", "Pass by pointer", "Pointer arithmetic", "malloc and free", "Function pointers",
+    "References", "new and delete", "Objects", "Linked lists",
 };
 
 const char *SpeedSkillName(SpeedSkill skill) { return skill < SPEED_SKILL_COUNT ? skillNames[skill] : ""; }
@@ -243,7 +245,8 @@ static const char *TwoVars(const int *v, const char *pointerNote)
     static char text[SPEED_LINE_SIZE * 2];  // room for any extra; Emit cuts it to a line
     char extra[SPEED_LINE_SIZE];
     snprintf(extra, sizeof extra, "%s", pointerNote ? pointerNote : "");
-    snprintf(text, sizeof text, "x = %d, y = %d%s%s", v[0], v[1], extra[0] ? ", " : "", extra);
+    const char *gap = extra[0] == 0 ? "" : extra[0] == '(' ? " " : ", ";  // "x = 1, y = 2 (y is a copy)"
+    snprintf(text, sizeof text, "x = %d, y = %d%s%s", v[0], v[1], gap, extra);
     return text;
 }
 
@@ -439,19 +442,386 @@ static void References(SpeedQuestion *q, int difficulty, uint32_t *seed)
     Finish(q, seed, varNames[ask], v[ask], decoys, 3);
 }
 
+static void Variables(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconceptions: after y = x, y follows x around like a pointer; a double rounds when
+    // it's stored in an int; letters count from 1 ('A' is 1).
+    int v[2] = { Rand(seed, 1, 9), Rand(seed, 1, 9) }, thought[2] = { v[0], v[1] };
+    bool thoughtLinked = false;
+    Emit(q, TwoVars(v, NULL), "int x = %d, y = %d;", v[0], v[1]);
+    int ops = OperationCount(difficulty) + 1, copyAt = Rand(seed, 0, ops - 2);
+    for (int op = 0; op < ops; op++) {
+        int kind = op == copyAt ? 0 : Rand(seed, 1, 4), k = Rand(seed, 1, 9);
+        switch (kind) {
+        case 0:
+            v[1] = v[0]; thought[1] = thought[0]; thoughtLinked = true;
+            Emit(q, TwoVars(v, "(y gets a copy of x)"), "y = x;");
+            break;
+        case 1: v[0] = k; thought[0] = k; Emit(q, TwoVars(v, NULL), "x = %d;", k); break;
+        case 2: v[0] += v[1]; thought[0] += thought[1]; Emit(q, TwoVars(v, NULL), "x = x + y;"); break;
+        case 3: {
+            int whole = Rand(seed, 2, 9), tenths = Rand(seed, 5, 9);
+            v[0] = whole; thought[0] = whole + 1;
+            Emit(q, TwoVars(v, Note("(an int drops the .%d)", tenths)), "x = %d.%d;", whole, tenths);
+            break;
+        }
+        default: {
+            int letter = Rand(seed, 1, 6);
+            v[0] = letter; thought[0] = letter + 1;
+            Emit(q, TwoVars(v, Note("('%c' is 'A' + %d)", 'A' + letter, letter)), "x = '%c' - 'A';", 'A' + letter);
+            break;
+        }
+        }
+        if (thoughtLinked && kind != 0) thought[1] = thought[0];
+    }
+    int ask = AskWhich(seed, v, thought);
+    int decoys[] = { thought[ask], v[1 - ask], thought[1 - ask] };
+    Finish(q, seed, varNames[ask], v[ask], decoys, 3);
+}
+
+// One "if" from the conditions questions, applied to s (x and y). flip reads the test the
+// wrong way round, as the misconception model does once. Returns whether the test was true.
+static bool ApplyCondition(int kind, int k, int k2, int *s, bool flip)
+{
+    bool test;
+    switch (kind) {
+    case 0: test = s[0] > s[1]; if (test != flip) s[0] -= s[1]; else s[1] -= s[0]; break;
+    case 1: test = s[0] > k; s[0] = test != flip ? s[0] - k2 : s[0] + k2; break;
+    case 2: test = s[0] % 2 == 0 && s[1] > k; if (test != flip) s[0]++; else s[1]++; break;
+    default: test = s[0] < k || s[1] < k; if (test != flip) s[1] += k2; else s[0] -= 1; break;
+    }
+    return test;
+}
+
+static void Conditions(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    int v[2] = { Rand(seed, 2, 12), Rand(seed, 2, 12) }, thought[2] = { v[0], v[1] };
+    Emit(q, TwoVars(v, NULL), "int x = %d, y = %d;", v[0], v[1]);
+    int ops = OperationCount(difficulty), flipAt = Rand(seed, 0, ops - 1);  // the misread test
+    for (int op = 0; op < ops; op++) {
+        int kind = Rand(seed, 0, 3), k = Rand(seed, 2, 9), k2 = Rand(seed, 1, k);
+        bool test = ApplyCondition(kind, k, k2, v, false);
+        ApplyCondition(kind, k, k2, thought, op == flipAt);
+        const char *note = TwoVars(v, test ? "(the test was true)" : "(the test was false)");
+        switch (kind) {
+        case 0: Emit(q, note, "if (x > y) x -= y; else y -= x;"); break;
+        case 1: Emit(q, note, "x = x > %d ? x - %d : x + %d;", k, k2, k2); break;
+        case 2: Emit(q, note, "if (x %% 2 == 0 && y > %d) x++; else y++;", k); break;
+        default: Emit(q, note, "if (x < %d || y < %d) y += %d; else x -= 1;", k, k, k2); break;
+        }
+    }
+    int ask = AskWhich(seed, v, thought);
+    int decoys[] = { thought[ask], v[1 - ask], thought[1 - ask] };
+    Finish(q, seed, varNames[ask], v[ask], decoys, 3);
+}
+
+static void Strings(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconception: strlen counts the '\0' and sizeof counts only the letters.
+    static const char *words[] = { "cat", "code", "hello", "array", "pointer", "string", "fox", "loop" };
+    const char *word = words[Rand(seed, 0, 7)];
+    int length = (int)strlen(word), size = length + 1;
+    char text[16];
+    snprintf(text, sizeof text, "%s", word);
+    Emit(q, Note("%d letters, then '\\0': %d chars", length, size), "char s[] = \"%s\";", word);
+    int x, thought;
+    if (Rand(seed, 0, 1)) {
+        x = length; thought = length + 1;
+        Emit(q, Note("x = %d (letters before the '\\0')", x), "int x = strlen(s);");
+    } else {
+        x = size; thought = length;
+        Emit(q, Note("x = %d (the whole array, '\\0' too)", x), "int x = sizeof(s);");
+    }
+    int ops = OperationCount(difficulty) - 1;
+    for (int op = 0; op < ops; op++) {
+        int current = (int)strlen(text), kind = Rand(seed, 0, 2);
+        if (kind == 0 && current <= 1) kind = 1;  // nothing left to cut
+        switch (kind) {
+        case 0: {  // cut the string short, then measure it again
+            int at = Rand(seed, 1, current - 1);
+            text[at] = '\0';
+            Emit(q, Note("s now reads \"%s\"", text), "s[%d] = '\\0';", at);
+            x += at; thought += at + 1;
+            Emit(q, Note("x = %d", x), "x += strlen(s);");
+            break;
+        }
+        case 1: {
+            int at = Rand(seed, 0, current - 1), letter = text[at] - 'a';
+            x += letter; thought += letter;
+            Emit(q, Note("x = %d ('%c' is 'a' + %d)", x, text[at], letter), "x += s[%d] - 'a';", at);
+            break;
+        }
+        default:
+            x += size; thought += (int)strlen(text);
+            Emit(q, Note("x = %d (sizeof never changes)", x), "x += sizeof(s);");
+            break;
+        }
+    }
+    int decoys[] = { thought, x + 1, x - 1 };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
+static void Functions(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconception: calling addOne(x) without storing the result changes x.
+    Emit(q, NULL, "int square(int n) { return n * n; }");
+    Emit(q, NULL, "int addOne(int n) { n++; return n; }");
+    Emit(q, NULL, "int twice(int n) { return n + n; }");
+    Emit(q, NULL, "%s", "");
+    q->firstBodyLine = q->lineCount;
+    int v[2] = { Rand(seed, 1, 6), 0 }, thought[2] = { v[0], 0 };
+    bool hasY = false;
+    Emit(q, Note("x = %d", v[0]), "int x = %d;", v[0]);
+    int ops = OperationCount(difficulty) + 1, ignoredAt = Rand(seed, 0, ops - 1);
+    for (int op = 0; op < ops; op++) {
+        int kind = op == ignoredAt ? 0 : Rand(seed, 1, 3);
+        if (kind == 1 && (v[0] > 12 || v[0] < -12 || thought[0] > 12 || thought[0] < -12)) kind = 2;
+        if (kind == 3 && hasY && v[0] > 50) kind = 2;
+        switch (kind) {
+        case 0: thought[0]++;
+            Emit(q, hasY ? TwoVars(v, "(the result was thrown away)") : Note("x = %d (the result was thrown away)", v[0]),
+                 "addOne(x);");
+            break;
+        case 1: v[0] *= v[0]; thought[0] *= thought[0];
+            Emit(q, hasY ? TwoVars(v, NULL) : Note("x = %d", v[0]), "x = square(x);"); break;
+        case 2: v[0]++; thought[0]++;
+            Emit(q, hasY ? TwoVars(v, NULL) : Note("x = %d", v[0]), "x = addOne(x);"); break;
+        default:
+            if (!hasY) {
+                hasY = true; v[1] = v[0] * 2; thought[1] = thought[0] * 2;
+                Emit(q, TwoVars(v, NULL), "int y = twice(x);");
+            } else {
+                v[0] *= 2; thought[0] *= 2;
+                Emit(q, TwoVars(v, NULL), "x = twice(x);");
+            }
+            break;
+        }
+    }
+    int ask = hasY ? AskWhich(seed, v, thought) : 0;
+    int decoys[] = { thought[ask], hasY ? v[1 - ask] : v[0] + 2, v[ask] * 2 };
+    Finish(q, seed, varNames[ask], v[ask], decoys, 3);
+}
+
+static void FunctionPointers(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconception: op keeps calling the function it started with.
+    static const char *names[] = { "Add", "Subtract", "Multiply" };
+    Emit(q, NULL, "int Add(int num1, int num2) { return num1 + num2; }");
+    Emit(q, NULL, "int Subtract(int num1, int num2) { return num1 - num2; }");
+    Emit(q, NULL, "int Multiply(int num1, int num2) { return num1 * num2; }");
+    Emit(q, NULL, "%s", "");
+    q->firstBodyLine = q->lineCount;
+    int a = Rand(seed, 2, 9), b = Rand(seed, 1, 5);
+    int target = 0, x = a + b, thought = x;
+    Emit(q, Note("op -> Add"), "int (*op)(int, int) = Add;");
+    Emit(q, Note("x = %d", x), "int x = op(%d, %d);", a, b);
+    int calls = 2 + difficulty / 4, moveAt = Rand(seed, 0, calls - 1);
+    for (int call = 0; call < calls; call++) {
+        if (call == moveAt || Rand(seed, 0, 2) == 0) {
+            int next = (target + Rand(seed, 1, 2)) % 3;
+            if (next == 2 && (x > 30 || x < -30)) next = 1;  // keep the numbers small
+            if (next != target) {
+                target = next;
+                Emit(q, Note("op -> %s", names[target]), "op = %s;", names[target]);
+            }
+        }
+        bool big = x > 30 || x < -30;  // multiplying stays gentle once x is large
+        int k = target == 2 ? (big ? 1 : Rand(seed, 2, 3)) : Rand(seed, 1, 9);
+        x = target == 0 ? x + k : target == 1 ? x - k : x * k;
+        thought += k;
+        Emit(q, Note("x = %d (%s)", x, names[target]), "x = op(x, %d);", k);
+    }
+    int decoys[] = { thought, x + 1, -x };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
+// One write through a second pointer q that points at index at of a heap block a (the
+// misconception, that q points at a copy, simply doesn't see it).
+static void ThroughSecondPointer(SpeedQuestion *q, uint32_t *seed, int *a, int at, const char *blockName)
+{
+    int k = Rand(seed, 1, 5);
+    switch (Rand(seed, 0, 2)) {
+    case 0: a[at] *= 2; Emit(q, Note("%s[%d] = %d", blockName, at, a[at]), "*q *= 2;"); break;
+    case 1: a[at] += k; Emit(q, Note("%s[%d] = %d", blockName, at, a[at]), "*q += %d;", k); break;
+    default: a[at + 1] = k; Emit(q, Note("%s[%d] = %d", blockName, at + 1, a[at + 1]), "q[1] = %d;", k); break;
+    }
+}
+
+static void Malloc(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    int a[3], thought[3];
+    Emit(q, Note("p -> a new block of 3 ints"), "int *p = (int*)malloc(3 * sizeof(int));");
+    a[0] = Rand(seed, 1, 9);
+    Emit(q, Note("p[0] = %d", a[0]), "p[0] = %d;", a[0]);
+    int k = Rand(seed, 1, 5);
+    a[1] = a[0] + k;
+    Emit(q, Note("p[1] = %d", a[1]), "p[1] = p[0] + %d;", k);
+    a[2] = Rand(seed, 1, 9);
+    Emit(q, Note("p[2] = %d", a[2]), "p[2] = %d;", a[2]);
+    for (int i = 0; i < 3; i++) thought[i] = a[i];
+    Emit(q, Note("q -> p[1]"), "int *q = p + 1;");
+    int ops = 1 + difficulty / 4;
+    for (int op = 0; op < ops; op++) ThroughSecondPointer(q, seed, a, 1, "p");
+    int x = a[1] + a[2];
+    Emit(q, Note("x = %d + %d = %d", a[1], a[2], x), "int x = p[1] + p[2];");
+    Emit(q, Note("the block goes back; x keeps %d", x), "free(p);");
+    int decoys[] = { thought[1] + thought[2], a[0] + a[1], x + 1 };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
+static void NewDelete(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    q->cpp = true;
+    if (Rand(seed, 0, 1)) {  // a single int: changes through a second pointer
+        int value = Rand(seed, 1, 9), thought;
+        Emit(q, Note("*p = %d (on the heap)", value), "int *p = new int(%d);", value);
+        int k = Rand(seed, 1, 5);
+        value += k;
+        Emit(q, Note("*p = %d", value), "*p += %d;", k);
+        thought = value;  // misconception: q points at its own copy
+        Emit(q, Note("q -> the same int"), "int *q = p;");
+        int ops = 1 + difficulty / 4;
+        for (int op = 0; op < ops; op++) {
+            k = Rand(seed, 1, 5);
+            if (Rand(seed, 0, 1)) { value *= 2; Emit(q, Note("*p = %d", value), "*q *= 2;"); }
+            else { value += k; Emit(q, Note("*p = %d", value), "*q += %d;", k); }
+        }
+        Emit(q, Note("x = %d", value), "int x = *p;");
+        Emit(q, Note("the int is freed; x keeps %d", value), "delete p;");
+        int decoys[] = { thought, value + 1, value - 1 };
+        Finish(q, seed, "x", value, decoys, 3);
+        return;
+    }
+    // An array: indexes count from 0 (the misconception counts from 1).
+    enum { N = 3 };
+    int a[N], thought[N];
+    for (int i = 0; i < N; i++) a[i] = thought[i] = Rand(seed, 1, 9);
+    Emit(q, Note("a = %s", ArrayText(a, N)), "int *a = new int[3]{ %d, %d, %d };", a[0], a[1], a[2]);
+    int ops = OperationCount(difficulty) - 1;
+    for (int op = 0; op < ops; op++) {
+        int i = Rand(seed, 0, N - 1), j = Rand(seed, 0, N - 1);
+        int ti = (i + N - 1) % N, tj = (j + N - 1) % N;
+        a[i] += a[j]; thought[ti] += thought[tj];
+        Emit(q, Note("a = %s", ArrayText(a, N)), "a[%d] += a[%d];", i, j);
+    }
+    int i = Rand(seed, 0, N - 1);
+    int x = a[i];
+    Emit(q, Note("x = %d", x), "int x = a[%d];", i);
+    Emit(q, Note("the array is freed; x keeps %d", x), "delete[] a;");
+    int decoys[] = { thought[(i + N - 1) % N], a[(i + 1) % N], x + 1 };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
+static void Objects(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconception: Counter b = a; makes b another name for a, not a copy.
+    q->cpp = true;
+    Emit(q, NULL, "class Counter {");
+    Emit(q, NULL, "public:");
+    Emit(q, NULL, "    int n;");
+    Emit(q, NULL, "    Counter(int start) { n = start; }");
+    Emit(q, NULL, "    void add(int k) { n += k; }");
+    Emit(q, NULL, "};");
+    Emit(q, NULL, "%s", "");
+    q->firstBodyLine = q->lineCount;
+
+    int a = Rand(seed, 1, 9), b = 0, thoughtA = a, thoughtB = 0;
+    bool hasB = false, hasP = false;
+    Emit(q, Note("a.n = %d", a), "Counter a(%d);", a);
+    int ops = OperationCount(difficulty), copyAt = Rand(seed, 0, ops - 2);
+    for (int op = 0; op < ops; op++) {
+        int kind = op == copyAt && !hasB ? 0 : Rand(seed, 1, 4), k = Rand(seed, 1, 6);
+        if (kind == 0 && hasB) kind = 1;
+        if (kind == 2 && !hasB) kind = 1;
+        if (kind == 4 && a > 30) kind = 1;
+        switch (kind) {
+        case 0: hasB = true; b = a; thoughtB = thoughtA; Emit(q, Note("b.n = %d (b is a copy)", b), "Counter b = a;"); break;
+        case 1: a += k; thoughtA += k; if (hasB) thoughtB = thoughtA;
+            Emit(q, Note("a.n = %d", a), "a.add(%d);", k); break;
+        case 2: b += k; thoughtB += k; thoughtA = thoughtB;
+            Emit(q, Note("b.n = %d, a.n still %d", b, a), "b.add(%d);", k); break;
+        case 3:
+            if (!hasP) {
+                hasP = true;
+                Emit(q, Note("p -> a"), "Counter *p = &a;");
+            }
+            a += k; thoughtA += k; if (hasB) thoughtB = thoughtA;
+            Emit(q, Note("a.n = %d", a), "p->add(%d);", k);
+            break;
+        default: a *= 2; thoughtA *= 2; if (hasB) thoughtB = thoughtA;
+            Emit(q, Note("a.n = %d", a), "a.n *= 2;"); break;
+        }
+    }
+    bool askB = hasB && Rand(seed, 0, 1);
+    int x = askB ? b : a;
+    Emit(q, Note("x = %d", x), askB ? "int x = b.n;" : "int x = a.n;");
+    int decoys[] = { askB ? thoughtB : thoughtA, askB ? a : (hasB ? b : x + 2), x + 1 };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
+static void LinkedList(SpeedQuestion *q, int difficulty, uint32_t *seed)
+{
+    // Misconception: p = p->next doesn't move p (it changes the node instead).
+    q->cpp = true;
+    Emit(q, NULL, "struct Node { int data; Node *next; };");
+    Emit(q, NULL, "%s", "");
+    q->firstBodyLine = q->lineCount;
+    static const char *nodeNames[] = { "a", "b", "c" };
+    int data[3] = { Rand(seed, 1, 9), Rand(seed, 1, 9), Rand(seed, 1, 9) }, thought[3];
+    Emit(q, Note("a -> b -> c"), "Node c = { %d, nullptr };", data[2]);
+    Emit(q, NULL, "Node b = { %d, &c };", data[1]);
+    Emit(q, NULL, "Node a = { %d, &b };", data[0]);
+    for (int i = 0; i < 3; i++) thought[i] = data[i];
+    int at = 0, thoughtAt = 0;
+    Emit(q, Note("p -> a"), "Node *p = &a;");
+    int ops = OperationCount(difficulty) + 1, moveAt = Rand(seed, 0, ops - 2);
+    for (int op = 0; op < ops; op++) {
+        int kind = op == moveAt ? 0 : Rand(seed, 0, 2), k = Rand(seed, 1, 9);
+        if (kind == 0 && at == 2) kind = 1;
+        switch (kind) {
+        case 0: at++; Emit(q, Note("p -> %s", nodeNames[at]), "p = p->next;"); break;
+        case 1: data[at] += k; thought[thoughtAt] += k;
+            Emit(q, Note("%s.data = %d", nodeNames[at], data[at]), "p->data += %d;", k); break;
+        default: data[at] = k; thought[thoughtAt] = k;
+            Emit(q, Note("%s.data = %d", nodeNames[at], data[at]), "p->data = %d;", k); break;
+        }
+    }
+    int x, thoughtX;
+    switch (Rand(seed, 0, 2)) {
+    case 0: x = data[at]; thoughtX = thought[thoughtAt];
+        Emit(q, Note("x = %s.data = %d", nodeNames[at], x), "int x = p->data;"); break;
+    case 1: x = data[1]; thoughtX = thought[1];
+        Emit(q, Note("x = b.data = %d", x), "int x = a.next->data;"); break;
+    default: x = data[0] + data[at]; thoughtX = thought[0] + thought[thoughtAt];
+        Emit(q, Note("x = %d + %d = %d", data[0], data[at], x), "int x = a.data + p->data;"); break;
+    }
+    int decoys[] = { thoughtX, data[(at + 1) % 3], x + 1 };
+    Finish(q, seed, "x", x, decoys, 3);
+}
+
 void SpeedGenerate(SpeedSkill skill, int difficulty, uint32_t *seed, SpeedQuestion *out)
 {
     memset(out, 0, sizeof *out);
     out->skill = skill;
     switch (skill) {
+    case SPEED_VARIABLES:          Variables(out, difficulty, seed); break;
     case SPEED_ARITHMETIC:         Arithmetic(out, difficulty, seed); break;
+    case SPEED_CONDITIONS:         Conditions(out, difficulty, seed); break;
+    case SPEED_STRINGS:            Strings(out, difficulty, seed); break;
+    case SPEED_FUNCTIONS:          Functions(out, difficulty, seed); break;
+    case SPEED_MALLOC:             Malloc(out, difficulty, seed); break;
+    case SPEED_FUNCTION_POINTERS:  FunctionPointers(out, difficulty, seed); break;
+    case SPEED_NEW_DELETE:         NewDelete(out, difficulty, seed); break;
+    case SPEED_OBJECTS:            Objects(out, difficulty, seed); break;
+    case SPEED_LINKED_LIST:        LinkedList(out, difficulty, seed); break;
     case SPEED_LOOPS:              Loops(out, difficulty, seed); break;
     case SPEED_ARRAYS:             Arrays(out, difficulty, seed); break;
     case SPEED_POINTERS:           Pointers(out, difficulty, seed); break;
     case SPEED_POINTER_TO_POINTER: PointerToPointer(out, difficulty, seed); break;
     case SPEED_PASS_BY_POINTER:    PassByPointer(out, difficulty, seed); break;
     case SPEED_POINTER_ARITHMETIC: PointerArithmetic(out, difficulty, seed); break;
-    default:                       References(out, difficulty, seed); break;
+    case SPEED_REFERENCES:         References(out, difficulty, seed); break;
+    default:                       Arithmetic(out, difficulty, seed); break;
     }
 }
 

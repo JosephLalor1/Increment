@@ -1,5 +1,6 @@
 @id c_16_malloc_free
 @track C
+@speed malloc
 @title Dynamic Memory: malloc and free
 
 Ordinary variables live on the stack and disappear when they go out of scope. Sometimes you need memory that lasts longer, or whose size you only know while the program runs. C gives you that memory from the heap with malloc, and you hand it back with free. Both are declared in <stdlib.h>.

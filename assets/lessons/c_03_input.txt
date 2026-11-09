@@ -1,5 +1,6 @@
 @id c_03_input
 @track C
+@speed variables arithmetic
 @title Reading Input with scanf
 
 printf writes to the screen. Its partner scanf reads from the keyboard. You give scanf a format string, just like printf, and the address of each variable to fill.

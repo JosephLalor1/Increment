@@ -13,22 +13,26 @@
 #include <stdint.h>
 
 #define SPEED_QUESTIONS  10
-#define SPEED_SECONDS    5.0   // per question
+#define SPEED_SECONDS    10.0  // per question
 #define SPEED_COUNT_IN   3.0   // "3, 2, 1" before the first question
 #define SPEED_CHOICES    4
-#define SPEED_MAX_LINES  14
+#define SPEED_MAX_LINES  18
 #define SPEED_LINE_SIZE  72
 
 // What a question practises. A lesson names its skills on an "@speed" line, by these names:
-// arithmetic loops arrays pointers pointer_to_pointer pass_by_pointer pointer_arithmetic references
+// variables arithmetic conditions loops arrays strings functions pointers pointer_to_pointer
+// pass_by_pointer pointer_arithmetic malloc function_pointers references new_delete objects
+// linked_list
 typedef enum {
-    SPEED_ARITHMETIC, SPEED_LOOPS, SPEED_ARRAYS, SPEED_POINTERS, SPEED_POINTER_TO_POINTER,
-    SPEED_PASS_BY_POINTER, SPEED_POINTER_ARITHMETIC, SPEED_REFERENCES, SPEED_SKILL_COUNT
+    SPEED_VARIABLES, SPEED_ARITHMETIC, SPEED_CONDITIONS, SPEED_LOOPS, SPEED_ARRAYS, SPEED_STRINGS,
+    SPEED_FUNCTIONS, SPEED_POINTERS, SPEED_POINTER_TO_POINTER, SPEED_PASS_BY_POINTER,
+    SPEED_POINTER_ARITHMETIC, SPEED_MALLOC, SPEED_FUNCTION_POINTERS, SPEED_REFERENCES, SPEED_NEW_DELETE,
+    SPEED_OBJECTS, SPEED_LINKED_LIST, SPEED_SKILL_COUNT
 } SpeedSkill;
 
 typedef struct {
     SpeedSkill skill;
-    bool cpp;                                      // C++ (references); C otherwise
+    bool cpp;                                      // C++ (references, new, classes); C otherwise
     int lineCount;
     int firstBodyLine;                             // lines before this are function definitions
     char lines[SPEED_MAX_LINES][SPEED_LINE_SIZE];  // the snippet, one line each

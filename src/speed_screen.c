@@ -95,7 +95,7 @@ static SpeedScreenAction IntroPage(void)
     static const char *rules[] = {
         "Work out the value of a variable after a few lines of code.",
         "10 questions, straight after one another: no breaks.",
-        "5 seconds each. Answer with the keys 1 to 4, or click.",
+        "10 seconds each. Answer with the keys 1 to 4, or click.",
         "One wrong answer or a timeout ends the run.",
         "Answer all 10 for gold mastery of this lesson.",
     };
@@ -281,18 +281,32 @@ static void RunPage(double now)
 }
 
 // One line of the explained snippet: the code, and the variables' values after it.
+// The notes sit in a column after the longest line of code; when that leaves too little
+// room, each note goes on its own row under its line instead.
 static float ExplainedCode(const SpeedQuestion *q, float x, float y, float w, float scale)
 {
-    float size = 20 * scale, lineH = size * 1.45f, pad = 16;
-    float height = pad * 2 + q->lineCount * lineH;
-    UiRoundRect((Rectangle){ x, y, w, height }, 10, COL_CODE_BG);
-    float noteX = x + w * 0.52f;
+    float size = 20 * scale, noteSize = size * 0.85f, lineH = size * 1.45f, pad = 16;
+    float codeW = 0, noteW = 0;
     for (int i = 0; i < q->lineCount; i++) {
-        float lineY = y + pad + i * lineH;
-        UiCodeLine(q->lines[i], x + pad, lineY, size);
+        codeW = fmaxf(codeW, UiTextWidth(gFonts.mono, q->lines[i], size));
+        if (q->notes[i][0]) noteW = fmaxf(noteW, UiTextWidth(gFonts.text, TextFormat("// %s", q->notes[i]), noteSize));
+    }
+    float noteX = fmaxf(x + w * 0.52f, x + pad + codeW + 24);
+    bool beside = noteX + noteW <= x + w - pad;
+    if (!beside) noteX = x + pad + 24;
+
+    int rows = q->lineCount;
+    for (int i = 0; i < q->lineCount && !beside; i++) rows += q->notes[i][0] != 0;
+    float height = pad * 2 + rows * lineH;
+    UiRoundRect((Rectangle){ x, y, w, height }, 10, COL_CODE_BG);
+    float rowY = y + pad;
+    for (int i = 0; i < q->lineCount; i++) {
+        UiCodeLine(q->lines[i], x + pad, rowY, size);
         if (q->notes[i][0]) {
-            UiText(gFonts.text, TextFormat("// %s", q->notes[i]), noteX, lineY + size * 0.08f, size * 0.85f, COL_GOOD);
+            if (!beside) rowY += lineH;
+            UiText(gFonts.text, TextFormat("// %s", q->notes[i]), noteX, rowY + size * 0.08f, noteSize, COL_GOOD);
         }
+        rowY += lineH;
     }
     return height;
 }

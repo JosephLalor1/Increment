@@ -13,6 +13,7 @@ typedef struct {
     int highest;                          // best quiz score, -1 if none attempted
     float average;                        // mean best score over attempted quizzes
     int next;                             // first unpassed lesson's index, -1 when complete or empty
+    int speedRounds, gold;                // lessons with a speed round; those won (gold mastery)
 } DashboardStats;
 
 // track TRACK_COUNT means every track. Reads progress; never writes it.

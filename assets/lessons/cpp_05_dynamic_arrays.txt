@@ -1,5 +1,6 @@
 @id cpp_05_dynamic_arrays
 @track C++
+@speed new_delete
 @title Dynamic Arrays
 
 # Arrays on the stack

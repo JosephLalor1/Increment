@@ -43,7 +43,7 @@ static void Trail(Vector2 a, Vector2 b, bool complete)
             u*u*u*a.y + 3*u*u*t*middle + 3*u*t*t*middle + t*t*t*b.y
         };
         DrawLineEx(previous, point, 14, COL_PANEL_HI);
-        DrawLineEx(previous, point, 7, complete ? Fade(COL_GOOD, 0.65f) : Fade(COL_ACCENT, 0.25f));
+        DrawLineEx(previous, point, 7, Fade(COL_ACCENT, complete ? 0.7f : 0.22f));  // walked: a stronger accent
         previous = point;
     }
 }
@@ -136,17 +136,20 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         radius *= 1 + 0.04f * hover;  // a slight swell as it lifts
         Vector2 face = { center.x, center.y - lift };
 
-        // Theme-derived lavender for the active station, green for completed topics.
-        Color currentColor = UiAccentSwatch(1, true); // existing purple, deep enough for white text
-        Color fill = passed ? COL_GOOD : current ? currentColor : COL_PANEL_HI;
-        Color ink = passed ? COL_BG : current ? WHITE : COL_DIM;
+        // Shades of the theme's accent: solid accent for the next lesson, a soft accent tint
+        // with an accent tick for completed ones (distinct in both themes), grey for the rest.
+        Color currentColor = COL_ACCENT;
+        Color doneColor = ColorLerp(COL_BG, COL_ACCENT, 0.3f);
+        Color doneLabel = ColorLerp(COL_ACCENT, COL_DIM, 0.45f);  // softer than the next lesson's
+        Color fill = passed ? doneColor : current ? currentColor : COL_PANEL_HI;
+        Color ink = passed ? COL_ACCENT : current ? COL_ON_ACCENT : COL_DIM;
         if (current) {
             float pulse = (sinf((float)GetTime() * 2.5f) + 1) / 2;
             DrawCircleV(center, radius + 14 + pulse * 3, Fade(currentColor, 0.10f + pulse * 0.05f));
             DrawRing(center, radius + 7, radius + 9, 0, 360, 64, Fade(currentColor, 0.55f));
         }
         DrawCircleV((Vector2){ center.x, center.y + 9 }, radius + 3, COL_BG);
-        DrawCircleV((Vector2){ center.x, center.y + 6 }, radius, passed ? ColorBrightness(COL_GOOD, -0.25f)
+        DrawCircleV((Vector2){ center.x, center.y + 6 }, radius, passed ? ColorBrightness(doneColor, -0.3f)
                                                                          : current ? ColorBrightness(currentColor, -0.25f) : COL_PANEL);
         DrawCircleV(face, radius, ColorBrightness(fill, 0.08f * hover));
         if (gold) DrawRing(face, radius + 3, radius + 8, 0, 360, 64, COL_GOLD);
@@ -158,7 +161,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         Vector2 badge = { face.x + radius * 0.75f, face.y - radius * 0.7f };
         DrawCircleV(badge, 14 * scale, COL_PANEL);
         UiTextCentered(gFonts.bold, TextFormat("%d", ordinal + 1), badge.x, badge.y - 9 * scale, 15 * scale,
-                       passed ? COL_GOOD : current ? currentColor : COL_DIM);
+                       passed ? doneLabel : current ? currentColor : COL_DIM);
 
         // The title plate is see-through, so the trail shows beneath it; hovering fades in a
         // light tint.
@@ -168,7 +171,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale, COL_TEXT, true);
         const char *status = gold ? "GOLD MASTERY" : passed ? "COMPLETED" : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME";
         UiTextCentered(gFonts.text, status, center.x, titleY + titleH + 6, 12 * scale,
-                       gold ? COL_GOLD : passed ? COL_GOOD : current ? currentColor : COL_DIM);
+                       gold ? COL_GOLD : passed ? doneLabel : current ? currentColor : COL_DIM);
         if (current && MascotAvailable()) Guide(center, x, width, scale, done, total);
         if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) selected = i;
 
@@ -176,7 +179,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         if (ordinal % 3 == 2) {
             float markerX = center.x < x + width / 2 ? x + width - 90 : x + 90;
             IconDraw(ICON_CODE, (Vector2){ markerX, center.y + 12 }, 25, Fade(COL_ACCENT, 0.18f));
-            DrawCircleV((Vector2){ markerX + 24, center.y - 16 }, 3, Fade(COL_GOOD, 0.3f));
+            DrawCircleV((Vector2){ markerX + 24, center.y - 16 }, 3, Fade(COL_ACCENT, 0.3f));
         }
         stationY += step;
         ordinal++;

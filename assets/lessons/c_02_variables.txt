@@ -1,5 +1,6 @@
 @id c_02_variables
 @track C
+@speed variables
 @title Variables and Data Types
 
 A variable is a named piece of memory that holds a value. Unlike some languages, C makes you declare the type of every variable before you use it. The type decides what values it can hold and how much memory it takes.

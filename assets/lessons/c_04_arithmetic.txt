@@ -1,6 +1,6 @@
 @id c_04_arithmetic
 @track C
-@speed arithmetic
+@speed arithmetic variables
 @title Arithmetic and Type Conversion
 
 C has the usual arithmetic operators: + - * / and % (remainder). The type of the values matters a great deal, especially for division.

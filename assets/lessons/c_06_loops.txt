@@ -1,6 +1,6 @@
 @id c_06_loops
 @track C
-@speed loops
+@speed loops conditions
 @title Loops: while, do-while and for
 
 Loops repeat a block of code. C has three: while, do-while and for.

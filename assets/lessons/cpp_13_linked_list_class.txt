@@ -1,5 +1,6 @@
 @id cpp_13_linked_list_class
 @track C++
+@speed linked_list objects
 @title A LinkedList Class
 
 The linked list from the previous lesson works, but the caller has to manage the head pointer, pass its address around, and remember to free every node. A class can hide all of that. The head becomes a private field, the operations become methods, and the destructor frees the nodes automatically.

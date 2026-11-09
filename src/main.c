@@ -38,6 +38,7 @@ static struct {
     AppScreen screen;
     AppScreen lessonReturn;
     AppScreen codeReturn;     // where the code editor goes back to
+    AppScreen speedReturn;    // where a speed round goes back to: its lesson or the statistics
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
     double splashStart;       // GetTime() when the splash began
     float splashTime;         // --shot splash: a fixed moment of the animation, or < 0 to run live
@@ -64,6 +65,13 @@ static void OpenCodeEditor(AppScreen returnTo)
     CodeSetDraftFolder(AccountCodeDir());
     app.codeReturn = returnTo;
     app.screen = SCREEN_CODE;
+}
+
+static void OpenSpeedRound(const Lesson *lesson, AppScreen returnTo)
+{
+    SpeedScreenOpen(lesson);
+    app.speedReturn = returnTo;
+    app.screen = SCREEN_SPEED;
 }
 
 static void OpenSettings(void)
@@ -172,6 +180,7 @@ static void RunHome(void)
     HomeAction action = DashboardScreen(&lessons);
     switch (action.kind) {
     case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex, SCREEN_HOME); break;
+    case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
     case HOME_PRACTICE:
         PracticeScreenOpen(&lessons);
         app.screen = SCREEN_PRACTICE;
@@ -220,8 +229,7 @@ static void RunLesson(void)
         CodeOpenQuizQuestion(lesson, action.questionIndex, action.startFresh);
         break;
     case LESSON_SPEED_ROUND:
-        SpeedScreenOpen(lesson);
-        app.screen = SCREEN_SPEED;
+        OpenSpeedRound(lesson, SCREEN_LESSON);
         break;
     case LESSON_STAY:
         break;
@@ -237,10 +245,10 @@ static void RunCode(void)
     if (app.codeReturn == SCREEN_LESSON) LessonScreenQuizCodeResult(CodeQuizSolved());
 }
 
-// A speed round goes back to its lesson, which is where it was opened from.
+// A speed round goes back to where it was opened from: its lesson or the statistics.
 static void RunSpeed(void)
 {
-    if (SpeedScreen() == SPEED_SCREEN_BACK) app.screen = SCREEN_LESSON;
+    if (SpeedScreen() == SPEED_SCREEN_BACK) app.screen = app.speedReturn;
 }
 
 static void RunCourses(void)

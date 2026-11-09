@@ -1,5 +1,6 @@
 @id cpp_10_copy_constructors
 @track C++
+@speed objects
 @title Copy Constructors
 
 When you write Point r = q;, a new Point is created as a copy of q. The constructor that does this is the copy constructor. If you don't write one, C++ provides a default copy constructor that copies every field.

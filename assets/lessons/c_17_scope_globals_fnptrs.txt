@@ -1,5 +1,6 @@
 @id c_17_scope_globals_fnptrs
 @track C
+@speed function_pointers
 @title Scope, Globals and Function Pointers
 
 # Scope and memory

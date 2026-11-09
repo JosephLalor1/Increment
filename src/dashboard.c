@@ -2,6 +2,7 @@
 #include "dashboard.h"
 #include "account.h"
 #include "brand.h"
+#include "code_rain.h"
 #include "dashboard_stats.h"
 #include "journey_view.h"
 #include "layout.h"
@@ -10,6 +11,8 @@
 #include "progress.h"
 #include "saved_view.h"
 #include "ui.h"
+
+#include <math.h>
 
 // ---------------------------------------------------------------------------
 // Building blocks: text lines, cards and rows shared by the sections below.
@@ -264,6 +267,58 @@ static float RecommendationSection(const LessonSet *set, float x, float y, float
     return y - top + 16;
 }
 
+// Gold mastery so far, then a tile for every lesson with a speed round: a gold star once
+// it's won, a lightning bolt until then. Clicking a tile sets *speedRound to start it.
+static float SpeedRoundSection(const LessonSet *set, DashboardStats all, float x, float y, float w, float scale,
+                               int *speedRound)
+{
+    if (all.speedRounds == 0) return 0;
+    float top = y;
+    y += TextLine("Speed rounds", x, y, w, 28 * scale, COL_TEXT) + 12;
+    y += TextLine("Ten generated \"what is x?\" questions against the clock, 10 seconds each. Win a lesson's round for "
+                  "gold mastery.", x, y, w, 18 * scale, COL_DIM) + 12;
+    y += TextLine(TextFormat("Gold mastery: %d / %d lessons", all.gold, all.speedRounds), x, y, w, 20 * scale,
+                  all.gold ? COL_GOLD : COL_TEXT) + 10;
+    ProgressBar((Rectangle){ x, y, w, 7 }, (float)all.gold / all.speedRounds, COL_PANEL_HI, COL_GOLD);
+    y += 24;
+
+    int columns = w / scale >= 720 ? 3 : 2;
+    float gap = 12, tileW = (w - gap * (columns - 1)) / columns, size = 18 * scale;
+    float rowTop = y, rowH = 0;
+    int column = 0;
+    for (int i = 0; i < set->count; i++) {
+        const Lesson *lesson = &set->items[i];
+        if (!lesson->speedSkills[0]) continue;
+        // Tiles in a row share the tallest one's height, so the grid stays even.
+        if (column == 0) {
+            rowH = 0;
+            for (int j = i, n = 0; j < set->count && n < columns; j++) {
+                if (!set->items[j].speedSkills[0]) continue;
+                float h = UiWrappedText(gFonts.text, set->items[j].title, (Vector2){ 0, 0 }, tileW - 60, size, COL_TEXT, false);
+                rowH = fmaxf(rowH, h + 46);
+                n++;
+            }
+        }
+        bool gold = ProgressGold(lesson->id);
+        Rectangle tile = { x + column * (tileW + gap), rowTop, tileW, rowH };
+        bool over = UiMouseOver(tile);
+        if (over) UiWantHand();
+        UiRoundRect(tile, 10, over ? COL_PANEL_HI : COL_PANEL);
+        if (gold) DrawRectangleRoundedLinesEx(tile, 16 / fminf(tile.width, tile.height), 8, 2, COL_GOLD);
+        IconDraw(gold ? ICON_STAR : ICON_BOLT, (Vector2){ tile.x + 26, tile.y + 26 }, 24, gold ? COL_GOLD : COL_ACCENT);
+        UiWrappedText(gFonts.text, lesson->title, (Vector2){ tile.x + 48, tile.y + 12 }, tileW - 60, size, COL_TEXT, true);
+        UiText(gFonts.text, TextFormat("%s  |  %s", TrackName(lesson->track), gold ? "Gold" : "Not won yet"),
+               tile.x + 48, tile.y + rowH - 28, 15 * scale, gold ? COL_GOLD : COL_DIM);
+        if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) *speedRound = i;
+        if (++column == columns) {
+            column = 0;
+            rowTop += rowH + gap;
+        }
+    }
+    if (column != 0) rowTop += rowH + gap;
+    return rowTop - top + 16;
+}
+
 // Which lessons the topic list shows, besides the track filter.
 typedef enum { TOPICS_ALL, TOPICS_TO_REVIEW, TOPICS_UNATTEMPTED, TOPICS_COMPLETED, TOPIC_FILTER_COUNT } TopicFilter;
 
@@ -339,7 +394,9 @@ static float TopicSection(const LessonSet *set, float x, float y, float w, float
 
 // The whole page, starting at y. Returns the clicked lesson index or -1; *height is the
 // page's height, for scrolling.
-static int DrawPage(const LessonSet *set, float x, float y, float w, float scale, float *height)
+// The statistics page. Returns a lesson to open, or -1; sets *speedRound to a lesson whose
+// speed round should start.
+static int DrawPage(const LessonSet *set, float x, float y, float w, float scale, float *height, int *speedRound)
 {
     float top = y;
     int selected = -1;
@@ -354,6 +411,7 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
     y += MilestoneSection(all, x, y, w, scale);
     y += TrackSection(set, x, y, w, scale, &selected);
     y += QuizSection(all, x, y, w, scale);
+    y += SpeedRoundSection(set, all, x, y, w, scale, speedRound);
     y += RecommendationSection(set, x, y, w, scale, &selected);
     y += TopicSection(set, x, y, w, scale, &selected);
     *height = y - top + 32;
@@ -516,7 +574,7 @@ static int JourneyView(const LessonSet *set, float top)
                                    stats.lessons, percent),
            x, top + 56, 18, COL_TEXT);
     ProgressBar((Rectangle){ x, top + 86, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
-                COL_PANEL_HI, COL_GOOD);
+                COL_PANEL_HI, COL_ACCENT);
     if (UiButtonEx((Rectangle){ x + w - 174, top + 49, 174, 30 }, "Find my place", 16, COL_PANEL, COL_SECONDARY_HOVER,
                    COL_ACCENT, true)) {
         page.journeyTarget[track] = JourneyViewFocus(set, track);
@@ -529,9 +587,15 @@ static int JourneyView(const LessonSet *set, float top)
     float blend = GetFrameTime() * 16;  // ease towards the target, so "Find my place" glides
     if (blend > 1) blend = 1;
     page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
+    // Faint code characters drift in the background, and a trail of them follows the mouse
+    // (each can be turned off in Settings).
+    CodeAmbienceUpdate(view, GetFrameTime());
+    CodeTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
     BeginView(view);
+    CodeAmbienceDraw();
     int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
     page.journeyHeight[track] += 8;
+    CodeTrailDraw();
     EndView();
     // Dragging the bar moves the journey directly, without the easing.
     if (PageScrollBar(view, &page.journeyTarget[track], page.journeyHeight[track]) && UiScrollBarDragging())
@@ -539,8 +603,9 @@ static int JourneyView(const LessonSet *set, float top)
     return clicked;
 }
 
-// The statistics page, scrolling below top. Returns a clicked lesson or -1.
-static int StatisticsView(const LessonSet *set, float top)
+// The statistics page, scrolling below top. Returns a clicked lesson or -1, and sets
+// *speedRound to a lesson whose speed round was clicked.
+static int StatisticsView(const LessonSet *set, float top, int *speedRound)
 {
     Rectangle view = ScrollView();
     view.height -= top - view.y;
@@ -548,7 +613,7 @@ static int StatisticsView(const LessonSet *set, float top)
     UpdateScroll(&page.scroll, page.contentHeight, view.height);
     BeginView(view);
     int clicked = DrawPage(set, ContentX(), view.y + 12 - page.scroll, ContentWidth(), UiTextScale(),
-                           &page.contentHeight);
+                           &page.contentHeight, speedRound);
     page.contentHeight += 24;
     EndView();
     PageScrollBar(view, &page.scroll, page.contentHeight);
@@ -582,7 +647,12 @@ HomeAction DashboardScreen(const LessonSet *set)
                                                                     GetScreenHeight() - top }, submitted);
         if (clicked >= 0) UiFocus(NULL);  // so Backspace in the lesson goes back, not into the box
     } else if (page.view == HOME_VIEW_STATISTICS) {
-        clicked = StatisticsView(set, top);
+        int speedRound = -1;
+        clicked = StatisticsView(set, top, &speedRound);
+        if (speedRound >= 0 && action.kind == HOME_STAY) {
+            action.kind = HOME_SPEED_ROUND;
+            action.lessonIndex = speedRound;
+        }
     } else if (page.view == HOME_VIEW_SAVED) {
         Rectangle view = { 0, top, (float)GetScreenWidth(), GetScreenHeight() - top };
         SavedChoice saved = SavedViewDraw(&page.saved, set, view);

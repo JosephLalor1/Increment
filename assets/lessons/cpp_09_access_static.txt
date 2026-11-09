@@ -1,5 +1,6 @@
 @id cpp_09_access_static
 @track C++
+@speed objects
 @title Static Members, Access Modifiers and Structs
 
 # Static members

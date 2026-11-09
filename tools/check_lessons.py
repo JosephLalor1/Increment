@@ -36,8 +36,9 @@ MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many col
 MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 16, 6
 MAX_EXERCISE_HINTS = 8
 # The skill names an "@speed" line may use (src/speed_round.c generates their questions).
-SPEED_SKILLS = ('arithmetic', 'loops', 'arrays', 'pointers', 'pointer_to_pointer', 'pass_by_pointer',
-                'pointer_arithmetic', 'references')
+SPEED_SKILLS = ('variables', 'arithmetic', 'conditions', 'loops', 'arrays', 'strings', 'functions',
+                'pointers', 'pointer_to_pointer', 'pass_by_pointer', 'pointer_arithmetic', 'malloc',
+                'function_pointers', 'references', 'new_delete', 'objects', 'linked_list')
 
 
 TASK_FIELDS = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}
