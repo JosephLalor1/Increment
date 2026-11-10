@@ -88,6 +88,17 @@ Tax rate: 0.08
 Max score: 100
 ```
 
+@trace variable_updates Following variable updates
+```
+int x = 4;
+int y = x + 3;
+x = y - 2;
+// Checkpoint: after the assignment above
+```
+@predict At the checkpoint, what are x and y? Enter x then y.
+@answer 5 7
+@explain y receives 4 + 3, so y is 7. Assigning y - 2 to x changes x to 5; it does not change y.
+
 @quiz
 ? Which type would you use to store 3.14159 with the most precision?
 ~ 1 types:1 output:0.3

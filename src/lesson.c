@@ -67,6 +67,8 @@ typedef struct {
     bool codeIsMemory;   // the open fence is ```memory: a pointer diagram script, not code
     bool inQuiz;
     bool inExercise;
+    bool inTrace;
+    bool ignoreTrace; // extra tasks must not overwrite the last accepted task
     char **fenceTarget;  // in an exercise: which field the next code block fills
     StrBuf exDesc;       // description of the current exercise
     bool exBlankLine;    // a paragraph break is pending in exDesc
@@ -153,7 +155,12 @@ static void FlushCode(Parser *ps)
     char *code = SbTake(&ps->code);
 
     Lesson *L = ps->lesson;
-    if (ps->inExercise) {
+    if (ps->inTrace) {
+        if (ps->ignoreTrace) { free(code); return; }
+        TraceExercise *trace = &L->traces[L->traceCount - 1];
+        free(trace->code);
+        trace->code = code;
+    } else if (ps->inExercise) {
         char **target = ps->fenceTarget ? ps->fenceTarget : &L->exercises[L->exerciseCount - 1].starter;
         free(*target);
         *target = code;
@@ -279,7 +286,7 @@ static void ParseLine(Parser *ps, char *line)
     if (StartsWith(line, "```")) {
         FlushPara(ps);
         ps->inCode = true;
-        ps->codeIsMemory = StartsWith(line, "```memory") && !ps->inExercise && !ps->inQuiz;
+        ps->codeIsMemory = StartsWith(line, "```memory") && !ps->inExercise && !ps->inQuiz && !ps->inTrace;
         ps->code.len = 0;
         return;
     }
@@ -300,12 +307,16 @@ static void ParseLine(Parser *ps, char *line)
         FlushPara(ps);
         FinishExercise(ps);
         ps->inQuiz = true;
+        ps->inTrace = false;
+        ps->ignoreTrace = false;
         return;
     }
     if (StartsWith(line, "@exercise")) {
         FlushPara(ps);
         FinishExercise(ps);
         ps->inQuiz = false;
+        ps->inTrace = false;
+        ps->ignoreTrace = false;
         if (L->exerciseCount >= MAX_EXERCISES) {
             TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercises", ps->file, ps->lineNo);
             return;
@@ -318,6 +329,40 @@ static void ParseLine(Parser *ps, char *line)
         return;
     }
 
+    if (StartsWith(line, "@trace ")) {
+        FlushPara(ps);
+        FinishExercise(ps);
+        ps->inQuiz = false;
+        ps->inTrace = false;
+        ps->ignoreTrace = false;
+        if (L->traceCount >= MAX_TRACES) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many tracing exercises", ps->file, ps->lineNo);
+            ps->inTrace = ps->ignoreTrace = true;
+            return;
+        }
+        TraceExercise *trace = &L->traces[L->traceCount++];
+        const char *id = line + 7;
+        while (*id == ' ') id++;
+        const char *title = strchr(id, ' ');
+        size_t n = title ? (size_t)(title - id) : strlen(id);
+        if (n >= sizeof trace->id) n = 0; // disable overlong ids rather than aliasing another task
+        memcpy(trace->id, id, n);
+        CopyField(trace->title, sizeof trace->title, title ? title + 1 : id);
+        ps->inTrace = true;
+        return;
+    }
+    if (ps->inTrace) {
+        if (ps->ignoreTrace) return;
+        TraceExercise *trace = &L->traces[L->traceCount - 1];
+        char **field = NULL;
+        const char *value = NULL;
+        if (StartsWith(line, "@predict ")) { field = &trace->prompt; value = line + 9; }
+        if (StartsWith(line, "@answer ")) { field = &trace->answer; value = line + 8; }
+        if (StartsWith(line, "@explain ")) { field = &trace->explain; value = line + 9; }
+        if (field) { free(*field); *field = CopyStr(value); }
+        else if (*line) TraceLog(LOG_WARNING, "LESSON: %s:%d: unrecognised tracing line", ps->file, ps->lineNo);
+        return;
+    }
     if (ps->inExercise) { ParseExerciseLine(ps, line); return; }
     if (ps->inQuiz) { ParseQuizLine(ps, line); return; }
 
@@ -388,6 +433,16 @@ static bool ParseLessonFile(const char *path, Lesson *L)
     FlushPara(&ps);
     FinishExercise(&ps);
 
+    for (int i = 0; i < L->traceCount; i++) {
+        for (int j = 0; j < i; j++) {
+            if (strcmp(L->traces[i].id, L->traces[j].id) == 0) {
+                TraceLog(LOG_WARNING, "LESSON: %s: duplicate tracing id disabled", path);
+                L->traces[i].id[0] = '\0';
+                break;
+            }
+        }
+    }
+
     free(ps.para.data);
     free(ps.code.data);
     free(ps.exDesc.data);
@@ -420,6 +475,10 @@ static void FreeExercise(Exercise *ex)
 
 static void FreeLesson(Lesson *L)
 {
+    for (int i = 0; i < L->traceCount; i++) {
+        free(L->traces[i].code); free(L->traces[i].prompt);
+        free(L->traces[i].answer); free(L->traces[i].explain);
+    }
     for (int i = 0; i < L->blockCount; i++) free(L->blocks[i].text);
     for (int i = 0; i < L->exerciseCount; i++) FreeExercise(&L->exercises[i]);
     for (int i = 0; i < L->questionCount; i++) {

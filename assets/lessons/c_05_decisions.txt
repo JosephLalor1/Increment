@@ -113,6 +113,22 @@ Good job!
 
 Stacking case 'B': and case 'b': with nothing between them uses fall-through on purpose: both values run the same code.
 
+@trace branch_path Choosing a branch
+```
+int score = 6;
+int bonus = 0;
+if (score >= 5) {
+    bonus = 2;
+} else {
+    bonus = 1;
+}
+score = score + bonus;
+// Checkpoint: after the assignment above
+```
+@predict At the checkpoint, what are bonus and score? Enter bonus then score.
+@answer 2 8
+@explain 6 >= 5 is true, so only the first branch runs and bonus becomes 2. The final assignment adds 2 to 6, giving score 8.
+
 @quiz
 ? What does this print?
 ~ 2 tracing:1 conditions:0.6 operators:0.2

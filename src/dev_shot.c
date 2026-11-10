@@ -8,6 +8,7 @@
 #include "mouse_trail.h"
 #include "code_screen.h"
 #include "practice_screen.h"
+#include "tracing_screen.h"
 #include "courses_screen.h"
 #include "dashboard.h"
 #include "layout.h"
@@ -87,6 +88,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                                DevShot *shot)
 {
     float scroll = extra ? (float)atof(extra) : 0;
+    if (Is(name, "tracing") && lessons->count) {
+        LessonScreenOpen(lessons, lessonIndex, "Home");
+        TracingScreenOpen(&lessons->items[lessonIndex], extra ? atoi(extra) - 1 : 0);
+        return SCREEN_TRACING;
+    }
 
     if (Is(name, "practice") || Is(name, "practice-question") || Is(name, "practice-results") || Is(name, "practice-review")) {
         PracticeScreenOpen(lessons);

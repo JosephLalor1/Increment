@@ -13,6 +13,14 @@
 #define MAX_CHOICES   6
 #define MAX_EXERCISES 8
 #define MAX_EXERCISE_HINTS 8
+#define MAX_TRACES 8
+
+// A local prediction task. id stays stable when tasks are reordered.
+typedef struct {
+    char id[32];
+    char title[96];
+    char *code, *prompt, *answer, *explain;
+} TraceExercise;
 
 typedef enum { TRACK_C, TRACK_CPP, TRACK_COUNT } Track;
 
@@ -66,6 +74,8 @@ typedef struct {
     int questionCount;
     Exercise exercises[MAX_EXERCISES];
     int exerciseCount;
+    TraceExercise traces[MAX_TRACES];
+    int traceCount;
 } Lesson;
 
 typedef struct {

@@ -8,7 +8,7 @@
 
 // One stored score: a lesson id or an exercise id (see progress.h).
 typedef struct {
-    char id[32];
+    char id[96];
     int best;
 } Entry;
 
@@ -43,9 +43,9 @@ void ProgressLoad(const char *path)
 
     FILE *f = fopen(path, "r");
     if (!f) return;
-    char id[32];
+    char id[96];
     int best;
-    while (fscanf(f, "%31s %d", id, &best) == 2) {
+    while (fscanf(f, "%95s %d", id, &best) == 2) {
         Entry *e = FindOrAdd(id);
         if (e && best > e->best) e->best = best;
     }
@@ -107,6 +107,27 @@ void ProgressRecordExercise(const char *lessonId, int exerciseIndex)
     char id[64];
     ExerciseId(lessonId, exerciseIndex, id, sizeof id);
     ProgressRecord(id, 100);
+}
+
+bool ProgressTraceDone(const char *lessonId, const char *traceId)
+{
+    char id[96];
+    snprintf(id, sizeof id, "%s@trace:%s", lessonId, traceId);
+    return ProgressBest(id) >= 100;
+}
+
+bool ProgressRecordTrace(const char *lessonId, const char *traceId)
+{
+    if (!savePath[0]) return false;
+    char id[96];
+    snprintf(id, sizeof id, "%s@trace:%s", lessonId, traceId);
+    Entry *entry = FindOrAdd(id);
+    if (!entry) return false;
+    int before = entry->best;
+    entry->best = 100;
+    if (ProgressSave()) return true;
+    entry->best = before;
+    return false;
 }
 
 // "<lesson id>!gold", the id a won speed round is stored under.

@@ -331,7 +331,7 @@ static LessonAction ReadingPage(void)
     float scale = UiTextScale();
     float top = view.y + 32 - reader.scroll, y = top;
     const char *tryExample = NULL;  // acted on after the view is closed
-    int openExercise = -1;
+    int openExercise = -1, openTrace = -1;
 
     y += UiWrappedText(gFonts.text, lesson->title, (Vector2){ x, y }, w, 44 * scale, COL_TEXT, true) + 16;
     y += MascotCompanionActor(FOX_READING, x, y, w, 70, 18 * scale, FOX_IDEA,
@@ -341,6 +341,16 @@ static LessonAction ReadingPage(void)
 
     for (int i = 0; i < lesson->blockCount; i++) y += DrawBlock(lesson, i, x, y, w, scale, &tryExample);
     if (lesson->exerciseCount > 0) y += DrawExercises(lesson, x, y, w, scale, &openExercise);
+    if (lesson->traceCount) {
+        y += UiWrappedText(gFonts.bold, "Code tracing", (Vector2){x,y}, w, 30 * scale, COL_ACCENT, true) + 12;
+        for (int i = 0; i < lesson->traceCount; i++) {
+            bool done = ProgressTraceDone(lesson->id, lesson->traces[i].id);
+            y += UiWrappedText(gFonts.text, lesson->traces[i].title, (Vector2){x,y}, w, 23 * scale, COL_TEXT, true) + 10;
+            if (UiButtonIcon((Rectangle){x,y,280,44}, done ? ICON_CHECK : ICON_CODE,
+                             done ? "Completed - Trace again" : "Start tracing", true)) openTrace = i;
+            y += 62;
+        }
+    }
 
     y += 16;
     int quizLength = QuizLength(lesson);  // a draw from the lesson's question bank
@@ -370,6 +380,9 @@ static LessonAction ReadingPage(void)
     } else if (tryExample) {
         action.kind = LESSON_TRY_EXAMPLE;
         action.exampleCode = tryExample;
+    } else if (openTrace >= 0) {
+        action.kind = LESSON_OPEN_TRACING;
+        action.exerciseIndex = openTrace;
     } else if (openExercise >= 0) {
         action.kind = LESSON_OPEN_EXERCISE;
         action.exerciseIndex = openExercise;

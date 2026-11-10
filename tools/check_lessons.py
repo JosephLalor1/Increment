@@ -72,6 +72,7 @@ def parse(path):
     para, para_type, code, in_code, in_quiz = [], None, [], False, False
     is_memory = False  # the open fence is ```memory: a pointer diagram script, not code
     in_ex, target = False, None  # in an exercise; which field the next code block fills
+    traces, in_trace = [], False
 
     def flush():
         nonlocal para, para_type
@@ -84,7 +85,9 @@ def parse(path):
         if in_code:
             if line.startswith('```'):
                 text = '\n'.join(code)
-                if in_ex:
+                if in_trace:
+                    traces[-1]['code'] = text
+                elif in_ex:
                     exercises[-1][target or 'starter'] = text
                     target = None
                 elif in_quiz and questions and questions[-1]['task']:
@@ -101,7 +104,7 @@ def parse(path):
         if line.startswith('```'):
             flush()
             in_code = True
-            is_memory = line.startswith('```memory') and not in_ex and not in_quiz
+            is_memory = line.startswith('```memory') and not in_ex and not in_quiz and not in_trace
             continue
         m = re.match(r'@(title|id|track|kind|speed) (.*)', line)
         if m:
@@ -109,12 +112,28 @@ def parse(path):
             continue
         if line.startswith('@quiz'):
             flush()
+            in_trace = False
             in_quiz, in_ex = True, False
             continue
         if line.startswith('@exercise'):
             flush()
+            in_trace = False
             in_quiz, in_ex, target = False, True, None
             exercises.append(new_task(line[9:].strip(), n))
+            continue
+        if line.startswith('@trace '):
+            flush()
+            in_trace, in_quiz, in_ex = True, False, False
+            parts = line[7:].strip().split(' ', 1)
+            traces.append({'id': parts[0] if parts else '', 'title': parts[1] if len(parts) > 1 else '',
+                           'code': None, 'predict': None, 'answer': None, 'explain': None})
+            continue
+        if in_trace:
+            m = re.match(r'@(predict|answer|explain) (.*)', line)
+            if m:
+                traces[-1][m.group(1)] = m.group(2)
+            elif line.strip():
+                traces[-1]['invalid'] = True
             continue
         if in_ex:
             field = parse_task_line(exercises[-1], line)
@@ -164,6 +183,7 @@ def parse(path):
             para_type = t
             para.append(line[2:] if t == 'note' else line)
     flush()
+    meta['traces'] = traces
     return meta, blocks, questions, exercises
 
 
@@ -261,6 +281,27 @@ def check(path, workdir):
     problems = []
     meta, blocks, questions, exercises = parse(path)
     cpp = meta.get('track') in ('C++', 'cpp')
+    traces = meta.get('traces', [])
+    if len(traces) > 8:
+        problems.append('too many tracing exercises (max 8)')
+    trace_ids = set()
+    for ti, trace in enumerate(traces):
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,31}', trace['id']) or trace['id'] in trace_ids:
+            problems.append(f'trace {ti + 1}: invalid or duplicate stable id')
+        trace_ids.add(trace['id'])
+        if trace.get('invalid') or any(not trace.get(field) for field in ('title', 'code', 'predict', 'answer', 'explain')):
+            problems.append(f'trace {ti + 1}: missing fields or unrecognised directive')
+            continue
+        if any(len(line) > MAX_CODE_COLS for line in trace['code'].splitlines()):
+            problems.append(f'trace {ti + 1}: code exceeds {MAX_CODE_COLS} columns')
+        if len(trace['answer']) >= 512 or any(ord(c) > 126 for c in trace['answer']):
+            problems.append(f'trace {ti + 1}: answer must fit the ASCII answer field (511 characters)')
+        if re.search(r'\bmain\s*\(', trace['code']):
+            ok, err, out = compile_and_run(trace['code'], cpp, workdir, f'trace_{ti}')
+            if not ok or err:
+                problems.append(f'trace {ti + 1}: does not compile cleanly: {err}')
+            elif out is None or out.split() != trace['answer'].split():
+                problems.append(f'trace {ti + 1}: output differs from @answer')
 
     # Exercises and quiz coding questions: the starter compiles but doesn't already pass;
     # the solution passes.

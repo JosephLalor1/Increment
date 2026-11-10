@@ -50,6 +50,30 @@ from Increment <onboarding@resend.dev>
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
 
+## Code tracing exercises
+
+Open **Variables and Data Types**, **Decisions** (conditions), or **Loops** in the C track and scroll to **Code tracing**. Choose **Start tracing**, read the snippet, and predict the requested variable values or output. Enter multiple values in order separated by spaces. Checking is local and case-sensitive; leading/trailing whitespace and repeated whitespace are ignored. Line breaks in output are represented by spaces, so these tasks assess values and execution order rather than exact output formatting.
+
+Check prediction shows feedback and an explanation. Wrong predictions can be edited and submitted again, or use Try again. Correct submissions save tracing completion in the existing per-account progress file, separately from quiz scores and coding exercises. A completed task can be reopened; answers are reset on open and sign-out. If saving fails, the task shows an error and allows resubmission.
+
+Authors can add up to eight tasks per lesson, before `@quiz` (or between exercise sections):
+
+````text
+@trace variable_updates Following variable updates
+```
+int x = 2;
+x += 3;
+// Checkpoint: after the assignment above
+```
+@predict What is x at the checkpoint?
+@answer 5
+@explain x starts at 2; adding 3 gives 5.
+````
+
+Each task needs code, a prompt, an answer and an explanation. Use a unique stable ID (1–31 ASCII letters, digits, underscores or hyphens); keep it unchanged when moving or renaming a task. Keep answers under 512 printable ASCII characters. Incomplete tasks are disabled; the lesson checker rejects malformed or duplicate IDs and checks runnable output predictions against their authored answers. Future array and pointer tasks use the same format. Tracing compares authored answers; it does not interpret arbitrary C/C++ code at runtime.
+
+Manual checks: submit a wrong answer and retry correctly; reopen to see completion; restart or switch accounts to confirm persistence and isolation. Confirm quiz scores and coding-exercise completion stay unchanged. Check light/dark themes and small windows, scrolling to feedback when needed. Developer preview: `build\increment.exe --shot build/tracing.png tracing 1 1` (lesson index, then 1-based tracing task).
+
 ## Custom practice quizzes
 
 Click **Practice Quiz** beside the home search box. Choose C or C++, select any lessons with questions (or use **Select All**), and use **-**, **+**, or **All** to set the session size. The count is clamped to the current pool; clearing the selection disables Start. Lessons with no quiz questions are labelled and cannot be selected. Track changes clear the previous lesson selection.

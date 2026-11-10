@@ -15,6 +15,7 @@ typedef enum {
     LESSON_BACK,           // leave the lesson (to wherever it was opened from)
     LESSON_TRY_EXAMPLE,    // "Try it" on an example: open it in the code editor
     LESSON_OPEN_EXERCISE,  // open an exercise in the code editor
+    LESSON_OPEN_TRACING,   // exerciseIndex identifies the tracing task
     LESSON_OPEN_QUIZ_CODE, // open the quiz's current coding question in the code editor
     LESSON_SPEED_ROUND,    // open the lesson's speed round (lessons with an "@speed" line)
     LESSON_ROADMAP,

@@ -15,6 +15,7 @@
 #include "code_screen.h"
 #include "courses_screen.h"
 #include "practice_screen.h"
+#include "tracing_screen.h"
 #include "dashboard.h"
 #include "dev_shot.h"
 #include "email.h"
@@ -87,6 +88,7 @@ static void ShowLogin(void)
 {
     LessonScreenClearAttempt();
     PracticeScreenFree();
+    TracingScreenClear();
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
@@ -238,6 +240,10 @@ static void RunLesson(void)
     case LESSON_OPEN_EXERCISE:
         OpenCodeEditor(SCREEN_LESSON);
         CodeOpenExercise(lesson, action.exerciseIndex);
+        break;
+    case LESSON_OPEN_TRACING:
+        TracingScreenOpen(lesson, action.exerciseIndex);
+        app.screen = SCREEN_TRACING;
         break;
     case LESSON_OPEN_QUIZ_CODE:
         OpenCodeEditor(SCREEN_LESSON);
@@ -395,6 +401,7 @@ int main(int argc, char **argv)
         case SCREEN_PRACTICE: RunPractice(); break;
         case SCREEN_SPEED:    RunSpeed();    break;
         case SCREEN_COURSES: RunCourses(); break;
+        case SCREEN_TRACING: if (TracingScreen()) app.screen = SCREEN_LESSON; break;
         }
 
         if (DevShotCapture(&shot)) app.quit = true;
