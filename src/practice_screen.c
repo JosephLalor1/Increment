@@ -5,6 +5,7 @@
 #include "layout.h"
 #include "mascot.h"
 #include "answers.h"
+#include "skill_reward.h"
 #include "ui.h"
 
 typedef enum { SETUP, QUESTIONS, RESULTS, REVIEW } PracticePage;
@@ -140,7 +141,8 @@ static PracticeAction Questions(void)
         y += QuizViewChoice(q, c, s->questions[s->current].answer, x, y, w, scale, &chosen) + 12;
         if (chosen && PracticePick(s, c)) {
             bool right = QuizAnswerCorrect(q, c);
-            AnswerRecordQuestion(PracticeSource(s, s->current), q, right);  // counts for review and skill XP too
+            SkillGains gains = AnswerRecordQuestion(PracticeSource(s, s->current), q, right);  // review and skill XP too
+            SkillRewardShow(SkillRewardOrigin(), &gains);
             MascotReact(FOX_PRACTICE, right ? FOX_CORRECT : FOX_INCORRECT);
         }
     }

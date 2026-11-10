@@ -32,6 +32,8 @@ void SkillsLoad(const char *path)
     fclose(f);
 }
 
+bool SkillsTracking(void) { return savePath[0] != 0; }
+
 static bool Save(void)
 {
     char temp[620];

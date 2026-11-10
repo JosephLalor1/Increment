@@ -3,6 +3,7 @@
 // and the clock are in speed_round.c, and what goes into a run in speed_plan.c.
 #include "speed_screen.h"
 #include "answers.h"
+#include "skill_reward.h"
 #include "code_rain.h"
 #include "layout.h"
 #include "mascot.h"
@@ -90,15 +91,18 @@ static void Record(SpeedOutcome outcome, float timeLeft)
     int index = speed.round.lastAnswered;
     const SpeedPlanItem *item = &speed.round.plan[index];
     bool right = outcome == SPEED_RIGHT;
+    SkillGains gains;
     if (item->bank) {
-        AnswerRecordTimed(item->reviewId, item->bank->skills, item->bank->skillCount, item->bank->difficulty, right,
-                          timeLeft);
+        gains = AnswerRecordTimed(item->reviewId, item->bank->skills, item->bank->skillCount, item->bank->difficulty,
+                                  right, timeLeft);
     } else {
         SkillWeight skills[MAX_QUESTION_SKILLS];
         int count = SpeedSkillWeights(item->skill, skills);
-        AnswerRecordTimed(item->reviewId, skills, count, SpeedQuestionDifficulty(&speed.round.generated[index]), right,
-                          timeLeft);
+        gains = AnswerRecordTimed(item->reviewId, skills, count, SpeedQuestionDifficulty(&speed.round.generated[index]),
+                                  right, timeLeft);
     }
+    // The XP streams off to the skill badges (a timeout's from the middle of the screen).
+    SkillRewardShow(SkillRewardOrigin(), &gains);
 }
 
 static float Clamp01(float t) { return t < 0 ? 0 : t > 1 ? 1 : t; }

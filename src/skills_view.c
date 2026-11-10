@@ -1,6 +1,7 @@
 // The statistics page's "Your skills" section. See skills_view.h.
 #include "skills_view.h"
 #include "layout.h"
+#include "skill_icons.h"
 #include "skill_progress.h"
 #include "ui.h"
 
@@ -29,7 +30,7 @@ static int WeakestTried(Skill *out)
     return count;
 }
 
-// One skill's tile: title, level, an XP bar towards the next level, and accuracy.
+// One skill's tile: its logo, title, level, an XP bar towards the next level, and accuracy.
 static void SkillTile(Skill skill, bool needsWork, Rectangle r, float scale)
 {
     const SkillProgress *p = SkillProgressOf(skill);
@@ -39,7 +40,9 @@ static void SkillTile(Skill skill, bool needsWork, Rectangle r, float scale)
     UiRoundRect(r, 10, COL_PANEL);
     if (needsWork) DrawRectangleRoundedLinesEx(r, 16 / (r.height < r.width ? r.height : r.width), 8, 1.5f, COL_BAD);
 
-    UiText(gFonts.text, SkillTitle(skill), r.x + 16, r.y + 12, 18 * scale, tried ? COL_TEXT : COL_DIM);
+    float logo = 22 * scale;
+    SkillIconDraw(skill, (Vector2){ r.x + 16 + logo / 2, r.y + 12 + 18 * scale * 0.7f }, logo, tried ? COL_ACCENT : COL_DIM);
+    UiText(gFonts.text, SkillTitle(skill), r.x + 24 + logo, r.y + 12, 18 * scale, tried ? COL_TEXT : COL_DIM);
     const char *badge = TextFormat("Level %d", level);
     float badgeW = UiTextWidth(gFonts.bold, badge, 15 * scale) + 18;
     UiRoundRect((Rectangle){ r.x + r.width - badgeW - 12, r.y + 10, badgeW, 24 * scale }, 12,

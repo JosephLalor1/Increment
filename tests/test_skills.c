@@ -69,8 +69,10 @@ static void TestProgress(const char *folder)
     SkillWeight both[] = { { SKILL_TRACING, 1 }, { SKILL_POINTERS, 0.3f } };
     assert(!SkillsRecord(both, 2, true, Untimed(2, 0, 0)));
     assert(SkillProgressOf(SKILL_TRACING)->xp == 0);
+    assert(!SkillsTracking());  // so answers show no skill badges
 
     SkillsLoad(path);
+    assert(SkillsTracking());
     assert(SkillWeakness(SKILL_TRACING) == 0.5f);  // untried
     assert(SkillsRecord(both, 2, true, Untimed(2, 0, 0)));
     const SkillProgress *tracing = SkillProgressOf(SKILL_TRACING), *pointers = SkillProgressOf(SKILL_POINTERS);

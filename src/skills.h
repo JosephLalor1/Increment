@@ -33,6 +33,19 @@ typedef struct {
 } SkillWeight;
 
 #define MAX_QUESTION_SKILLS 4
+
+// What one answer did to the learner's skills: each skill's XP before and after. The
+// achievement animation (skill_reward.h) shows it.
+typedef struct {
+    Skill skill;
+    float xpBefore, xpAfter;
+} SkillGain;
+
+typedef struct {
+    SkillGain items[MAX_QUESTION_SKILLS];
+    int count;     // 0 when nothing was recorded (signed out)
+    bool correct;  // the answer was right
+} SkillGains;
 #define SKILL_MAX_DIFFICULTY 3
 
 const char *SkillName(Skill skill);    // as written in lesson files: "tracing"

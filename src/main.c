@@ -12,6 +12,7 @@
 #include "bookmarks.h"
 #include "review.h"
 #include "skill_progress.h"
+#include "skill_reward.h"
 #include "code_screen.h"
 #include "courses_screen.h"
 #include "practice_screen.h"
@@ -96,6 +97,7 @@ static void ShowLogin(void)
     BookmarksLoad("");
     ReviewLoad("");  // and their answer history and skill XP
     SkillsLoad("");
+    SkillRewardClear();  // no badges of theirs left on the sign-in page
     NotesPanelSetFolder(NULL);  // the next user mustn't see (or save into) these notes
     LoginReset();
     ApplyUserAppearance();
@@ -410,6 +412,10 @@ int main(int argc, char **argv)
         case SCREEN_TRACING: if (TracingScreen()) app.screen = SCREEN_LESSON; break;
         case SCREEN_RANKINGS: if (RankingScreen()) app.screen = SCREEN_HOME; break;
         }
+
+        // The skill badges after an answer float over whichever screen is showing.
+        SkillRewardUpdate(GetFrameTime());
+        SkillRewardDraw();
 
         if (DevShotCapture(&shot)) app.quit = true;
         EndDrawing();

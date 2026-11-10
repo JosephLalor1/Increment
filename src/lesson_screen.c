@@ -10,6 +10,7 @@
 #include "quiz_attempt.h"
 #include "quiz_view.h"
 #include "answers.h"
+#include "skill_reward.h"
 #include "roadmap_view.h"
 #include "ui.h"
 
@@ -117,7 +118,8 @@ static bool Answer(int choice)
     if (!QuizAttemptPick(&reader.attempt, reader.question, choice)) return false;
     const Question *q = QuizAttemptQuestion(&reader.attempt, reader.question);
     bool right = QuizAnswerCorrect(q, choice);
-    AnswerRecordQuestion(CurrentLesson(), q, right);  // review schedule and skill XP
+    SkillGains gains = AnswerRecordQuestion(CurrentLesson(), q, right);  // review schedule and skill XP
+    SkillRewardShow(SkillRewardOrigin(), &gains);
     MascotReact(FOX_QUIZ, right ? FOX_CORRECT : FOX_INCORRECT);
     return true;
 }

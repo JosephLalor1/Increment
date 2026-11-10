@@ -17,6 +17,7 @@ typedef struct {
 } SkillProgress;
 
 void SkillsLoad(const char *path);  // "" clears (signed out); a missing file is all zero
+bool SkillsTracking(void);          // a learner's skills are loaded, so answers count
 const SkillProgress *SkillProgressOf(Skill skill);
 // Applies an answer to each of its skills and saves. Does nothing while signed out.
 bool SkillsRecord(const SkillWeight *skills, int count, bool correct, SkillAnswer answer);

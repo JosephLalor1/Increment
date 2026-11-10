@@ -36,7 +36,7 @@ if errorlevel 1 exit /b 1
 
 "%CC%" %CFLAGS% tests\test_account.c src\account.c src\email_address.c src\platform.c -o build\test_account.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_editor.c src\editor.c src\ui.c src\icons.c -o build\test_editor.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_editor.c src\editor.c src\ui.c src\icons.c src\icon_pen.c -o build\test_editor.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_runner.c src\runner.c src\platform.c -o build\test_runner.exe %LIBS%
 if errorlevel 1 exit /b 1
@@ -48,7 +48,7 @@ if errorlevel 1 exit /b 1
 if errorlevel 1 exit /b 1
 build\test_quiz_attempt.exe
 if errorlevel 1 set FAILED=1
-"%CC%" %CFLAGS% tests\test_journey_view.c src\journey_view.c src\mascot.c src\mascot_state.c src\roadmap.c src\lesson.c src\skills.c src\progress.c src\ui.c src\icons.c -o build\test_journey_view.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_journey_view.c src\journey_view.c src\mascot.c src\mascot_state.c src\roadmap.c src\lesson.c src\skills.c src\progress.c src\ui.c src\icons.c src\icon_pen.c -o build\test_journey_view.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_mascot.c src\mascot_state.c src\mascot_events.c src\roadmap.c src\lesson.c src\skills.c src\progress.c -o build\test_mascot.exe %LIBS%
 if errorlevel 1 exit /b 1

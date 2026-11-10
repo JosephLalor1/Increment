@@ -18,7 +18,9 @@
 #include "lesson_screen.h"
 #include "progress.h"
 #include "review.h"
+#include "skill_icons.h"
 #include "skill_progress.h"
+#include "skill_reward.h"
 #include "speed_screen.h"
 #include "ui.h"
 
@@ -27,6 +29,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+static bool showSkillLogos;  // the gallery shows the skill logos instead of the app icons
 
 static bool Is(const char *name, const char *wanted) { return strcmp(name, wanted) == 0; }
 
@@ -134,7 +138,10 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         shot->splashTime = (extra ? (float)atof(extra) : 1500) / 1000.0f;
         return SCREEN_SPLASH;
     }
-    if (Is(name, "gallery")) return SCREEN_GALLERY;
+    if (Is(name, "gallery") || Is(name, "skillgallery")) {
+        showSkillLogos = Is(name, "skillgallery");
+        return SCREEN_GALLERY;
+    }
     if (Is(name, "login") || Is(name, "register") || Is(name, "reset") || Is(name, "resetemail")
         || Is(name, "resetcode")) {
         return SCREEN_LOGIN;
@@ -232,6 +239,9 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
 
     shot.screen = PrepareScreen(name, lessons, lessonIndex, extra, &shot);
     AccountScreensDemo(name);
+    // INCREMENT_SHOT_REWARD=<ms>: the skill badges after an answer, that far into the animation.
+    const char *reward = getenv("INCREMENT_SHOT_REWARD");
+    if (reward) SkillRewardDemo((float)atof(reward) / 1000.0f);
     return shot;
 }
 
@@ -249,8 +259,25 @@ bool DevShotCapture(DevShot *shot)
     return true;
 }
 
+// Every skill logo, large in a tile and small in the accent colour, with the skill's name.
+static void SkillLogoGallery(void)
+{
+    UiText(gFonts.bold, "Skill logos", 40, 24, 28, COL_TEXT);
+    for (int s = 0; s < SKILL_COUNT; s++) {
+        float cx = 92 + (s % 7) * 178.0f, cy = 130 + (s / 7) * 170.0f;
+        UiRoundRect((Rectangle){ cx - 44, cy - 44, 88, 88 }, 12, COL_PANEL);
+        SkillIconDraw((Skill)s, (Vector2){ cx, cy }, 56, COL_TEXT);
+        SkillIconDraw((Skill)s, (Vector2){ cx + 62, cy + 30 }, 24, COL_ACCENT);
+        UiTextCentered(gFonts.text, SkillTitle((Skill)s), cx, cy + 52, 16, COL_DIM);
+    }
+}
+
 void DevGalleryScreen(void)
 {
+    if (showSkillLogos) {
+        SkillLogoGallery();
+        return;
+    }
     static const char *names[ICON_COUNT] = {
         "back", "next", "check", "cross", "gear", "logout", "power", "user", "key", "lock",
         "theme", "trash", "info", "book", "retry", "play", "trophy", "copy", "target", "code", "mail",
