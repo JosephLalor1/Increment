@@ -16,6 +16,7 @@
 #include "courses_screen.h"
 #include "practice_screen.h"
 #include "tracing_screen.h"
+#include "ranking_screen.h"
 #include "dashboard.h"
 #include "dev_shot.h"
 #include "email.h"
@@ -89,6 +90,7 @@ static void ShowLogin(void)
     LessonScreenClearAttempt();
     PracticeScreenFree();
     TracingScreenClear();
+    RankingScreenClear();
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
     BookmarksLoad("");
@@ -205,6 +207,10 @@ static void RunHome(void)
     case HOME_COURSES:
         CoursesScreenOpen(TRACK_C);
         app.screen = SCREEN_COURSES;
+        break;
+    case HOME_RANKINGS:
+        RankingScreenOpen(&lessons);
+        app.screen = SCREEN_RANKINGS;
         break;
     case HOME_CODE_EDITOR:
         OpenCodeEditor(SCREEN_HOME);
@@ -402,6 +408,7 @@ int main(int argc, char **argv)
         case SCREEN_SPEED:    RunSpeed();    break;
         case SCREEN_COURSES: RunCourses(); break;
         case SCREEN_TRACING: if (TracingScreen()) app.screen = SCREEN_LESSON; break;
+        case SCREEN_RANKINGS: if (RankingScreen()) app.screen = SCREEN_HOME; break;
         }
 
         if (DevShotCapture(&shot)) app.quit = true;
@@ -410,6 +417,7 @@ int main(int argc, char **argv)
     }
 
     CodeShutdown();
+    RankingScreenClear();
     PracticeScreenFree();
     NotesPanelShutdown();  // saves notes typed just before the window was closed
     MemoryViewShutdown();

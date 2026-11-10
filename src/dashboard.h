@@ -26,6 +26,7 @@ typedef enum {
     HOME_CODE_EDITOR,
     HOME_PRACTICE,
     HOME_COURSES,
+    HOME_RANKINGS,
     HOME_SETTINGS,
     HOME_LOG_OUT,
     HOME_QUIT,

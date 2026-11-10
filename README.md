@@ -50,6 +50,16 @@ from Increment <onboarding@resend.dev>
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
 
+## User rankings
+
+Open **Home > Rankings** to compare accounts saved on this computer. Choose Overall, C, or C++, and use Refresh to reread saved progress. Your account is highlighted and your rank is shown above the scrollable list. The account roster is refreshed whenever this screen opens, so newly created/deleted accounts are reflected without a separate ranking database.
+
+Rankings sort by completed lessons first (the existing 70% pass mark), then the sum of each available lesson's best quiz score. An unattempted quiz contributes zero; reading-only lessons count for completion but do not add quiz points. For example, three completed lessons outrank two regardless of quiz points. Identical completion counts and quiz totals share a competition rank (1, 1, 3); alphabetical order only makes tied rows predictable. The displayed maximum quiz points is 100 times the number of quizzes in that view.
+
+Only progress for loaded lessons counts. Coding exercise passes, tracing completion, practice sessions, speed-round gold and skill XP are excluded. A new account without a progress file starts at zero. Malformed or unreadable records show an incomplete-ranking warning. Viewing rankings never signs into another account or changes progress. This is an offline local leaderboard, with no global/server ranking or tamper protection for local save files.
+
+Manual checks: create two local accounts, earn different lesson results, then open Rankings and check order, the highlighted account and each track filter. Check ties, a new account, account deletion, Refresh, both themes and small windows. Verify existing quizzes and saved progress still work. Developer preview: `build\increment.exe --shot build/rankings.png rankings` (uses the configured data folder; use an isolated folder for experiments).
+
 ## Code tracing exercises
 
 Open **Variables and Data Types**, **Decisions** (conditions), or **Loops** in the C track and scroll to **Code tracing**. Choose **Start tracing**, read the snippet, and predict the requested variable values or output. Enter multiple values in order separated by spaces. Checking is local and case-sensitive; leading/trailing whitespace and repeated whitespace are ignored. Line breaks in output are represented by spaces, so these tasks assess values and execution order rather than exact output formatting.

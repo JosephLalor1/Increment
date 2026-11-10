@@ -586,6 +586,18 @@ void AccountsInit(const char *dir)
 
 int AccountCount(void) { return accountCount; }
 
+bool AccountRankingProfile(int index, char *name, size_t nameSize, char *path, size_t pathSize)
+{
+    if (name && nameSize) name[0] = '\0';
+    if (path && pathSize) path[0] = '\0';
+    if (index < 0 || index >= accountCount || !name || !path) return false;
+    const char *source = UserFile(accounts[index].name, ".txt");
+    if (nameSize <= strlen(accounts[index].name) || pathSize <= strlen(source)) return false;
+    snprintf(name, nameSize, "%s", accounts[index].name);
+    snprintf(path, pathSize, "%s", source);
+    return true;
+}
+
 bool AccountCreate(const char *name, const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err)
 {
     if (!ValidName(name)) {

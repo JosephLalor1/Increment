@@ -644,11 +644,12 @@ HomeAction DashboardScreen(const LessonSet *set)
     }
 
     bool submitted;
-    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 440, 46 };
+    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 564, 46 };
     float top = SearchViewBox(&page.search, box, &submitted);
     if (BarButton((Rectangle){ box.x + box.width + 12, box.y, 132, 46 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
     if (BarButton((Rectangle){ box.x + box.width + 156, box.y, 160, 46 }, ICON_TARGET, "Practice Quiz")) action.kind = HOME_PRACTICE;
     if (BarButton((Rectangle){ box.x + box.width + 328, box.y, 112, 46 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
+    if (BarButton((Rectangle){ box.x + box.width + 452, box.y, 112, 46 }, ICON_TROPHY, "Rankings")) action.kind = HOME_RANKINGS;
     bool openSettings = false;
     top = RecoveryReminder(ContentX(), top, &openSettings);
     if (openSettings) action.kind = HOME_SETTINGS;

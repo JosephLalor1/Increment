@@ -15,6 +15,7 @@ typedef enum {
     SCREEN_PRACTICE,
     SCREEN_COURSES,
     SCREEN_TRACING,
+    SCREEN_RANKINGS,
     SCREEN_SPEED,      // a lesson's speed round (gold mastery)
 } AppScreen;
 

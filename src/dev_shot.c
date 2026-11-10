@@ -9,6 +9,7 @@
 #include "code_screen.h"
 #include "practice_screen.h"
 #include "tracing_screen.h"
+#include "ranking_screen.h"
 #include "courses_screen.h"
 #include "dashboard.h"
 #include "layout.h"
@@ -88,6 +89,10 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                                DevShot *shot)
 {
     float scroll = extra ? (float)atof(extra) : 0;
+    if (Is(name, "rankings")) {
+        RankingScreenOpen(lessons);
+        return SCREEN_RANKINGS;
+    }
     if (Is(name, "tracing") && lessons->count) {
         LessonScreenOpen(lessons, lessonIndex, "Home");
         TracingScreenOpen(&lessons->items[lessonIndex], extra ? atoi(extra) - 1 : 0);

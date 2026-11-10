@@ -7,6 +7,7 @@
 #include "email_address.h"  // EMAIL_MAX
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #define USERNAME_MIN 3
 #define USERNAME_MAX 20
@@ -30,6 +31,9 @@ typedef struct {
 // Passwords and recovery codes are stored only as salted PBKDF2-SHA256 hashes.
 void AccountsInit(const char *dataDir);
 int AccountCount(void);
+// Read-only public ranking data for an existing local account. Copies the display name
+// and progress path without signing in or exposing credentials; false for invalid index/buffers.
+bool AccountRankingProfile(int index, char *name, size_t nameSize, char *path, size_t pathSize);
 
 // Functions returning bool fill err (a static string) on failure.
 // Create and reset log the user in and write a fresh one-time recovery code to recoveryOut.
