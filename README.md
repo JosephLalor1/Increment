@@ -50,6 +50,18 @@ from Increment <onboarding@resend.dev>
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
 
+## Saved sandbox programs and detected skills
+
+In **Code editor**, choose C or C++, then **Save / My programs** (or Ctrl+S). Give your program a name and choose Save copy. The library holds multiple named programs for each account; existing names in the same language require an explicit Replace existing confirmation. Choose Open on a saved program, then confirm Open program to return to the sandbox in its original language. Save current changes before opening another program. Loading a program also clears the old stdin/output; Reset restores the loaded source. Existing autosaved sandbox drafts continue to work independently.
+
+Programs are plain `.c`/`.cpp` files in `users/<name>_code/saved/`. Only source is saved; stdin and program output are not included. Names accept up to 48 letters, digits, spaces, underscores and hyphens; paths, extensions and Windows device names are rejected. Source is limited to 256 KiB of ASCII text, consistent with the editor. Saves use a temporary file and atomic replacement so a failed replacement preserves the previous copy. Saved programs remain after restart and are removed when the account is deleted.
+
+The library automatically shows **Detected concepts** for current and saved code using the existing skill catalogue. Local token patterns identify supported constructs such as types, loops, conditions, arrays/subscripts, function definitions, pointer declarations, function pointers, input/output, string functions, dynamic memory, C++ references/classes and access modifiers. Comments, quoted strings and preprocessor lines are ignored. Tags are recomputed from source when opening the library; there is no separate skill metadata file or external service.
+
+Detection is heuristic, not a C/C++ compiler or correctness check. Macros, aliases, advanced templates and indirect use of concepts may be missed. It does not infer mastery, memory safety or problem-solving ability and does not award XP, quiz completion or ranking points. Use Run to compile/test the actual code.
+
+Manual checks: save two different programs, restart and reopen them; save the same name to check replacement confirmation; switch languages and accounts to check isolation. Verify failed saves keep the previous copy, and invalid names cannot escape the library folder. Try loops, arrays and pointers in real code and only inside comments/strings to compare tags. Check both themes at 900x640 and existing lesson exercise/quiz editor modes. Programs are read only when browsing; opening one requires confirmation before replacing the editor buffer.
+
 ## User rankings
 
 Open **Home > Rankings** to compare accounts saved on this computer. Choose Overall, C, or C++, and use Refresh to reread saved progress. Your account is highlighted and your rank is shown above the scrollable list. The account roster is refreshed whenever this screen opens, so newly created/deleted accounts are reflected without a separate ranking database.

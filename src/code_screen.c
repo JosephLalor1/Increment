@@ -1,6 +1,7 @@
 // The code editor screen: editors for code, input and output, running programs with the
 // runner, exercise checking and per-user drafts. See code_screen.h.
 #include "code_screen.h"
+#include "code_library_view.h"
 #include "mascot.h"
 #include "editor.h"
 #include "exercise_hints.h"
@@ -40,6 +41,8 @@ static struct {
     bool open;
     CodeMode mode;
     bool cpp;
+    bool libraryOpen;
+    char savedName[CODE_NAME_MAX+1];
     char title[128];
 
     const Exercise *ex;
@@ -127,6 +130,7 @@ static void Prepare(CodeMode mode, const char *title, bool cpp)
     cs.open = true;
     cs.mode = mode;
     cs.cpp = cpp;
+    cs.savedName[0] = '\0';
     cs.ex = NULL;
     ExerciseHintsOpen(&cs.hints, NULL);
     cs.lessonId[0] = '\0';
@@ -232,6 +236,8 @@ void CodeHintsDemo(int count)
 void CodeClose(void)
 {
     if (!cs.open) return;
+    CodeLibraryViewClear();
+    cs.libraryOpen = false;
     SaveDraft();
     RunnerCancel(&cs.runner);
     cs.open = false;
@@ -477,6 +483,7 @@ static void SwitchLanguage(bool cpp)
     SaveDraft();
     double now = GetTime();
     cs.cpp = cpp;
+    cs.savedName[0] = '\0';
     SetOriginal(cpp ? helloCpp : helloC);
     if (!UseDraft("playground")) EditorReplaceAll(&cs.code, cs.original, now);
     EditorSetText(&cs.output, "");
@@ -488,6 +495,29 @@ static void SwitchLanguage(bool cpp)
 bool CodeScreen(void)
 {
     if (!cs.open) return true;
+    if (cs.libraryOpen) {
+        CodeLibraryAction action = CodeLibraryView();
+        if (action.closed) {
+            if(action.name[0]) snprintf(cs.savedName,sizeof cs.savedName,"%s",action.name);
+            if (action.source) {
+                SaveDraft();
+                cs.cpp = lastCpp = action.cpp;
+                UseDraft("playground"); // select this language's draft path before replacing its contents
+                EditorSetText(&cs.code, action.source);
+                SetOriginal(action.source);
+                EditorSetText(&cs.input, "");
+                EditorSetText(&cs.output, "");
+                cs.runner.phase = RUN_IDLE;
+                cs.runner.summary[0] = cs.warning[0] = '\0';
+                snprintf(cs.savedName, sizeof cs.savedName, "%s", action.name);
+                free(action.source);
+            }
+            CodeLibraryViewClear();
+            cs.libraryOpen = false;
+            UiFocus(&cs.code);
+        }
+        return false;
+    }
     if (TopBar(cs.title)) {
         CodeClose();
         return true;
@@ -548,6 +578,15 @@ bool CodeScreen(void)
             }
         }
         x += 164;
+        bool shortcut = ctrl && IsKeyPressed(KEY_S);
+        if (SecondaryButton((Rectangle){x,barY,190,barH},ICON_BOOK,"Save / My programs",!busy && draftFolder[0]) ||
+            (shortcut && !busy && draftFolder[0])) {
+            SaveDraft();
+            CodeLibraryViewOpen(draftFolder,cs.code.text,cs.cpp,cs.savedName);
+            cs.libraryOpen = true;
+            return false;
+        }
+        x += 202;
     } else {
         UiText(gFonts.mono, cs.cpp ? "C++" : "C", x + 4, barY + 10, 19, COL_DIM);
     }

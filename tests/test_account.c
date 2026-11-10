@@ -235,6 +235,8 @@ static void TestDelete(void)
     const char *codeDir = AccountCodeDir();  // code editor drafts
     CHECK(codeDir && DirectoryExists(codeDir));
     WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
+    MakeDirectory(DataFile("users/temp_user_code/saved"));
+    WriteFile(DataFile("users/temp_user_code/saved/My loops.c"), "int main() {}\n");
     CHECK(strstr(AccountBookmarksPath(), "users/temp_user.bookmarks.txt") != NULL);
     WriteFile(AccountBookmarksPath(), "c_01_hello\n");  // saved lessons
     CHECK(strstr(AccountReviewPath(), "users/temp_user.review.txt") != NULL);
@@ -256,6 +258,7 @@ static void TestDelete(void)
     CHECK(!FileExists(DataFile("users/temp_user.txt")));
     CHECK(!FileExists(DataFile("users/temp_user.settings.txt")));
     CHECK(!DirectoryExists(DataFile("users/temp_user_code")));
+    CHECK(!FileExists(DataFile("users/temp_user_code/saved/My loops.c")));
     CHECK(!FileExists(DataFile("users/temp_user.bookmarks.txt")));
     CHECK(!FileExists(DataFile("users/temp_user.review.txt")));
     CHECK(!FileExists(DataFile("users/temp_user.skills.txt")));
