@@ -34,6 +34,8 @@ int AccountCount(void);
 // Read-only public ranking data for an existing local account. Copies the display name
 // and progress path without signing in or exposing credentials; false for invalid index/buffers.
 bool AccountRankingProfile(int index, char *name, size_t nameSize, char *path, size_t pathSize);
+// Read-only sandbox folder for a roster account; does not sign in or create directories.
+bool AccountRankingCodeFolder(int index, char *folder, size_t size);
 
 // Functions returning bool fill err (a static string) on failure.
 // Create and reset log the user in and write a fresh one-time recovery code to recoveryOut.

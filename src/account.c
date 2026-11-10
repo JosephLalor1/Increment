@@ -598,6 +598,16 @@ bool AccountRankingProfile(int index, char *name, size_t nameSize, char *path, s
     return true;
 }
 
+bool AccountRankingCodeFolder(int index, char *folder, size_t size)
+{
+    if (folder && size) folder[0] = '\0';
+    if (index < 0 || index >= accountCount || !folder) return false;
+    const char *source = UserFile(accounts[index].name, "_code");
+    if (size <= strlen(source)) return false;
+    snprintf(folder, size, "%s", source);
+    return true;
+}
+
 bool AccountCreate(const char *name, const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err)
 {
     if (!ValidName(name)) {

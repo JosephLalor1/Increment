@@ -1,5 +1,7 @@
 // Local ranking rules, defensive reads, public roster and signed-in state isolation.
 #include "../src/ranking.h"
+#include "../src/ranking_skills.h"
+#include "../src/code_library.h"
 #include "../src/progress.h"
 #include "raylib.h"
 #include <assert.h>
@@ -37,6 +39,14 @@ int main(int argc, char **argv)
     assert(!AccountRankingProfile(0,name,1,path,sizeof path));
     assert(!AccountRankingProfile(0,NULL,0,path,sizeof path));
     assert(!AccountRankingProfile(0,name,sizeof name,path,1));
+    char folders[3][1100];
+    for (int i=0;i<3;i++) {
+        assert(AccountRankingCodeFolder(i,folders[i],sizeof folders[i]));
+        assert(!DirectoryExists(folders[i])); // reading another account's path must not create a library
+    }
+    assert(!AccountRankingCodeFolder(-1,path,sizeof path));
+    assert(!AccountRankingCodeFolder(3,path,sizeof path));
+    assert(!AccountRankingCodeFolder(0,path,1));
     LessonSet set = {calloc(3,sizeof(Lesson)),3}; assert(set.items);
     snprintf(set.items[0].id,sizeof set.items[0].id,"c_a");
     set.items[0].track=TRACK_C; set.items[0].questionCount=1;
@@ -61,6 +71,60 @@ int main(int argc, char **argv)
     assert(rows[0].completed==1 && rows[0].quizPoints==70);
     RankingRead(&rows[0],&set,TRACK_COUNT,"no-such-ranking-file.txt");
     assert(!rows[0].warning && rows[0].completed==0 && rows[0].quizPoints==0);
+    // Real sandbox files: repeated evidence is counted once per concept, per selected track.
+    assert(MakeDirectory(folders[0])==0 && MakeDirectory(folders[1])==0);
+    assert(CodeLibrarySave(folders[0],"Loop one",false,"for (;;) {}",false)==CODE_SAVE_OK);
+    assert(CodeLibrarySave(folders[0],"Loop two",false,"while (1) {}",false)==CODE_SAVE_OK);
+    assert(CodeLibrarySave(folders[0],"Nothing",false,"// for class int x[3]",false)==CODE_SAVE_OK);
+    assert(CodeLibrarySave(folders[0],"Objects",true,"class Box {public: int x;};",false)==CODE_SAVE_OK);
+    assert(CodeLibrarySave(folders[1],"Arrays",false,"int values[3];",false)==CODE_SAVE_OK);
+    RankingEntry skillRows[3] = {{"Alice"},{"Bob"},{"Cara"}};
+    for (int i=0;i<3;i++) RankingReadSkills(&skillRows[i],TRACK_C,folders[i]);
+    assert(skillRows[0].uniqueSkills==1 && skillRows[0].skillPrograms==2 && skillRows[0].skills[SKILL_LOOPS]);
+    assert(skillRows[1].uniqueSkills==2 && skillRows[1].skillPrograms==1);
+    assert(skillRows[2].uniqueSkills==0 && skillRows[2].skillPrograms==0 && !skillRows[2].warning);
+    RankingSortMode(skillRows,3,RANKING_SKILLS);
+    assert(!strcmp(skillRows[0].name,"Bob") && skillRows[0].rank==1);
+    RankingReadSkills(&skillRows[0],TRACK_CPP,folders[0]);
+    assert(skillRows[0].uniqueSkills==4 && skillRows[0].skillPrograms==1 && !skillRows[0].skills[SKILL_LOOPS]);
+    RankingReadSkills(&skillRows[0],TRACK_COUNT,folders[0]);
+    assert(skillRows[0].uniqueSkills==5 && skillRows[0].skillPrograms==3);
+    // A concept present in both languages remains one concept in Overall.
+    assert(CodeLibrarySave(folders[0],"Cpp loop",true,"while (1) {}",false)==CODE_SAVE_OK);
+    RankingReadSkills(&skillRows[0],TRACK_COUNT,folders[0]);
+    assert(skillRows[0].uniqueSkills==5 && skillRows[0].skillPrograms==4);
+    assert(CodeLibrarySave(folders[0],"Loop one",false,"int *ptr;",true)==CODE_SAVE_OK);
+    RankingReadSkills(&skillRows[0],TRACK_C,folders[0]);
+    assert(skillRows[0].uniqueSkills==3 && skillRows[0].skills[SKILL_POINTERS] && skillRows[0].skillPrograms==2);
+    char programPath[1300]; snprintf(programPath,sizeof programPath,"%s/saved/Loop two.c",folders[0]);
+    assert(remove(programPath)==0);
+    RankingReadSkills(&skillRows[0],TRACK_C,folders[0]);
+    assert(skillRows[0].uniqueSkills==2 && !skillRows[0].skills[SKILL_LOOPS] && skillRows[0].skillPrograms==1);
+    RankingReadSkills(&skillRows[0],TRACK_CPP,folders[0]);
+    assert(skillRows[0].skills[SKILL_LOOPS] && skillRows[0].skillPrograms==2);
+    snprintf(programPath,sizeof programPath,"%s/saved/Loop one.c",folders[0]);
+    assert(remove(programPath)==0);
+    RankingReadSkills(&skillRows[0],TRACK_C,folders[0]);
+    assert(skillRows[0].uniqueSkills==0 && skillRows[0].skillPrograms==0);
+    RankingReadSkills(&skillRows[0],TRACK_C,folders[1]);
+    assert(skillRows[0].uniqueSkills==2 && skillRows[0].skills[SKILL_ARRAYS]); // no cross-account loss
+    RankingReadSkills(&skillRows[0],TRACK_CPP,folders[1]);
+    assert(skillRows[0].uniqueSkills==0 && skillRows[0].skillPrograms==0);
+    RankingEntry modeRows[4] = {{"Zoe",5,400},{"Amy",1,80},{"Ben",2,150},{"Dan",0,0}};
+    modeRows[0].uniqueSkills=1; modeRows[0].skillPrograms=10;
+    modeRows[1].uniqueSkills=3; modeRows[1].skillPrograms=1;
+    modeRows[2].uniqueSkills=3; modeRows[2].skillPrograms=2;
+    modeRows[3].uniqueSkills=3; modeRows[3].skillPrograms=2;
+    RankingSortMode(modeRows,4,RANKING_PROGRESS);
+    assert(!strcmp(modeRows[0].name,"Zoe") && modeRows[0].rank==1);
+    RankingSortMode(modeRows,4,RANKING_SKILLS);
+    assert(!strcmp(modeRows[0].name,"Ben") && !strcmp(modeRows[1].name,"Dan"));
+    assert(modeRows[0].rank==1 && modeRows[1].rank==1 && modeRows[2].rank==3 && modeRows[3].rank==4);
+    RankingSortMode(modeRows,4,RANKING_PROGRESS);
+    assert(!strcmp(modeRows[0].name,"Zoe") && modeRows[0].completed==5 && modeRows[0].quizPoints==400);
+    RankingSortMode(NULL,0,RANKING_SKILLS);
+    RankingReadSkills(&skillRows[0],TRACK_COUNT,""); assert(skillRows[0].warning);
+    char *saved=CodeLibraryLoad(folders[1],"Arrays",false); assert(saved && !strcmp(saved,"int values[3];")); free(saved);
     RankingEntry ties[] = {{"zoe",1,100},{"Amy",1,100},{"Ben",1,99},{"Dan",0,200}};
     RankingSort(ties,4);
     assert(!strcmp(ties[0].name,"Amy") && ties[0].rank==1 && ties[1].rank==1 && ties[2].rank==3 && ties[3].rank==4);

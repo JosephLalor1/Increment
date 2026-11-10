@@ -4,10 +4,14 @@
 #include "lesson.h"
 #include "account.h"
 
+typedef enum { RANKING_PROGRESS, RANKING_SKILLS, RANKING_MODE_COUNT } RankingMode;
+
 typedef struct {
     char name[USERNAME_MAX + 1];
     int completed, quizPoints, rank;
     bool warning; // missing files are new users; unreadable or malformed records warn
+    bool skills[SKILL_COUNT]; // union of concepts in the selected saved-program track(s)
+    int uniqueSkills, skillPrograms;
 } RankingEntry;
 
 // Reads best scores for loaded lessons only. TRACK_COUNT includes both tracks.

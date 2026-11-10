@@ -89,8 +89,9 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                                DevShot *shot)
 {
     float scroll = extra ? (float)atof(extra) : 0;
-    if (Is(name, "rankings")) {
+    if (Is(name, "rankings") || Is(name, "rankings-skills")) {
         RankingScreenOpen(lessons);
+        if (Is(name, "rankings-skills")) RankingScreenSelect(RANKING_SKILLS, lessons->count ? lessons->items[lessonIndex].track : TRACK_COUNT);
         return SCREEN_RANKINGS;
     }
     if (Is(name, "tracing") && lessons->count) {
