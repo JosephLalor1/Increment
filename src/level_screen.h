@@ -42,6 +42,7 @@ void LevelScreenShutdown(void);  // frees everything, at exit
 void LevelScreenDemo(int stepIndex, int hints, bool solved);
 void LevelScreenDemoRun(void);  // runs the code as the learner would (checks and all); records nothing
 void LevelScreenDemoCelebration(void);
+void LevelScreenDemoBack(void);  // the next frame leaves the level, as if Back had been clicked
 bool LevelScreenBusy(void);
 
 #endif

@@ -42,7 +42,7 @@ int main(int argc, char **argv)
                 BeginDrawing();
                 ClearBackground(COL_BG);
                 UiSetClip((Rectangle){ 0, 184, 900, 456 });
-                int clicked = JourneyViewDraw(&set, (Track)t, 40, 184 - scroll * 700.0f, 820, &heights[scroll]);
+                int clicked = JourneyViewDraw(&set, (Track)t, 40, 184 - scroll * 700.0f, 820, &heights[scroll], NULL);
                 UiClearClip();
                 EndDrawing();
                 UiEndFrame();
@@ -69,9 +69,9 @@ int main(int argc, char **argv)
     UiBeginFrame();
     BeginDrawing();
     float height;
-    assert(JourneyViewDraw(&set, TRACK_CPP, 40, 184, 820, &height) == -1);
+    assert(JourneyViewDraw(&set, TRACK_CPP, 40, 184, 820, &height, NULL) == -1);
     LessonSet empty = { 0 };
-    assert(JourneyViewDraw(&empty, TRACK_C, 40, 184, 820, &height) == -1 && height > 0);
+    assert(JourneyViewDraw(&empty, TRACK_C, 40, 184, 820, &height, NULL) == -1 && height > 0);
     EndDrawing();
     UiEndFrame();
     ProgressLoad("");

@@ -3,6 +3,8 @@
 
 #include "lesson.h"
 
+#include "raylib.h"
+
 #include <stdbool.h>
 
 // The home screen, shown after signing in: the C and C++ learning journeys and detailed
@@ -31,6 +33,8 @@ typedef enum {
 typedef struct {
     HomeChoice kind;
     int lessonIndex;  // HOME_OPEN_LESSON, HOME_SPEED_ROUND
+    Vector2 clickedAt;  // HOME_OPEN_LESSON: where on screen the level was picked (its station,
+                        // or the mouse), for the zoom into it
 } HomeAction;
 
 // After signing in: the C journey, scrolled to the top, and statistics filters reset. Coming back from a lesson, the code editor or Settings, don't call this:
@@ -43,6 +47,10 @@ void DashboardShow(HomeView view, Track track);
 
 // Draws the screen and handles input.
 HomeAction DashboardScreen(const LessonSet *set);
+
+// Where a level is on the screen as last drawn: the middle of its station on the journey,
+// or the middle of the screen if the journey wasn't showing it. For the zoom out of a level.
+Vector2 DashboardLevelPoint(int lessonIndex);
 
 // Dev aid for --shot: scroll the current view.
 void DashboardDemo(float scroll);

@@ -13,6 +13,7 @@
 typedef struct {
     const char *outputPath;  // NULL when not taking a shot
     AppScreen screen;        // the screen to show
+    int lessonIndex;         // the level the shot is about
     float splashTime;        // splash: seconds into the animation to show; < 0 runs it live
     int framesLeft;          // frames to draw before capturing (layout settles over a couple)
     int framesWaited;        // frames spent waiting for a program to finish running

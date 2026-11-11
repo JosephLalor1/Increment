@@ -19,6 +19,7 @@
 #include "email.h"
 #include "layout.h"
 #include "lesson.h"
+#include "level_entry.h"
 #include "level_screen.h"
 #include "mascot.h"
 #include "progress.h"
@@ -172,7 +173,10 @@ static void RunHome(void)
 {
     HomeAction action = DashboardScreen(&lessons);
     switch (action.kind) {
-    case HOME_OPEN_LESSON: OpenLevel(action.lessonIndex); break;
+    case HOME_OPEN_LESSON:  // zoom into the level first; it opens once the zoom covers the screen
+        app.level = action.lessonIndex;
+        LevelEntryStart(action.clickedAt);
+        break;
     case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
     case HOME_CHALLENGE:
         SpeedScreenOpenChallenge(&lessons);
@@ -195,15 +199,30 @@ static void RunHome(void)
     }
 }
 
-// Back to the journey, showing the level's track; or straight on to the next level.
+// Straight on to the next level, or back to the journey: the way out closes on the level
+// first, and the journey is shown once it has (see RunLevelEntry).
 static void RunLevel(void)
 {
     LevelAction action = LevelScreen();
-    if (action.kind == LEVEL_OPEN_LEVEL) {
-        OpenLevel(action.lessonIndex);
-    } else if (action.kind == LEVEL_BACK) {
+    if (action.kind == LEVEL_OPEN_LEVEL) OpenLevel(action.lessonIndex);
+    else if (action.kind == LEVEL_BACK) LevelExitStart();
+}
+
+// The zoom into a level, or back out of one, standing in for the screen. The screens change
+// while it has everything covered.
+static void RunLevelEntry(void)
+{
+    LevelEntryCue cue = LevelEntryDraw();
+    if (cue == ENTRY_CUE_OPEN_LEVEL) {
+        OpenLevel(app.level);
+    } else if (cue == ENTRY_CUE_SHOW_JOURNEY) {
+        // The journey of the level's track, drawn once for the picture that gets zoomed out
+        // of; whatever it reports this frame is ignored.
         DashboardShow(HOME_VIEW_JOURNEY, lessons.items[app.level].track);
         app.screen = SCREEN_HOME;
+        ClearBackground(COL_BG);
+        DashboardScreen(&lessons);
+        LevelExitLand(DashboardLevelPoint(app.level));
     }
 }
 
@@ -293,6 +312,7 @@ int main(int argc, char **argv)
     DevShot shot = DevShotParse(argc, argv, &lessons);
     if (shot.outputPath) {
         app.screen = shot.screen;
+        app.level = shot.lessonIndex;
         app.splashTime = shot.splashTime;
     } else {
         // Open the window in the saved mode (maximised by default). Screenshots
@@ -310,7 +330,9 @@ int main(int argc, char **argv)
         BeginDrawing();
         ClearBackground(COL_BG);
 
-        switch (app.screen) {
+        LevelEntryUpdate(GetFrameTime());
+        if (LevelEntryStandsIn()) RunLevelEntry();
+        else switch (app.screen) {
         case SCREEN_SPLASH:    RunSplash();        break;
         case SCREEN_GALLERY:   DevGalleryScreen(); break;
         case SCREEN_LOGIN:     RunLogin();         break;
@@ -323,6 +345,7 @@ int main(int argc, char **argv)
         case SCREEN_SPEED:     RunSpeed();         break;
         case SCREEN_RANKINGS:  if (RankingScreen()) app.screen = SCREEN_HOME; break;
         }
+        LevelEntryDrawReveal();  // a level just zoomed into shows through an opening iris
 
         // The skill badges after an answer float over whichever screen is showing.
         SkillRewardUpdate(GetFrameTime());
@@ -335,6 +358,7 @@ int main(int argc, char **argv)
 
     CodeShutdown();
     LevelScreenShutdown();  // saves the draft of a step left open when the window was closed
+    LevelEntryShutdown();
     RankingScreenClear();
     EmailShutdown();
     LessonsUnload(&lessons);

@@ -411,6 +411,13 @@ void DashboardShow(HomeView view, Track track)
     if (view >= 0 && view < HOME_VIEW_COUNT) page.view = view;
 }
 
+Vector2 DashboardLevelPoint(int lessonIndex)
+{
+    Vector2 point = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+    if (page.view == HOME_VIEW_JOURNEY) JourneyViewStationPoint(lessonIndex, &point);
+    return point;
+}
+
 void DashboardDemo(float scroll)
 {
     page.scroll = scroll;
@@ -503,8 +510,9 @@ static float RecoveryReminder(float x, float y, bool *openSettings)
     return y + 30;
 }
 
-// The C / C++ tabs, the track's progress and its winding path. Returns a clicked lesson or -1.
-static int JourneyView(const LessonSet *set, float top)
+// The C / C++ tabs, the track's progress and its winding path. Returns a clicked lesson or -1,
+// and sets *clickedAt to the middle of its station.
+static int JourneyView(const LessonSet *set, float top, Vector2 *clickedAt)
 {
     float x = ContentX(), w = ContentWidth();
     for (int t = 0; t < TRACK_COUNT; t++) {
@@ -541,7 +549,8 @@ static int JourneyView(const LessonSet *set, float top)
     MouseTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
     BeginView(view);
     AmbienceDraw();
-    int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track]);
+    int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track],
+                                  clickedAt);
     page.journeyHeight[track] += 8;
     MouseTrailDraw();
     EndView();
@@ -570,7 +579,7 @@ static int StatisticsView(const LessonSet *set, float top, int *speedRound, bool
 
 HomeAction DashboardScreen(const LessonSet *set)
 {
-    HomeAction action = { HOME_STAY, -1 };
+    HomeAction action = { HOME_STAY, -1, GetMousePosition() };  // a level's row is clicked at the mouse
     action.kind = HomeBar();
     if (IsKeyPressed(KEY_ESCAPE)) page.view = HOME_VIEW_JOURNEY;
 
@@ -596,7 +605,7 @@ HomeAction DashboardScreen(const LessonSet *set)
             action.lessonIndex = speedRound;
         }
     } else {
-        clicked = JourneyView(set, top);
+        clicked = JourneyView(set, top, &action.clickedAt);
     }
 
     if (clicked >= 0 && action.kind == HOME_STAY) {

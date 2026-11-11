@@ -86,6 +86,7 @@ static struct {
     bool celebrating;  // the level was just completed
     double celebrateAt;
     bool demo;         // set up for a --shot: nothing is saved
+    bool demoBack;     // --shot: leave the level as if Back had been clicked
 } ls;
 
 static bool Cpp(void) { return ls.lesson->track == TRACK_CPP; }
@@ -829,7 +830,8 @@ LevelAction LevelScreen(void)
         }
         return action;
     }
-    if (back) {
+    if (back || ls.demoBack) {
+        ls.demoBack = false;
         LevelScreenClose();
         return (LevelAction){ LEVEL_BACK, -1 };
     }
@@ -855,6 +857,8 @@ void LevelScreenDemo(int stepIndex, int hints, bool solved)
     ls.hintVersion = ls.code.version - 1;
     if (solved) StartRun(false);
 }
+
+void LevelScreenDemoBack(void) { ls.demoBack = true; }
 
 void LevelScreenDemoCelebration(void)
 {

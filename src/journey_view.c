@@ -6,6 +6,7 @@
 #include "ui.h"
 
 #include <math.h>
+#include <string.h>
 
 // Four beats repeat: centre, right, centre, left. Vertical spacing follows the text.
 static Vector2 Station(float x, float y, float width, int number)
@@ -86,11 +87,28 @@ static float EaseHover(int lessonIndex, bool over)
     return *amount;
 }
 
-int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height)
+// Where each station's middle was in the last draw, by lesson index.
+static Vector2 stationPoint[MAX_HOVER_STATIONS];
+static bool stationDrawn[MAX_HOVER_STATIONS];
+
+bool JourneyViewStationPoint(int lessonIndex, Vector2 *point)
+{
+    if (lessonIndex < 0 || lessonIndex >= MAX_HOVER_STATIONS || !stationDrawn[lessonIndex]) return false;
+    *point = stationPoint[lessonIndex];
+    return true;
+}
+
+static int demoClick = -1;  // --shot: a level to report as clicked on the next draw
+
+void JourneyViewDemoClick(int lessonIndex) { demoClick = lessonIndex; }
+
+int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height,
+                    Vector2 *clickedAt)
 {
     float top = y, scale = UiTextScale();
     int done, total, selected = -1;
     int next = RoadmapNext(set, track, &done, &total);
+    memset(stationDrawn, 0, sizeof stationDrawn);
     int stations = 0;  // every level of the track, written yet or not
     for (int i = 0; i < set->count; i++) stations += set->items[i].track == track;
     if (!stations) {
@@ -141,6 +159,10 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         float lift = restingLift + (6 - restingLift) * hover;
         radius *= 1 + 0.04f * hover;  // a slight swell as it lifts
         Vector2 face = { center.x, center.y - lift };
+        if (i < MAX_HOVER_STATIONS) {
+            stationPoint[i] = face;
+            stationDrawn[i] = true;
+        }
 
         // Shades of the theme's accent: solid accent for the next level, a soft accent tint
         // with an accent tick for completed ones (distinct in both themes), grey for the rest.
@@ -188,7 +210,11 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         UiTextCentered(gFonts.text, status, center.x, titleY + titleH + 6, 12 * scale,
                        gold ? COL_GOLD : passed ? doneLabel : current ? currentColor : COL_DIM);
         if (current && MascotAvailable()) Guide(center, x, width, scale, done, total);
-        if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) selected = i;
+        if ((over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) || i == demoClick) {
+            selected = i;
+            demoClick = -1;
+            if (clickedAt) *clickedAt = face;
+        }
 
         // Little map markers decorate the opposite bank of the trail.
         if (ordinal % 3 == 2) {

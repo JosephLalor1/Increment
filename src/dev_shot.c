@@ -8,10 +8,13 @@
 #include "code_screen.h"
 #include "ranking_screen.h"
 #include "dashboard.h"
+#include "journey_view.h"
 #include "layout.h"
+#include "level_entry.h"
 #include "level_screen.h"
 #include "progress.h"
 #include "review.h"
+#include "roadmap.h"
 #include "skill_icons.h"
 #include "skill_progress.h"
 #include "skill_reward.h"
@@ -91,6 +94,27 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;
     }
+    // enter <index> <ms>: the zoom into a level from its journey, ms after the click.
+    if (Is(name, "enter")) {
+        if (lessons->count == 0 || lessons->items[lessonIndex].stepCount == 0) return Home();
+        DashboardOpen();
+        DashboardShow(HOME_VIEW_JOURNEY, lessons->items[lessonIndex].track);
+        AmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
+        JourneyViewDemoClick(lessonIndex);
+        LevelEntryDemo(scroll / 1000.0f);
+        return SCREEN_HOME;
+    }
+    // leave <index> <ms>: the way out of a level back to its journey, ms after Back.
+    if (Is(name, "leave")) {
+        if (lessons->count == 0 || lessons->items[lessonIndex].stepCount == 0) return Home();
+        DashboardOpen();
+        AmbienceWarm((Rectangle){ 0, TOPBAR_H, (float)GetScreenWidth(), (float)GetScreenHeight() - TOPBAR_H });
+        LevelScreenOpen(lessons, lessonIndex, AccountCurrent() ? AccountCodeDir() : NULL);
+        LevelScreenDemo(RoadmapResumeStep(&lessons->items[lessonIndex]), 0, false);
+        LevelScreenDemoBack();
+        LevelEntryDemo(scroll / 1000.0f);
+        return SCREEN_LEVEL;
+    }
     if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics")) {
         // home: the journey of lesson <index>'s track; statistics: the statistics view.
         HomeView view = Is(name, "statistics") ? HOME_VIEW_STATISTICS : HOME_VIEW_JOURNEY;
@@ -143,6 +167,7 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
     int lessonIndex = argc > 4 ? atoi(argv[4]) : 0;
     if (lessonIndex < 0 || lessonIndex >= lessons->count) lessonIndex = 0;
     const char *extra = argc > 5 ? argv[5] : NULL;
+    shot.lessonIndex = lessonIndex;
 
     // Content screens normally require a login; shots may sign in to show a user's state.
     const char *user = getenv("INCREMENT_SHOT_USER"), *password = getenv("INCREMENT_SHOT_PASS");
