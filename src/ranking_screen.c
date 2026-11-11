@@ -1,4 +1,4 @@
-// Local users ranked by completed lessons and best quiz scores, using existing themes.
+// Local users ranked by completed levels and passed steps, using existing themes.
 #include "ranking_screen.h"
 #include "ranking.h"
 #include "ranking_skills.h"
@@ -10,7 +10,7 @@
 static struct {
     const LessonSet *lessons;
     RankingEntry *entries;
-    int count, totalLessons, maxPoints;
+    int count, totalLessons, totalSteps;
     Track track;
     RankingMode mode;
     int expanded;
@@ -28,7 +28,7 @@ static void Refresh(void)
 {
     free(page.entries);
     page.entries = NULL;
-    page.count = page.totalLessons = page.maxPoints = 0;
+    page.count = page.totalLessons = page.totalSteps = 0;
     page.error = false;
     page.scroll = page.height = 0;
     page.expanded = -1;
@@ -36,8 +36,9 @@ static void Refresh(void)
     for (int i = 0; i < page.lessons->count; i++) {
         const Lesson *lesson = &page.lessons->items[i];
         if (page.track != TRACK_COUNT && lesson->track != page.track) continue;
+        if (!lesson->stepCount) continue;  // not written yet
         page.totalLessons++;
-        if (lesson->questionCount) page.maxPoints += 100;
+        page.totalSteps += lesson->stepCount;
     }
     int count = AccountCount();
     page.entries = calloc(count ? count : 1, sizeof *page.entries);
@@ -114,7 +115,7 @@ bool RankingScreen(void)
     bool skillsMode = page.mode == RANKING_SKILLS;
     y += Text(skillsMode
         ? "Local accounts ranked by unique detected concepts, then saved programs with recognised concepts. Equal results share a rank."
-        : "Local accounts on this computer. Ranked by completed lessons, then total best quiz scores. Equal results share a rank.",x,y,w,19*scale,COL_DIM)+18;
+        : "Local accounts on this computer. Ranked by completed levels, then passed coding steps. Equal results share a rank.",x,y,w,19*scale,COL_DIM)+18;
     const char *current = AccountCurrent();
     for (int i = 0; i < page.count; i++) {
         const RankingEntry *entry = &page.entries[i];
@@ -137,7 +138,7 @@ bool RankingScreen(void)
         const char *summary = skillsMode
             ? TextFormat("%d unique concept%s    |    %d contributing program%s",entry->uniqueSkills,entry->uniqueSkills == 1 ? "" : "s",
                          entry->skillPrograms,entry->skillPrograms == 1 ? "" : "s")
-            : TextFormat("%d / %d lessons completed    |    Quiz points: %d / %d",entry->completed,page.totalLessons,entry->quizPoints,page.maxPoints);
+            : TextFormat("%d / %d levels completed    |    Steps passed: %d / %d",entry->completed,page.totalLessons,entry->stepsPassed,page.totalSteps);
         float bodyH = UiWrappedText(gFonts.text,summary,(Vector2){0,0},w-116,18*scale,COL_DIM,false);
         float h = 62*scale+bodyH;
         float detailsY = y+h;
@@ -172,7 +173,7 @@ bool RankingScreen(void)
     }
     y += Text(skillsMode
         ? "Concept hints come from currently saved sandbox source, not compiler-verified mastery. Repeated concepts count once. Click a learner to view names only; source code stays private. Refresh after changing saved programs."
-        : "Each quiz contributes its best saved score (0-100); unattempted quizzes contribute 0. Coding exercises, tracing tasks, practice results and speed-round gold do not add ranking points.",x,y+8,w,17*scale,COL_DIM)+28;
+        : "Every passed coding step counts once; replaying a step adds nothing. Speed-round gold does not add ranking points.",x,y+8,w,17*scale,COL_DIM)+28;
     page.height = y-top+24;
     EndView();
     PageScrollBar(view,&page.scroll,page.height);

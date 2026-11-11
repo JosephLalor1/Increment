@@ -1,5 +1,5 @@
-// Parses lesson files (assets/lessons/*.txt) into Lesson structs. The format is described
-// in CLAUDE.md.
+// Parses lesson files (assets/lessons/*.txt) into Lesson structs: a header, then the
+// level's coding steps. The format is described in CLAUDE.md.
 #include "lesson.h"
 #include "raylib.h"
 
@@ -60,92 +60,18 @@ static void CopyField(char *dst, size_t size, const char *src)
 
 typedef struct {
     Lesson *lesson;
-    StrBuf para;
     StrBuf code;
-    BlockType paraType;
     bool inCode;
-    bool codeIsMemory;   // the open fence is ```memory: a pointer diagram script, not code
-    bool inQuiz;
-    bool inExercise;
-    bool inTrace;
-    bool ignoreTrace; // extra tasks must not overwrite the last accepted task
-    char **fenceTarget;  // in an exercise: which field the next code block fills
-    StrBuf exDesc;       // description of the current exercise
-    bool exBlankLine;    // a paragraph break is pending in exDesc
+    bool ignoringStep;   // past MAX_STEPS: the rest of the file's steps are skipped
+    char **fenceTarget;  // which field of the current step the next code block fills
     const char *file;
     int lineNo;
 } Parser;
 
-// Moves the collected description into the current exercise.
-static void FinishExercise(Parser *ps)
+static Step *CurrentStep(Parser *ps)
 {
     Lesson *L = ps->lesson;
-    if (ps->inExercise && L->exerciseCount > 0) {
-        Exercise *ex = &L->exercises[L->exerciseCount - 1];
-        free(ex->description);
-        ex->description = SbTake(&ps->exDesc);
-    }
-    ps->inExercise = false;
-    ps->exBlankLine = false;
-}
-
-// The "@hint", "@input", "@expect" and "@solution" lines shared by exercises and quiz
-// coding questions. Returns false if line is none of them.
-static bool ParseTaskLine(Parser *ps, Exercise *ex, const char *line)
-{
-    if (strcmp(line, "@hint") == 0 || StartsWith(line, "@hint ") || StartsWith(line, "@hint\t")) {
-        const char *text = line + 5;
-        while (*text == ' ' || *text == '\t') text++;
-        if (!*text) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: empty exercise hint ignored", ps->file, ps->lineNo);
-        } else if (ex->hintCount >= MAX_EXERCISE_HINTS) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercise hints, ignoring extra hint", ps->file, ps->lineNo);
-        } else ex->hints[ex->hintCount++] = CopyStr(text);
-        return true;
-    }
-    if (StartsWith(line, "@input"))    { ps->fenceTarget = &ex->input; return true; }
-    if (StartsWith(line, "@expect"))   { ps->fenceTarget = &ex->expected; return true; }
-    if (StartsWith(line, "@solution")) { ps->fenceTarget = &ex->solution; return true; }
-    return false;
-}
-
-// The coding task of the quiz question being parsed, or NULL for multiple choice.
-static Exercise *CurrentQuizTask(Parser *ps)
-{
-    Lesson *L = ps->lesson;
-    return ps->inQuiz && L->questionCount > 0 ? L->questions[L->questionCount - 1].task : NULL;
-}
-
-static void ParseExerciseLine(Parser *ps, const char *line)
-{
-    Exercise *ex = &ps->lesson->exercises[ps->lesson->exerciseCount - 1];
-    if (ParseTaskLine(ps, ex, line)) return;
-    if (line[0] == '\0') {
-        if (ps->exDesc.len) ps->exBlankLine = true;
-        return;
-    }
-    if (ps->exDesc.len) SbAppend(&ps->exDesc, ps->exBlankLine ? "\n\n" : " ", ps->exBlankLine ? 2 : 1);
-    ps->exBlankLine = false;
-    SbAppend(&ps->exDesc, line, strlen(line));
-}
-
-static void AddBlock(Parser *ps, BlockType type, char *text)
-{
-    Lesson *L = ps->lesson;
-    if (L->blockCount >= MAX_BLOCKS) {
-        TraceLog(LOG_WARNING, "LESSON: %s: too many blocks, ignoring the rest", ps->file);
-        free(text);
-        return;
-    }
-    L->blocks[L->blockCount].type = type;
-    L->blocks[L->blockCount].text = text;
-    L->blockCount++;
-}
-
-static void FlushPara(Parser *ps)
-{
-    if (ps->para.len == 0) return;
-    AddBlock(ps, ps->paraType, SbTake(&ps->para));
+    return L->stepCount > 0 && !ps->ignoringStep ? &L->steps[L->stepCount - 1] : NULL;
 }
 
 static void FlushCode(Parser *ps)
@@ -153,44 +79,21 @@ static void FlushCode(Parser *ps)
     // Drop the trailing newline of the last code line.
     if (ps->code.len && ps->code.data[ps->code.len - 1] == '\n') ps->code.data[--ps->code.len] = '\0';
     char *code = SbTake(&ps->code);
-
-    Lesson *L = ps->lesson;
-    if (ps->inTrace) {
-        if (ps->ignoreTrace) { free(code); return; }
-        TraceExercise *trace = &L->traces[L->traceCount - 1];
-        free(trace->code);
-        trace->code = code;
-    } else if (ps->inExercise) {
-        char **target = ps->fenceTarget ? ps->fenceTarget : &L->exercises[L->exerciseCount - 1].starter;
-        free(*target);
-        *target = code;
-        ps->fenceTarget = NULL;  // an unlabelled block is the starter code
-    } else if (CurrentQuizTask(ps)) {  // a coding question: like an exercise's code blocks
-        Exercise *task = CurrentQuizTask(ps);
-        char **target = ps->fenceTarget ? ps->fenceTarget : &task->starter;
-        free(*target);
-        *target = code;
-        ps->fenceTarget = NULL;
-    } else if (ps->inQuiz && L->questionCount > 0) {
-        Question *q = &L->questions[L->questionCount - 1];
-        free(q->code);
-        q->code = code;
-    } else {
-        AddBlock(ps, ps->codeIsMemory ? BLOCK_MEMORY : BLOCK_CODE, code);
+    Step *step = CurrentStep(ps);
+    if (!step) {
+        if (!ps->ignoringStep) TraceLog(LOG_WARNING, "LESSON: %s:%d: code outside a step ignored", ps->file, ps->lineNo);
+        free(code);
+        return;
     }
+    char **target = ps->fenceTarget ? ps->fenceTarget : &step->starter;  // an unlabelled block is the starter
+    free(*target);
+    *target = code;
+    ps->fenceTarget = NULL;
 }
 
-static void AppendParaLine(Parser *ps, BlockType type, const char *text)
-{
-    if (ps->para.len && ps->paraType != type) FlushPara(ps);
-    ps->paraType = type;
-    if (ps->para.len) SbAppend(&ps->para, " ", 1);
-    SbAppend(&ps->para, text, strlen(text));
-}
-
-// A question's "~" line: its difficulty (1 to 3), then up to MAX_QUESTION_SKILLS skills,
-// each name:weight with a weight from 0 to 1.
-static void ParseSkillLine(Parser *ps, Question *q, const char *text)
+// A step's "~" line: its difficulty (1 to 3), then up to MAX_QUESTION_SKILLS skills, each
+// name:weight with a weight from 0 to 1.
+static void ParseSkillLine(Parser *ps, Step *step, const char *text)
 {
     char *end;
     long difficulty = strtol(text, &end, 10);
@@ -198,8 +101,8 @@ static void ParseSkillLine(Parser *ps, Question *q, const char *text)
         TraceLog(LOG_WARNING, "LESSON: %s:%d: a skills line starts with a difficulty from 1 to 3", ps->file, ps->lineNo);
         return;
     }
-    q->difficulty = (int)difficulty;
-    q->skillCount = 0;
+    step->difficulty = (int)difficulty;
+    step->skillCount = 0;
     for (const char *p = end; *p;) {
         while (*p == ' ' || *p == '\t') p++;
         if (!*p) break;
@@ -210,62 +113,30 @@ static void ParseSkillLine(Parser *ps, Question *q, const char *text)
         if (!colon || (size_t)(colon - p) > tokenLength || !SkillFromName(p, (int)(colon - p), &skill)
             || (weight = strtof(colon + 1, NULL)) <= 0 || weight > 1) {
             TraceLog(LOG_WARNING, "LESSON: %s:%d: bad skill \"%.*s\"", ps->file, ps->lineNo, (int)tokenLength, p);
-        } else if (q->skillCount < MAX_QUESTION_SKILLS) {
-            q->skills[q->skillCount++] = (SkillWeight){ skill, weight };
+        } else if (step->skillCount < MAX_QUESTION_SKILLS) {
+            step->skills[step->skillCount++] = (SkillWeight){ skill, weight };
         }
         p += tokenLength;
     }
 }
 
-static void ParseQuizLine(Parser *ps, const char *line)
+// options is what follows "@step": "broken" (the starter deliberately doesn't compile, which
+// only the checker cares about) and/or "fixed".
+static void StartStep(Parser *ps, const char *options)
 {
     Lesson *L = ps->lesson;
-    Question *q = L->questionCount ? &L->questions[L->questionCount - 1] : NULL;
-    bool coding = StartsWith(line, "?code ");
-
-    if (StartsWith(line, "? ") || coding) {
-        if (L->questionCount >= MAX_QUESTIONS) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many questions", ps->file, ps->lineNo);
-            return;
-        }
-        q = &L->questions[L->questionCount++];
-        const char *prompt = line + (coding ? 6 : 2);
-        while (*prompt == ' ') prompt++;
-        q->prompt = CopyStr(prompt);
-        q->correct = -1;
-        q->difficulty = 2;  // until its "~" line says otherwise
-        ps->fenceTarget = NULL;
-        if (coding) {  // the prompt doubles as the task description in the code editor
-            q->task = calloc(1, sizeof *q->task);
-            q->task->title = CopyStr("Coding question");
-            q->task->description = CopyStr(prompt);
-        }
-    } else if (StartsWith(line, "~ ")) {  // "~ 2 tracing:1 pointers:0.4": difficulty, then weighted skills
-        if (q) ParseSkillLine(ps, q, line + 2);
-    } else if (q && q->task && ParseTaskLine(ps, q->task, line)) {
+    ps->fenceTarget = NULL;
+    if (L->stepCount >= MAX_STEPS) {
+        if (!ps->ignoringStep) TraceLog(LOG_WARNING, "LESSON: %s:%d: too many steps, ignoring the rest", ps->file, ps->lineNo);
+        ps->ignoringStep = true;
         return;
-    } else if (StartsWith(line, "- ") || StartsWith(line, "* ")) {
-        if (!q) return;
-        if (q->task) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: a coding question has no choices", ps->file, ps->lineNo);
-            return;
-        }
-        if (q->choiceCount >= MAX_CHOICES) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many choices", ps->file, ps->lineNo);
-            return;
-        }
-        if (line[0] == '*') q->correct = q->choiceCount;
-        q->choices[q->choiceCount++] = CopyStr(line + 2);
-    } else if (StartsWith(line, "! ")) {
-        if (!q) return;
-        free(q->explain);
-        q->explain = CopyStr(line + 2);
-    } else if (line[0] != '\0') {
-        TraceLog(LOG_WARNING, "LESSON: %s:%d: unrecognised quiz line", ps->file, ps->lineNo);
     }
+    Step *step = &L->steps[L->stepCount++];
+    step->difficulty = 1;  // until its "~" line says otherwise
+    step->fixedValues = strstr(options, "fixed") != NULL;
 }
 
-static void ParseLine(Parser *ps, char *line)
+static void ParseLine(Parser *ps, const char *line)
 {
     Lesson *L = ps->lesson;
 
@@ -275,7 +146,7 @@ static void ParseLine(Parser *ps, char *line)
             ps->inCode = false;
             return;
         }
-        for (char *c = line; *c; c++) {
+        for (const char *c = line; *c; c++) {
             if (*c == '\t') SbAppend(&ps->code, "    ", 4);
             else SbAppend(&ps->code, c, 1);
         }
@@ -284,12 +155,11 @@ static void ParseLine(Parser *ps, char *line)
     }
 
     if (StartsWith(line, "```")) {
-        FlushPara(ps);
         ps->inCode = true;
-        ps->codeIsMemory = StartsWith(line, "```memory") && !ps->inExercise && !ps->inQuiz && !ps->inTrace;
         ps->code.len = 0;
         return;
     }
+    if (line[0] == '\0') return;
     if (StartsWith(line, "@title ")) { CopyField(L->title, sizeof L->title, line + 7); return; }
     if (StartsWith(line, "@id "))    { CopyField(L->id, sizeof L->id, line + 4); return; }
     if (StartsWith(line, "@track ")) {
@@ -299,108 +169,30 @@ static void ParseLine(Parser *ps, char *line)
         return;
     }
     if (StartsWith(line, "@speed ")) { CopyField(L->speedSkills, sizeof L->speedSkills, line + 7); return; }
-    if (StartsWith(line, "@kind ")) {
-        L->practice = strstr(line + 6, "practice") != NULL;
-        return;
-    }
-    if (StartsWith(line, "@quiz")) {
-        FlushPara(ps);
-        FinishExercise(ps);
-        ps->inQuiz = true;
-        ps->inTrace = false;
-        ps->ignoreTrace = false;
-        return;
-    }
-    if (StartsWith(line, "@exercise")) {
-        FlushPara(ps);
-        FinishExercise(ps);
-        ps->inQuiz = false;
-        ps->inTrace = false;
-        ps->ignoreTrace = false;
-        if (L->exerciseCount >= MAX_EXERCISES) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many exercises", ps->file, ps->lineNo);
-            return;
-        }
-        const char *title = line + 9;
-        while (*title == ' ') title++;
-        L->exercises[L->exerciseCount++].title = CopyStr(*title ? title : "Exercise");
-        ps->inExercise = true;
-        ps->fenceTarget = NULL;
-        return;
-    }
+    if (strcmp(line, "@step") == 0 || StartsWith(line, "@step ")) { StartStep(ps, line + 5); return; }
 
-    if (StartsWith(line, "@trace ")) {
-        FlushPara(ps);
-        FinishExercise(ps);
-        ps->inQuiz = false;
-        ps->inTrace = false;
-        ps->ignoreTrace = false;
-        if (L->traceCount >= MAX_TRACES) {
-            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many tracing exercises", ps->file, ps->lineNo);
-            ps->inTrace = ps->ignoreTrace = true;
-            return;
-        }
-        TraceExercise *trace = &L->traces[L->traceCount++];
-        const char *id = line + 7;
-        while (*id == ' ') id++;
-        const char *title = strchr(id, ' ');
-        size_t n = title ? (size_t)(title - id) : strlen(id);
-        if (n >= sizeof trace->id) n = 0; // disable overlong ids rather than aliasing another task
-        memcpy(trace->id, id, n);
-        CopyField(trace->title, sizeof trace->title, title ? title + 1 : id);
-        ps->inTrace = true;
-        return;
-    }
-    if (ps->inTrace) {
-        if (ps->ignoreTrace) return;
-        TraceExercise *trace = &L->traces[L->traceCount - 1];
-        char **field = NULL;
-        const char *value = NULL;
-        if (StartsWith(line, "@predict ")) { field = &trace->prompt; value = line + 9; }
-        if (StartsWith(line, "@answer ")) { field = &trace->answer; value = line + 8; }
-        if (StartsWith(line, "@explain ")) { field = &trace->explain; value = line + 9; }
-        if (field) { free(*field); *field = CopyStr(value); }
-        else if (*line) TraceLog(LOG_WARNING, "LESSON: %s:%d: unrecognised tracing line", ps->file, ps->lineNo);
-        return;
-    }
-    if (ps->inExercise) { ParseExerciseLine(ps, line); return; }
-    if (ps->inQuiz) { ParseQuizLine(ps, line); return; }
-
-    if (line[0] == '\0') { FlushPara(ps); return; }
-    if (StartsWith(line, "# ")) {
-        FlushPara(ps);
-        AddBlock(ps, BLOCK_HEADING, CopyStr(line + 2));
-        return;
-    }
-    if (StartsWith(line, "> ")) { AppendParaLine(ps, BLOCK_NOTE, line + 2); return; }
-    if (StartsWith(line, "- ")) {
-        // Each bullet is its own block; an indented line continues the previous bullet.
-        FlushPara(ps);
-        AddBlock(ps, BLOCK_BULLET, CopyStr(line + 2));
-        return;
-    }
-    if (StartsWith(line, "  ") && L->blockCount && L->blocks[L->blockCount - 1].type == BLOCK_BULLET
-        && ps->para.len == 0) {
-        Block *b = &L->blocks[L->blockCount - 1];
-        const char *more = line;
-        while (*more == ' ') more++;
-        size_t a = strlen(b->text), m = strlen(more);
-        b->text = realloc(b->text, a + m + 2);
-        b->text[a] = ' ';
-        memcpy(b->text + a + 1, more, m + 1);
-        return;
-    }
-    AppendParaLine(ps, BLOCK_TEXT, line);
+    Step *step = CurrentStep(ps);
+    if (ps->ignoringStep) return;
+    if (step && StartsWith(line, "~ "))       { ParseSkillLine(ps, step, line + 2); return; }
+    if (step && StartsWith(line, "@input"))    { ps->fenceTarget = &step->input; return; }
+    if (step && StartsWith(line, "@expect"))   { ps->fenceTarget = &step->expected; return; }
+    if (step && StartsWith(line, "@solution")) { ps->fenceTarget = &step->solution; return; }
+    // Levels have nothing to read: any other text is a mistake in the file.
+    TraceLog(LOG_WARNING, "LESSON: %s:%d: unrecognised line", ps->file, ps->lineNo);
 }
 
-// Fills in what an exercise or coding question left out, so the editor never sees NULL
-// starter code or expected output.
-static void FinishTask(const char *path, Exercise *ex)
+// Fills in what a step left out, so the screens never see NULL code or output. A step
+// without a solution uses its starter, so hints have something to compare with.
+static void FinishStep(const char *path, int number, Step *step)
 {
-    if (!ex->starter) ex->starter = CopyStr("");
-    if (!ex->expected) {
-        TraceLog(LOG_WARNING, "LESSON: %s: exercise \"%s\" has no @expect output", path, ex->title);
-        ex->expected = CopyStr("");
+    if (!step->starter) step->starter = CopyStr("");
+    if (!step->expected) {
+        TraceLog(LOG_WARNING, "LESSON: %s: step %d has no @expect output", path, number);
+        step->expected = CopyStr("");
+    }
+    if (!step->solution) {
+        TraceLog(LOG_WARNING, "LESSON: %s: step %d has no @solution", path, number);
+        step->solution = CopyStr(step->starter);
     }
 }
 
@@ -430,65 +222,22 @@ static bool ParseLessonFile(const char *path, Lesson *L)
         p = end ? end + 1 : p + n;
     }
     if (ps.inCode) FlushCode(&ps);
-    FlushPara(&ps);
-    FinishExercise(&ps);
-
-    for (int i = 0; i < L->traceCount; i++) {
-        for (int j = 0; j < i; j++) {
-            if (strcmp(L->traces[i].id, L->traces[j].id) == 0) {
-                TraceLog(LOG_WARNING, "LESSON: %s: duplicate tracing id disabled", path);
-                L->traces[i].id[0] = '\0';
-                break;
-            }
-        }
-    }
-
-    free(ps.para.data);
     free(ps.code.data);
-    free(ps.exDesc.data);
-    for (int i = 0; i < L->exerciseCount; i++) FinishTask(path, &L->exercises[i]);
     UnloadFileText(text);
 
+    for (int i = 0; i < L->stepCount; i++) FinishStep(path, i + 1, &L->steps[i]);
     if (L->title[0] == '\0') CopyField(L->title, sizeof L->title, L->id);
-    for (int i = 0; i < L->questionCount; i++) {
-        Question *q = &L->questions[i];
-        if (q->task) {
-            FinishTask(path, q->task);
-        } else if (q->correct < 0) {
-            TraceLog(LOG_WARNING, "LESSON: %s: question %d has no correct answer (mark one with '* ')", path, i + 1);
-            q->correct = 0;
-        }
-    }
     return true;
-}
-
-static void FreeExercise(Exercise *ex)
-{
-    free(ex->title);
-    free(ex->description);
-    free(ex->starter);
-    free(ex->input);
-    free(ex->expected);
-    free(ex->solution);
-    for (int h = 0; h < ex->hintCount; h++) free(ex->hints[h]);
 }
 
 static void FreeLesson(Lesson *L)
 {
-    for (int i = 0; i < L->traceCount; i++) {
-        free(L->traces[i].code); free(L->traces[i].prompt);
-        free(L->traces[i].answer); free(L->traces[i].explain);
-    }
-    for (int i = 0; i < L->blockCount; i++) free(L->blocks[i].text);
-    for (int i = 0; i < L->exerciseCount; i++) FreeExercise(&L->exercises[i]);
-    for (int i = 0; i < L->questionCount; i++) {
-        Question *q = &L->questions[i];
-        free(q->prompt);
-        free(q->code);
-        free(q->explain);
-        for (int c = 0; c < q->choiceCount; c++) free(q->choices[c]);
-        if (q->task) FreeExercise(q->task);
-        free(q->task);
+    for (int i = 0; i < L->stepCount; i++) {
+        Step *step = &L->steps[i];
+        free(step->starter);
+        free(step->input);
+        free(step->expected);
+        free(step->solution);
     }
 }
 
@@ -520,20 +269,6 @@ void LessonsUnload(LessonSet *set)
     free(set->items);
     set->items = NULL;
     set->count = 0;
-}
-
-// FNV-1a: a small, stable hash, so a question's id is the same on every run and machine.
-static unsigned HashText(unsigned hash, const char *text)
-{
-    for (const unsigned char *c = (const unsigned char *)(text ? text : ""); *c; c++) hash = (hash ^ *c) * 16777619u;
-    return hash;
-}
-
-void LessonQuestionId(const Lesson *lesson, const Question *question, char *out, int size)
-{
-    unsigned hash = HashText(2166136261u, question->prompt);
-    hash = HashText(hash ^ 0x1fu, question->code);  // the same prompt over different code is a different question
-    snprintf(out, (size_t)size, "%s?%08x", lesson->id, hash);
 }
 
 const char *TrackName(Track t)

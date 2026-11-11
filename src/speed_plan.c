@@ -1,8 +1,7 @@
 // Planning speed rounds and short challenges. See speed_plan.h.
 #include "speed_plan.h"
-#include "progress.h"
+#include "roadmap.h"
 #include "review.h"
-#include "quiz_attempt.h"
 #include "skill_progress.h"
 
 #include <stdio.h>
@@ -72,18 +71,12 @@ static float SkillsNeed(const SkillWeight *skills, int count)
     return weights > 0 ? total / weights : 0.5f;
 }
 
-#define WEAK_SKILL_BOOST 40  // need added for a question whose skills are all at their weakest
-
-static SpeedPlanItem BankItem(const Lesson *lesson, const Question *q)
-{
-    SpeedPlanItem item = { q, SPEED_ARITHMETIC, "" };
-    LessonQuestionId(lesson, q, item.reviewId, sizeof item.reviewId);
-    return item;
-}
+#define WEAK_SKILL_BOOST 40  // need added for a skill whose topics are all at their weakest
+#define CHALLENGE_SKILLS 4   // a challenge spreads its questions over this many of the neediest skills
 
 static SpeedPlanItem SkillItem(SpeedSkill skill)
 {
-    SpeedPlanItem item = { NULL, skill, "" };
+    SpeedPlanItem item = { skill, "" };
     SpeedSkillReviewId(skill, item.reviewId, sizeof item.reviewId);
     return item;
 }
@@ -100,27 +93,14 @@ int SpeedPlanLesson(const Lesson *lesson, uint32_t *seed, SpeedPlanItem *out)
 {
     SpeedSkill skills[SPEED_SKILL_COUNT];
     int skillCount = SpeedSkillsParse(lesson->speedSkills, skills, SPEED_SKILL_COUNT);
-    int bank[MAX_QUESTIONS], bankCount = 0;
-    for (int i = 0; i < lesson->questionCount && i < MAX_QUESTIONS; i++)
-        if (!QuizIsCoding(&lesson->questions[i])) bank[bankCount++] = i;
-
-    int count = 0;
-    for (int slot = 0; slot < SPEED_QUESTIONS; slot++) {
-        bool fromBank = bankCount > 0 && (skillCount == 0 || RandomBelow(seed, 3) == 0);
-        if (fromBank) {
-            int pick = RandomBelow(seed, bankCount);
-            out[count++] = BankItem(lesson, &lesson->questions[bank[pick]]);
-            bank[pick] = bank[--bankCount];  // each lesson question at most once per run
-        } else if (skillCount > 0) {
-            out[count++] = SkillItem(skills[RandomBelow(seed, skillCount)]);
-        }
-    }
-    return count;
+    if (skillCount == 0) return 0;
+    for (int slot = 0; slot < SPEED_QUESTIONS; slot++) out[slot] = SkillItem(skills[RandomBelow(seed, skillCount)]);
+    return SPEED_QUESTIONS;
 }
 
 typedef struct {
     float need;
-    SpeedPlanItem item;
+    SpeedSkill skill;
 } Candidate;
 
 static int ByNeed(const void *a, const void *b)
@@ -129,53 +109,45 @@ static int ByNeed(const void *a, const void *b)
     return na < nb ? 1 : na > nb ? -1 : 0;
 }
 
+// Whether a level's speed round tests a skill.
+static bool LevelTests(const Lesson *lesson, SpeedSkill skill)
+{
+    SpeedSkill skills[SPEED_SKILL_COUNT];
+    int count = SpeedSkillsParse(lesson->speedSkills, skills, SPEED_SKILL_COUNT);
+    for (int i = 0; i < count; i++)
+        if (skills[i] == skill) return true;
+    return false;
+}
+
 int SpeedPlanChallenge(const LessonSet *set, long today, uint32_t *seed, SpeedPlanItem *out)
 {
-    int capacity = SPEED_SKILL_COUNT;
-    for (int l = 0; l < set->count; l++) capacity += set->items[l].questionCount;
-    Candidate *candidates = malloc((size_t)(capacity > 0 ? capacity : 1) * sizeof *candidates);
-    if (!candidates) return 0;
+    Candidate candidates[SPEED_SKILL_COUNT];
     int count = 0;
-
-    // Lesson questions the learner has met, or could meet: from lessons they've started.
-    for (int l = 0; l < set->count; l++) {
-        const Lesson *lesson = &set->items[l];
-        bool started = ProgressBest(lesson->id) >= 0;
-        for (int q = 0; q < lesson->questionCount; q++) {
-            const Question *question = &lesson->questions[q];
-            if (QuizIsCoding(question)) continue;  // these need the code editor
-            SpeedPlanItem item = BankItem(lesson, question);
-            const ReviewItem *history = ReviewFind(item.reviewId);
-            if (!history && !started) continue;
-            float need = ReviewNeed(history, today) + WEAK_SKILL_BOOST * SkillsNeed(question->skills, question->skillCount);
-            candidates[count++] = (Candidate){ need + RandomBelow(seed, 400) / 100.0f, item };
-        }
-    }
-    // Skills whose generated questions the learner has answered.
+    // Skills the learner has met: answered in a speed round, or tested by a level they've
+    // started. With neither, the first level that has a speed round starts them off.
     for (int s = 0; s < SPEED_SKILL_COUNT; s++) {
         SpeedPlanItem item = SkillItem((SpeedSkill)s);
         const ReviewItem *history = ReviewFind(item.reviewId);
-        if (!history) continue;
+        bool met = history != NULL;
+        for (int l = 0; l < set->count && !met; l++)
+            met = RoadmapStepsDone(&set->items[l]) > 0 && LevelTests(&set->items[l], (SpeedSkill)s);
+        if (!met) continue;
         SkillWeight skills[MAX_QUESTION_SKILLS];
         int skillCount = SpeedSkillWeights((SpeedSkill)s, skills);
         float need = ReviewNeed(history, today) + WEAK_SKILL_BOOST * SkillsNeed(skills, skillCount);
-        candidates[count++] = (Candidate){ need + RandomBelow(seed, 400) / 100.0f, item };
+        candidates[count++] = (Candidate){ need + RandomBelow(seed, 400) / 100.0f, (SpeedSkill)s };
     }
-    // No history at all: begin at the beginning, with the first lessons' questions.
-    if (count == 0) {
-        for (int l = 0; l < set->count && count < SPEED_QUESTIONS; l++) {
-            const Lesson *lesson = &set->items[l];
-            for (int q = 0; q < lesson->questionCount && count < SPEED_QUESTIONS; q++) {
-                if (!QuizIsCoding(&lesson->questions[q]))
-                    candidates[count++] = (Candidate){ 0, BankItem(lesson, &lesson->questions[q]) };
-            }
-        }
+    for (int l = 0; l < set->count && count == 0; l++) {
+        SpeedSkill skills[SPEED_SKILL_COUNT];
+        int skillCount = SpeedSkillsParse(set->items[l].speedSkills, skills, SPEED_SKILL_COUNT);
+        for (int i = 0; i < skillCount; i++) candidates[count++] = (Candidate){ 0, skills[i] };
     }
+    if (count == 0) return 0;
 
+    // The neediest few skills share the questions, each question a new generated one.
     qsort(candidates, (size_t)count, sizeof *candidates, ByNeed);
-    int chosen = count < SPEED_QUESTIONS ? count : SPEED_QUESTIONS;
-    for (int i = 0; i < chosen; i++) out[i] = candidates[i].item;
-    free(candidates);
-    Shuffle(out, chosen, seed);  // so the neediest aren't always first
-    return chosen;
+    int spread = count < CHALLENGE_SKILLS ? count : CHALLENGE_SKILLS;
+    for (int i = 0; i < SPEED_QUESTIONS; i++) out[i] = SkillItem(candidates[i % spread].skill);
+    Shuffle(out, SPEED_QUESTIONS, seed);  // so the neediest aren't always first
+    return SPEED_QUESTIONS;
 }

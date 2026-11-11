@@ -237,14 +237,12 @@ static void TestDelete(void)
     WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
     MakeDirectory(DataFile("users/temp_user_code/saved"));
     WriteFile(DataFile("users/temp_user_code/saved/My loops.c"), "int main() {}\n");
-    CHECK(strstr(AccountBookmarksPath(), "users/temp_user.bookmarks.txt") != NULL);
-    WriteFile(AccountBookmarksPath(), "c_01_hello\n");  // saved lessons
+    WriteFile(DataFile("users/temp_user.bookmarks.txt"), "c_01_hello\n");  // saved lessons, from older versions
     CHECK(strstr(AccountReviewPath(), "users/temp_user.review.txt") != NULL);
     WriteFile(AccountReviewPath(), "c_01_hello?1234abcd 1 0 1 0 2.5 1 20001 20000\n");  // answer history
     CHECK(strstr(AccountSkillsPath(), "users/temp_user.skills.txt") != NULL);
     WriteFile(AccountSkillsPath(), "pointers 20.00 2 0 0.6000\n");  // skill XP
-    const char *notesDir = AccountNotesDir();          // lesson notes
-    CHECK(notesDir && DirectoryExists(notesDir) && strstr(notesDir, "users/temp_user_notes"));
+    MakeDirectory(DataFile("users/temp_user_notes"));  // lesson notes, from older versions
     WriteFile(DataFile("users/temp_user_notes/c_01_hello.txt"), "my notes\n");
     int before = AccountCount();
 
@@ -264,8 +262,6 @@ static void TestDelete(void)
     CHECK(!FileExists(DataFile("users/temp_user.skills.txt")));
     CHECK(strcmp(AccountReviewPath(), "") == 0);
     CHECK(!DirectoryExists(DataFile("users/temp_user_notes")));
-    CHECK(AccountNotesDir() == NULL);  // signed out: no notes folder
-    CHECK(strcmp(AccountBookmarksPath(), "") == 0);  // signed out: nowhere to save bookmarks
     CHECK(strcmp(AccountLastUser(), "") == 0);
     CHECK(AccountGetSettings().theme == THEME_DARK);
     CHECK(!AccountLogin("temp_user", "deleteme", &err));

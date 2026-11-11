@@ -3,15 +3,14 @@
 
 #include "lesson.h"
 
-// The speed round screen: an optional, timed run of "what is x?" questions (with some of the
-// lesson's own questions mixed in) that earns gold mastery of a lesson, or a short challenge
-// of the learner's most necessary questions from every lesson (see speed_round.h for the rules,
-// speed_plan.h for how questions are chosen). An intro page, then the run itself,
-// played under falling code that, with a slow zoom, camera shake and a red edge, grows
-// fiercer as each question's 10 seconds run out and calms the moment it's answered. A wrong
-// answer or timeout shows the code with every variable's value line by line (or the quiz
-// question's explanation); ten right answers record gold with ProgressRecordGold. A short
-// challenge ends with every question explained. Each answer is recorded in the learner's
+// The speed round screen: an optional, timed run of generated "what is x?" questions that
+// earns gold mastery of a level, or a short challenge on the skills the learner most needs to
+// practise (see speed_round.h for the rules, speed_plan.h for how questions are chosen). An
+// intro page, then the run itself, played under falling code that, with a slow zoom, camera
+// shake and a red edge, grows fiercer as each question's 10 seconds run out and calms the
+// moment it's answered. A wrong answer or timeout shows the code with every variable's value
+// line by line; ten right answers record gold with ProgressRecordGold. A short challenge ends
+// with every question explained. Each answer is recorded in the learner's
 // review history (review.h). Leaving is returned to main.c.
 
 typedef enum { SPEED_SCREEN_STAY, SPEED_SCREEN_BACK } SpeedScreenAction;

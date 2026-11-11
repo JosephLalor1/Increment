@@ -2,8 +2,7 @@
 #define SPEED_ROUND_H
 
 // Speed rounds: an optional, timed challenge for gold mastery of a lesson. Each question is
-// a short generated snippet ("what is x after these lines?") with four answers, or one of
-// the lesson's own multiple-choice questions; the learner
+// a short generated snippet ("what is x after these lines?") with four answers; the learner
 // has its own time per question (SpeedSecondsFor), the next one follows at once, and one
 // wrong answer or timeout ends the run. Answering all SPEED_QUESTIONS earns gold. A short
 // challenge runs the same way over the learner's most necessary questions, but carries on
@@ -15,13 +14,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "lesson.h"
+#include "skills.h"
 
 #define SPEED_QUESTIONS  10
 #define SPEED_MIN_SECONDS 10.0  // every question gets at least this long
 #define SPEED_MAX_SECONDS 25.0  // and at most this
 #define SPEED_COUNT_IN   3.0   // "3, 2, 1" before the first question
-#define SPEED_CHOICES    4     // generated questions; lesson questions have their own (up to MAX_CHOICES)
+#define SPEED_CHOICES    4     // answers to choose from
 #define SPEED_REVIEW_ID  64
 #define SPEED_MAX_LINES  18
 #define SPEED_LINE_SIZE  72
@@ -71,11 +70,10 @@ typedef enum { SPEED_NEW, SPEED_STRUGGLING, SPEED_KNOWN } SpeedFamiliarity;
 // it (from review.h), so this module needn't know where the history is kept.
 typedef SpeedFamiliarity (*SpeedFamiliarityLookup)(const char *reviewId);
 
-// One question of a run, as planned before it starts (speed_plan.h makes plans): one of a
-// lesson's multiple-choice questions, or a generated one for a skill.
+// One question of a run, as planned before it starts (speed_plan.h makes plans): the skill
+// its generated question practises.
 typedef struct {
-    const Question *bank;              // a lesson question; NULL for a generated one
-    SpeedSkill skill;                  // generated questions: what they practise
+    SpeedSkill skill;
     char reviewId[SPEED_REVIEW_ID];    // what the answer is recorded under (review.h)
 } SpeedPlanItem;
 
@@ -107,8 +105,7 @@ SpeedOutcome SpeedRoundUpdate(SpeedRound *round, double now);
 SpeedOutcome SpeedRoundAnswer(SpeedRound *round, int choice, double now);
 int SpeedRoundRight(const SpeedRound *round);  // questions answered right so far
 
-// The current question's details, whichever kind it is.
-bool SpeedRoundIsBank(const SpeedRound *round, int index);
+// A question's choices and which is right.
 int SpeedRoundChoiceCount(const SpeedRound *round, int index);
 int SpeedRoundCorrect(const SpeedRound *round, int index);
 
@@ -116,9 +113,9 @@ double SpeedRoundTimeLeft(const SpeedRound *round, double now);  // seconds left
 // 0 when a question appears, rising to 1 at its time limit; 0 outside SPEED_PLAYING.
 float SpeedRoundTension(const SpeedRound *round, double now);
 
-// The time a question gets: at least SPEED_MIN_SECONDS, more for longer code or text, more
+// The time a question gets: at least SPEED_MIN_SECONDS, more for longer code, more
 // again for a new question and most for one the learner has been struggling with, up to
-// SPEED_MAX_SECONDS. generated is used when bank is NULL.
-double SpeedSecondsFor(const Question *bank, const SpeedQuestion *generated, SpeedFamiliarity familiarity);
+// SPEED_MAX_SECONDS.
+double SpeedSecondsFor(const SpeedQuestion *question, SpeedFamiliarity familiarity);
 
 #endif

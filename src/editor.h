@@ -56,6 +56,8 @@ typedef struct {
 
     int marks[EDITOR_MAX_MARKS];  // 1-based line numbers flagged (compiler errors)
     int markCount;
+    int hintLine;      // 1-based line a hint points at, 0 for none (see EditorSetHint)
+    bool hintBefore;   // the hint is a gap before hintLine, where a line belongs
 
     bool dragging;
     double lastClickTime;
@@ -90,6 +92,10 @@ int EditorColOf(const Editor *e, int pos);
 int EditorPosOf(const Editor *e, int line, int col);  // clamped to the text
 
 void EditorSetMarks(Editor *e, const int *lines, int count);
+// Points a hint at a line (1-based; 0 clears it), drawn in the accent colour: the line itself,
+// or with before set, the gap above it where a new line belongs (line may be one past the
+// last). Unlike marks it survives edits; setting the text clears it.
+void EditorSetHint(Editor *e, int line, bool before);
 
 // Handles mouse and keyboard input for this frame and draws the editor in r.
 // Uses its own scissor region, so don't call it inside a scrolling view.

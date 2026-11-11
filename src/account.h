@@ -21,7 +21,7 @@ typedef enum { TEXT_SMALL, TEXT_MEDIUM, TEXT_LARGE, TEXT_SIZE_COUNT } TextSize;
 typedef struct {
     ThemeMode theme;
     int accent;        // 0 .. UI_ACCENT_COUNT-1
-    TextSize textSize; // lesson and quiz text
+    TextSize textSize; // lesson text: code, outputs and journey titles
     int ambience;      // the journey's background style (an AmbienceStyle: 0 off, 1 particles, the default)
     bool mouseTrail;   // code characters trailing the mouse on the journey (on by default)
 } AccountSettings;
@@ -59,7 +59,7 @@ const char *AccountRememberedUser(void);  // the remembered user's name, "" if n
 // These act on the logged-in user and require their current password.
 bool AccountChangePassword(const char *currentPassword, const char *newPassword, const char **err);
 bool AccountNewRecoveryCode(const char *password, char recoveryOut[RECOVERY_CODE_SIZE], const char **err);
-bool AccountDelete(const char *password, const char **err); // also deletes progress, settings, bookmarks, review history, skill XP, notes and drafts; logs out
+bool AccountDelete(const char *password, const char **err); // also deletes progress, settings, review history, skill XP and drafts (and older versions' bookmarks and notes); logs out
 
 // Email verification for the logged-in user. Codes are 6 digits, stored hashed, valid
 // for 15 minutes and 5 attempts. Sending the email is the caller's job (see email.h).
@@ -83,11 +83,9 @@ void AccountSetClockForTests(long long unixTime);  // 0 = real clock
 const char *AccountCurrent(void);       // display name, or NULL when logged out
 bool AccountHasRecovery(void);          // whether the logged-in user has a recovery code
 const char *AccountProgressPath(void);  // progress file for the current user
-const char *AccountBookmarksPath(void); // saved-lessons file for the current user, "" when logged out
 const char *AccountReviewPath(void);    // answer history / review schedule file (review.h), "" when logged out
 const char *AccountSkillsPath(void);    // skill XP file (skills.h), "" when logged out
 const char *AccountCodeDir(void);       // folder for the current user's code editor drafts (created), or NULL
-const char *AccountNotesDir(void);      // folder for the current user's lesson notes (created), or NULL
 const char *AccountLastUser(void);      // last user to log in, "" if none
 
 // The current user's settings; when logged out, the last user's (so the login screen

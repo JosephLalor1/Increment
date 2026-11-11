@@ -1,3 +1,4 @@
+// The journey: a winding path of a track's levels. See journey_view.h.
 #include "journey_view.h"
 #include "mascot.h"
 #include "progress.h"
@@ -59,7 +60,7 @@ static void Guide(Vector2 station, float x, float width, float scale, int done, 
     FoxEmotion emotion = done == 0 ? FOX_HAPPY : done == total - 1 ? FOX_DETERMINED
                           : done > total / 2 ? FOX_LOVE_LEARNING : FOX_CODING;
     const char *message = MascotMessage(FOX_JOURNEY, done == 0 ? "Welcome to your coding adventure!"
-                        : done == total - 1 ? "You're almost there!" : "Let's tackle the next lesson!");
+                        : done == total - 1 ? "You're almost there!" : "Let's tackle the next level!");
     float textH = UiWrappedText(gFonts.text, message, (Vector2){ 0, 0 }, bubbleW - 24, 16 * scale, COL_TEXT, false);
     Rectangle bubble = { bubbleX, station.y - (textH + 22) / 2, bubbleW, textH + 22 };
     UiRoundRect(bubble, 12, COL_PANEL);
@@ -90,12 +91,14 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
     float top = y, scale = UiTextScale();
     int done, total, selected = -1;
     int next = RoadmapNext(set, track, &done, &total);
-    if (!total) {
-        *height = UiWrappedText(gFonts.text, "This journey is waiting for its first lessons.", (Vector2){ x, y },
+    int stations = 0;  // every level of the track, written yet or not
+    for (int i = 0; i < set->count; i++) stations += set->items[i].track == track;
+    if (!stations) {
+        *height = UiWrappedText(gFonts.text, "This journey is waiting for its first levels.", (Vector2){ x, y },
                                 width, 24 * scale, COL_DIM, true) + 48;
         return -1;
     }
-    if (next < 0) {
+    if (next < 0 && total > 0) {
         y += MascotCompanionActor(FOX_JOURNEY, x + 60, y, width - 120, 84, 21 * scale,
                                   FOX_LOVE_LEARNING, "You're doing amazing! Journey complete.") + 24;
     }
@@ -108,9 +111,9 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         const Lesson *lesson = &set->items[i];
         if (lesson->track != track) continue;
         Vector2 point = Station(x, stationY, width, ordinal);
-        if (ordinal) Trail(previous, point, previousPassed && ProgressLessonPassed(lesson->id));
+        if (ordinal) Trail(previous, point, previousPassed && RoadmapLevelComplete(lesson));
         previous = point;
-        previousPassed = ProgressLessonPassed(lesson->id);
+        previousPassed = RoadmapLevelComplete(lesson);
         stationY += StationStep(lesson, scale);
         ordinal++;
     }
@@ -122,13 +125,16 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         if (lesson->track != track) continue;
         Vector2 center = Station(x, stationY, width, ordinal);
         float step = StationStep(lesson, scale), radius = 43 * scale;
-        bool passed = ProgressLessonPassed(lesson->id), current = i == next;
-        bool gold = ProgressGold(lesson->id);  // won the lesson's speed round
+        bool passed = RoadmapLevelComplete(lesson), current = i == next;
+        bool ready = RoadmapLevelReady(lesson);  // levels not written yet show, but can't be opened
+        int stepsDone = RoadmapStepsDone(lesson);
+        bool gold = ProgressGold(lesson->id);  // won the level's speed round
         Rectangle hit = { center.x - radius - 8, center.y - radius - 12, radius * 2 + 16, radius * 2 + 24 };
         float titleY = center.y + radius + 18;
         float titleH = UiWrappedText(gFonts.text, lesson->title, (Vector2){ 0, 0 }, 264, 20 * scale, COL_TEXT, false);
         Rectangle titleHit = { center.x - 144, titleY - 8, 288, titleH + 34 };
-        bool over = (UiMouseOver(hit) && CheckCollisionPointCircle(GetMousePosition(), center, radius + 8)) || UiMouseOver(titleHit);
+        bool over = ready && ((UiMouseOver(hit) && CheckCollisionPointCircle(GetMousePosition(), center, radius + 8))
+                              || UiMouseOver(titleHit));
         if (over) UiWantHand();
         float hover = EaseHover(i, over);
         float restingLift = current ? 2 + sinf((float)GetTime() * 2.5f) * 2 : 0;  // the current station bobs
@@ -136,7 +142,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         radius *= 1 + 0.04f * hover;  // a slight swell as it lifts
         Vector2 face = { center.x, center.y - lift };
 
-        // Shades of the theme's accent: solid accent for the next lesson, a soft accent tint
+        // Shades of the theme's accent: solid accent for the next level, a soft accent tint
         // with an accent tick for completed ones (distinct in both themes), grey for the rest.
         Color currentColor = COL_ACCENT;
         Color doneColor = ColorLerp(COL_BG, COL_ACCENT, 0.3f);
@@ -153,10 +159,16 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
                                                                          : current ? ColorBrightness(currentColor, -0.25f) : COL_PANEL);
         DrawCircleV(face, radius, ColorBrightness(fill, 0.08f * hover));
         if (gold) DrawRing(face, radius + 3, radius + 8, 0, 360, 64, COL_GOLD);
+        // A level under way: an arc round the station fills with its passed steps.
+        if (!gold && !passed && stepsDone > 0) {
+            float share = (float)stepsDone / lesson->stepCount;
+            DrawRing(face, radius + 3, radius + 7, -90, 270, 64, Fade(COL_ACCENT, 0.18f));
+            DrawRing(face, radius + 3, radius + 7, -90, -90 + 360 * share, 64, COL_ACCENT);
+        }
         DrawCircleV((Vector2){ face.x - radius * 0.2f, face.y - radius * 0.35f }, radius * 0.48f, Fade(WHITE, passed || current ? 0.09f : 0.025f));
-        IconDraw(passed ? ICON_CHECK : lesson->practice ? ICON_TARGET : current ? ICON_PLAY : ICON_CODE,
-                 (Vector2){ face.x, face.y - (current ? 9 : 0) }, 32 * scale, ink);
-        if (current) UiTextCentered(gFonts.bold, ProgressBest(lesson->id) < 0 ? "START" : "CONTINUE",
+        IconDraw(passed ? ICON_CHECK : !ready ? ICON_LOCK : current ? ICON_PLAY : ICON_CODE,
+                 (Vector2){ face.x, face.y - (current ? 9 : 0) }, 32 * scale, Fade(ink, ready ? 1 : 0.5f));
+        if (current) UiTextCentered(gFonts.bold, stepsDone == 0 ? "START" : "CONTINUE",
                                     face.x, face.y + 12 * scale, 12 * scale, ink);
         Vector2 badge = { face.x + radius * 0.75f, face.y - radius * 0.7f };
         DrawCircleV(badge, 14 * scale, COL_PANEL);
@@ -167,9 +179,12 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         // light tint.
         if (hover > 0.01f) UiRoundRect(titleHit, 12, Fade(COL_PANEL_HI, 0.45f * hover));
         if (UiTextWidth(gFonts.text, lesson->title, 20 * scale) <= 264)
-            UiTextCentered(gFonts.text, lesson->title, center.x, titleY, 20 * scale, COL_TEXT);
-        else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale, COL_TEXT, true);
-        const char *status = gold ? "GOLD MASTERY" : passed ? "COMPLETED" : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME";
+            UiTextCentered(gFonts.text, lesson->title, center.x, titleY, 20 * scale, ready ? COL_TEXT : COL_DIM);
+        else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale,
+                           ready ? COL_TEXT : COL_DIM, true);
+        const char *status = !ready ? "COMING SOON" : gold ? "GOLD MASTERY" : passed ? "COMPLETED"
+                           : stepsDone > 0 ? TextFormat("%d / %d STEPS", stepsDone, lesson->stepCount)
+                           : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME";
         UiTextCentered(gFonts.text, status, center.x, titleY + titleH + 6, 12 * scale,
                        gold ? COL_GOLD : passed ? doneLabel : current ? currentColor : COL_DIM);
         if (current && MascotAvailable()) Guide(center, x, width, scale, done, total);

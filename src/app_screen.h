@@ -9,14 +9,11 @@ typedef enum {
     SCREEN_RECOVERY,   // show a new recovery code
     SCREEN_VERIFY,     // email verification
     SCREEN_SETTINGS,
-    SCREEN_CODE,       // code editor
-    SCREEN_HOME,       // the dashboard: learning journeys, statistics and lesson search
-    SCREEN_LESSON,     // reading a lesson, its quiz and its result
-    SCREEN_PRACTICE,
-    SCREEN_COURSES,
-    SCREEN_TRACING,
+    SCREEN_CODE,       // the free code editor
+    SCREEN_HOME,       // the dashboard: learning journeys and statistics
+    SCREEN_LEVEL,      // playing a level's coding steps
     SCREEN_RANKINGS,
-    SCREEN_SPEED,      // a lesson's speed round (gold mastery)
+    SCREEN_SPEED,      // a level's speed round (gold mastery) or a short challenge
 } AppScreen;
 
 #endif

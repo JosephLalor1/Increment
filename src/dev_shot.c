@@ -2,20 +2,14 @@
 #include "dev_shot.h"
 #include "account.h"
 #include "account_screens.h"
-#include "bookmarks.h"
 #include "ambience.h"
 #include "brand.h"
 #include "mouse_trail.h"
 #include "code_screen.h"
-#include "practice_screen.h"
-#include "tracing_screen.h"
 #include "ranking_screen.h"
-#include "courses_screen.h"
 #include "dashboard.h"
 #include "layout.h"
-#include "memory_view.h"
-#include "notes_panel.h"
-#include "lesson_screen.h"
+#include "level_screen.h"
 #include "progress.h"
 #include "review.h"
 #include "skill_icons.h"
@@ -41,54 +35,8 @@ static AppScreen Home(void)
     return SCREEN_HOME;
 }
 
-// INCREMENT_SHOT_FILTER: c, cpp, or unset for both tracks.
-static SearchFilter ShotSearchFilter(void)
-{
-    const char *name = getenv("INCREMENT_SHOT_FILTER");
-    if (name && Is(name, "cpp")) return SEARCH_CPP;
-    if (name && Is(name, "c")) return SEARCH_C;
-    return SEARCH_BOTH;
-}
-
-// Opens the code editor for the editor, exercise, quiztask and tryit shots. Returns false when that
-// isn't possible (signed out, or no such exercise or example).
-static bool PrepareCodeShot(const char *name, const LessonSet *lessons, int lessonIndex, int exerciseNumber)
-{
-    if (!AccountCurrent()) return false;  // drafts and progress need a user
-    CodeSetDraftFolder(AccountCodeDir());
-    if (Is(name, "editor")) {
-        CodeOpenPlayground();
-        return true;
-    }
-    if (lessons->count == 0) return false;
-    const Lesson *lesson = &lessons->items[lessonIndex];
-    if (Is(name, "exercise")) {
-        int exercise = exerciseNumber - 1;
-        if (exercise < 0 || exercise >= lesson->exerciseCount) return false;
-        CodeOpenExercise(lesson, exercise);
-        const char *hints = getenv("INCREMENT_SHOT_HINTS");
-        if (hints) CodeHintsDemo(atoi(hints));
-        return true;
-    }
-    if (Is(name, "quiztask")) {  // the lesson's first quiz coding question
-        for (int q = 0; q < lesson->questionCount; q++) {
-            if (!lesson->questions[q].task) continue;
-            CodeOpenQuizQuestion(lesson, q, true);
-            return true;
-        }
-        return false;
-    }
-    for (int b = 0; b < lesson->blockCount; b++) {  // tryit: the lesson's first runnable example
-        if (lesson->blocks[b].type == BLOCK_CODE && strstr(lesson->blocks[b].text, "main(")) {
-            CodeOpenSnippet(TextFormat("Try it: %s", lesson->title), lesson->blocks[b].text, lesson->track == TRACK_CPP);
-            return true;
-        }
-    }
-    return false;
-}
-
 // The screen a shot name shows, setting up that screen's state on the way.
-// extra is argv[5]: a scroll position, a splash time in ms, or an exercise number.
+// extra is argv[5]: a scroll position, a splash time in ms, or a step number.
 static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int lessonIndex, const char *extra,
                                DevShot *shot)
 {
@@ -97,18 +45,6 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         RankingScreenOpen(lessons);
         if (Is(name, "rankings-skills")) RankingScreenSelect(RANKING_SKILLS, lessons->count ? lessons->items[lessonIndex].track : TRACK_COUNT);
         return SCREEN_RANKINGS;
-    }
-    if (Is(name, "tracing") && lessons->count) {
-        LessonScreenOpen(lessons, lessonIndex, "Home");
-        TracingScreenOpen(&lessons->items[lessonIndex], extra ? atoi(extra) - 1 : 0);
-        return SCREEN_TRACING;
-    }
-
-    if (Is(name, "practice") || Is(name, "practice-question") || Is(name, "practice-results") || Is(name, "practice-review")) {
-        PracticeScreenOpen(lessons);
-        PracticeScreenDemo(lessons->count ? lessons->items[lessonIndex].track : TRACK_C,
-                           Is(name, "practice-question") ? 1 : Is(name, "practice-results") ? 2 : Is(name, "practice-review") ? 3 : 0);
-        return SCREEN_PRACTICE;
     }
     // speed: a lesson's speed round intro; speedready: the count-in; speedplay <index> <ms>:
     // question 7, ms into its 10 seconds; speedfail: the explained failure; speedgold: gold.
@@ -129,11 +65,6 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         SpeedScreenDemo(Is(name, "challengeplay") ? 2 : Is(name, "challengeresults") ? 5 : 0, extra ? (float)atof(extra) : 0);
         return SCREEN_SPEED;
     }
-    if (Is(name, "courses")) {
-        CoursesScreenOpen(lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
-        return SCREEN_COURSES;
-    }
-
     if (Is(name, "splash")) {
         shot->splashTime = (extra ? (float)atof(extra) : 1500) / 1000.0f;
         return SCREEN_SPLASH;
@@ -152,24 +83,20 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         SettingsOpen();
         return SCREEN_SETTINGS;
     }
-    if (Is(name, "editor") || Is(name, "exercise") || Is(name, "tryit") || Is(name, "quiztask")) {
-        if (!PrepareCodeShot(name, lessons, lessonIndex, extra ? atoi(extra) : 1)) return Home();
+    if (Is(name, "editor")) {  // the free editor needs a user for its draft
+        if (!AccountCurrent()) return Home();
+        CodeSetDraftFolder(AccountCodeDir());
+        CodeOpenPlayground();
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;
     }
-    if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics") || Is(name, "saved")
-        || Is(name, "search")) {
-        // home: the journey of lesson <index>'s track; statistics: the statistics view;
-        // saved: the signed-in user's saved lessons; search: INCREMENT_SHOT_SEARCH typed
-        // into the box (even " ", which shows the empty-search hint) and INCREMENT_SHOT_FILTER.
-        HomeView view = Is(name, "statistics") ? HOME_VIEW_STATISTICS
-                      : Is(name, "saved")      ? HOME_VIEW_SAVED
-                                               : HOME_VIEW_JOURNEY;
+    if (Is(name, "home") || Is(name, "menu") || Is(name, "dashboard") || Is(name, "statistics")) {
+        // home: the journey of lesson <index>'s track; statistics: the statistics view.
+        HomeView view = Is(name, "statistics") ? HOME_VIEW_STATISTICS : HOME_VIEW_JOURNEY;
         DashboardOpen();
         DashboardShow(view, lessons->count ? lessons->items[lessonIndex].track : TRACK_C);
         DashboardDemo(scroll);
-        if (Is(name, "search")) DashboardDemoSearch(getenv("INCREMENT_SHOT_SEARCH"), ShotSearchFilter());
         // INCREMENT_SHOT_TRAIL=1: the journey's mouse trail, as if the mouse swept across it.
         const char *trail = getenv("INCREMENT_SHOT_TRAIL");
         // INCREMENT_SHOT_AMBIENCE=<style name>: the journey's background in that style.
@@ -181,34 +108,21 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         return SCREEN_HOME;
     }
 
-    // The rest show lesson content, so they need lessons.
-    if (lessons->count == 0) return Home();
-    LessonPage page = Is(name, "lesson") || Is(name, "notes")    ? LESSON_PAGE_READING
-                    : Is(name, "quiz") || Is(name, "answered")
-                      || Is(name, "quizcode") || Is(name, "quizsolved")  ? LESSON_PAGE_QUIZ
-                    : Is(name, "result")                         ? LESSON_PAGE_RESULT
-                    : Is(name, "review")                         ? LESSON_PAGE_REVIEW
-                    : Is(name, "celebration") || Is(name, "graduation") ? LESSON_PAGE_CELEBRATION
-                                                                 : (LessonPage)-1;
-    if ((int)page < 0) return Home();  // a name we don't know
-    NotesPanelSetFolder(AccountCurrent() ? AccountNotesDir() : NULL);
-    LessonScreenOpen(lessons, lessonIndex, "Home");
-    if (Is(name, "notes")) NotesPanelDemo(getenv("INCREMENT_SHOT_NOTES"));  // the user's saved notes if unset
-    // INCREMENT_SHOT_DIAGRAM="step[,box]": pointer diagrams start at that step (1-based),
-    // with that box (a cell index) selected.
-    const char *diagram = getenv("INCREMENT_SHOT_DIAGRAM");
-    if (diagram) {
-        const char *comma = strchr(diagram, ',');
-        MemoryViewDemo(atoi(diagram) - 1, comma ? atoi(comma + 1) : -1);
+    // level <index> [step]: a level at a step (1-based; even a locked one), its first run
+    // finished; INCREMENT_SHOT_HINTS=<n> reveals hints. levelsolved: the same step with its
+    // solution run and passed. levelcomplete: the celebration after the last step.
+    if (Is(name, "level") || Is(name, "levelsolved") || Is(name, "levelcomplete")) {
+        if (lessons->count == 0 || lessons->items[lessonIndex].stepCount == 0) return Home();
+        LevelScreenOpen(lessons, lessonIndex, AccountCurrent() ? AccountCodeDir() : NULL);
+        const char *hints = getenv("INCREMENT_SHOT_HINTS");
+        LevelScreenDemo(extra ? atoi(extra) - 1 : 0, hints ? atoi(hints) : 0, Is(name, "levelsolved"));
+        if (Is(name, "levelcomplete")) LevelScreenDemoCelebration();
+        // INCREMENT_SHOT_RUN=1: run the step's draft as the learner would, to show its checks.
+        const char *runFirst = getenv("INCREMENT_SHOT_RUN");
+        if (Is(name, "level") && runFirst && runFirst[0] == '1') LevelScreenDemoRun();
+        return SCREEN_LEVEL;
     }
-    LessonScreenDemo(page, scroll, Is(name, "answered") || Is(name, "graduation"));
-    // quizcode / quizsolved: the quiz at its coding question, before and after it's solved.
-    if (Is(name, "quizcode") || Is(name, "quizsolved")) {
-        if (LessonScreenDemoCoding(Is(name, "quizsolved")) < 0) return Home();
-        shot->framesLeft = 24;
-    }
-    if (page == LESSON_PAGE_CELEBRATION || Is(name, "answered")) shot->framesLeft = 24; // let the expression crossfade settle
-    return SCREEN_LESSON;
+    return Home();  // a name we don't know
 }
 
 DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
@@ -231,7 +145,6 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
     const char *err;
     if (user && password && AccountLogin(user, password, &err)) {
         ProgressLoad(AccountProgressPath());
-        BookmarksLoad(AccountBookmarksPath());
         ReviewLoad(AccountReviewPath());
         SkillsLoad(AccountSkillsPath());
     }
@@ -248,8 +161,9 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
 bool DevShotCapture(DevShot *shot)
 {
     if (!shot->outputPath) return false;
-    // A shot of the code editor waits for the compile and run to finish (up to ~30 s).
-    if (CodeBusy() && shot->framesLeft == 1 && shot->framesWaited++ < 1800) return false;
+    // A shot of the code editor or a level waits for the compile and run to finish (up to ~30 s).
+    bool running = CodeBusy() || LevelScreenBusy();
+    if (running && shot->framesLeft == 1 && shot->framesWaited++ < 1800) return false;
     if (--shot->framesLeft > 0) return false;
 
     rlDrawRenderBatchActive();  // pending batched draws aren't in the framebuffer yet
@@ -281,6 +195,7 @@ void DevGalleryScreen(void)
     static const char *names[ICON_COUNT] = {
         "back", "next", "check", "cross", "gear", "logout", "power", "user", "key", "lock",
         "theme", "trash", "info", "book", "retry", "play", "trophy", "copy", "target", "code", "mail",
+        "bulb", "plus", "star", "bolt",
     };
     // The logo at several sizes along the top, and the wordmark lockup at the right.
     float x = 40, y = 40;
@@ -302,7 +217,7 @@ void DevGalleryScreen(void)
     }
 
     // Icons in context.
-    UiButtonIcon((Rectangle){ 40, 690, 240, 50 }, ICON_PLAY, "Start quiz", true);
+    UiButtonIcon((Rectangle){ 40, 690, 240, 50 }, ICON_PLAY, "Run", true);
     UiButtonIconEx((Rectangle){ 300, 690, 160, 50 }, ICON_GEAR, "Settings", 20, COL_PANEL, COL_SECONDARY_HOVER,
                    COL_TEXT, true);
     UiIconText(ICON_CHECK, gFonts.bold, "Correct!", 490, 702, 26, COL_GOOD);

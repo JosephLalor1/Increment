@@ -1,12 +1,13 @@
+// The signed-in learner's passed steps and gold mastery. See progress.h.
 #include "progress.h"
 #include "raylib.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_ENTRIES 512  // lessons plus exercises; far more than the course has
+#define MAX_ENTRIES 1024  // every step of every level, plus gold; far more than the course has
 
-// One stored score: a lesson id or an exercise id (see progress.h).
+// One stored mark: a step or a gold id (see progress.h), and 100 once done.
 typedef struct {
     char id[96];
     int best;
@@ -64,70 +65,56 @@ bool ProgressSave(void)
     return true;
 }
 
-int ProgressBest(const char *id)
+static int Best(const char *id)
 {
     Entry *e = Find(id);
     return e ? e->best : -1;
 }
 
-const char *ProgressScoreNote(const char *lessonId)
-{
-    int best = ProgressBest(lessonId);
-    return best < 0 ? "New" : TextFormat("Best: %d%%", best);
-}
-
-void ProgressRecord(const char *id, int percent)
+// Marks an id done (100) and saves. Returns false if it couldn't be stored or saved.
+static bool RecordDone(const char *id)
 {
     Entry *e = FindOrAdd(id);
-    if (!e) return;
-    if (percent > e->best) e->best = percent;
-    ProgressSave();
+    if (!e) return false;
+    e->best = 100;
+    return ProgressSave();
 }
 
-bool ProgressLessonPassed(const char *lessonId)
+// "<lesson id>/<n>" with n 1-based, the id a passed step is stored under.
+static void StepId(const char *lessonId, int stepIndex, char *out, size_t size)
 {
-    return ProgressBest(lessonId) >= PASS_PERCENT;
+    snprintf(out, size, "%s/%d", lessonId, stepIndex + 1);
 }
 
-// "<lesson id>#<n>" with n 1-based, the id an exercise's pass is stored under.
-static void ExerciseId(const char *lessonId, int exerciseIndex, char *out, size_t size)
-{
-    snprintf(out, size, "%s#%d", lessonId, exerciseIndex + 1);
-}
-
-bool ProgressExerciseDone(const char *lessonId, int exerciseIndex)
+bool ProgressStepDone(const char *lessonId, int stepIndex)
 {
     char id[64];
-    ExerciseId(lessonId, exerciseIndex, id, sizeof id);
-    return ProgressBest(id) >= 100;
+    StepId(lessonId, stepIndex, id, sizeof id);
+    return Best(id) >= 100;
 }
 
-void ProgressRecordExercise(const char *lessonId, int exerciseIndex)
+bool ProgressRecordStep(const char *lessonId, int stepIndex)
 {
     char id[64];
-    ExerciseId(lessonId, exerciseIndex, id, sizeof id);
-    ProgressRecord(id, 100);
+    StepId(lessonId, stepIndex, id, sizeof id);
+    return RecordDone(id);
 }
 
-bool ProgressTraceDone(const char *lessonId, const char *traceId)
+bool ProgressParseStepId(const char *id, char *lessonId, size_t size, int *stepIndex)
 {
-    char id[96];
-    snprintf(id, sizeof id, "%s@trace:%s", lessonId, traceId);
-    return ProgressBest(id) >= 100;
-}
-
-bool ProgressRecordTrace(const char *lessonId, const char *traceId)
-{
-    if (!savePath[0]) return false;
-    char id[96];
-    snprintf(id, sizeof id, "%s@trace:%s", lessonId, traceId);
-    Entry *entry = FindOrAdd(id);
-    if (!entry) return false;
-    int before = entry->best;
-    entry->best = 100;
-    if (ProgressSave()) return true;
-    entry->best = before;
-    return false;
+    const char *slash = strrchr(id, '/');
+    if (!slash || slash == id || !slash[1]) return false;
+    int number = 0;
+    for (const char *c = slash + 1; *c; c++) {
+        if (*c < '0' || *c > '9' || number > 1000) return false;
+        number = number * 10 + (*c - '0');
+    }
+    size_t length = (size_t)(slash - id);
+    if (number < 1 || length >= size) return false;
+    memcpy(lessonId, id, length);
+    lessonId[length] = '\0';
+    *stepIndex = number - 1;
+    return true;
 }
 
 // "<lesson id>!gold", the id a won speed round is stored under.
@@ -140,12 +127,12 @@ bool ProgressGold(const char *lessonId)
 {
     char id[64];
     GoldId(lessonId, id, sizeof id);
-    return ProgressBest(id) >= 100;
+    return Best(id) >= 100;
 }
 
 void ProgressRecordGold(const char *lessonId)
 {
     char id[64];
     GoldId(lessonId, id, sizeof id);
-    ProgressRecord(id, 100);
+    RecordDone(id);
 }

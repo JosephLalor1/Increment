@@ -4,9 +4,9 @@
 #include "raylib.h"
 #include "skills.h"
 
-// The achievement animation shown after an answer (quizzes, practice, speed rounds). Small
+// The achievement animation shown after a passed coding step or a speed round answer. Small
 // glowing code characters burst out from where the answer was given and stream down to a
-// badge for each skill the question exercised, which pops up in the bottom-right corner: the
+// badge for each skill it exercised, which pops up in the bottom-right corner: the
 // skill's logo (skill_icons.h) inside a ring that fills to how far the learner is through the
 // skill's current level, rising (or draining, for a wrong answer) as the characters arrive.
 // A level up flashes the ring gold. The badges slip away again a moment later.

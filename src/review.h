@@ -4,10 +4,9 @@
 #include <stdbool.h>
 
 // What the signed-in user tends to get right and wrong, question by question, with an
-// Anki-style (SM-2) schedule for when each one should be practised again. Every answer the
-// app checks (lesson quizzes, practice quizzes, coding questions, speed rounds) is recorded
-// here under a stable id: LessonQuestionId for lesson questions, "skill:<name>" for a speed
-// round skill's generated questions.
+// Anki-style (SM-2) schedule for when each one should be practised again. Every speed round
+// answer is recorded here under its skill's id, "skill:<name>" (speed_plan.h). (Histories
+// from older versions also hold answers to lesson quiz questions, which no longer exist.)
 //
 // Stored as one line per question in users/<name>.review.txt:
 //   <id> <right> <wrong> <repetitions> <lapses> <ease> <interval days> <due day> <last day>

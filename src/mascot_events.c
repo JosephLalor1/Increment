@@ -9,7 +9,7 @@ FoxProgressSnapshot FoxProgressCapture(const LessonSet *set, int index)
     const Lesson *lesson = &set->items[index];
     int done, total;
     RoadmapNext(set, lesson->track, &done, &total);
-    result.lessonPassed = ProgressLessonPassed(lesson->id);
+    result.lessonPassed = RoadmapLevelComplete(lesson);
     result.courseComplete = total > 0 && done == total;
     return result;
 }

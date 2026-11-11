@@ -8,7 +8,6 @@
 #include "layout.h"
 #include "mascot.h"
 #include "progress.h"
-#include "quiz_view.h"
 #include "review.h"
 #include "speed_plan.h"
 #include "speed_round.h"
@@ -91,16 +90,10 @@ static void Record(SpeedOutcome outcome, float timeLeft)
     int index = speed.round.lastAnswered;
     const SpeedPlanItem *item = &speed.round.plan[index];
     bool right = outcome == SPEED_RIGHT;
-    SkillGains gains;
-    if (item->bank) {
-        gains = AnswerRecordTimed(item->reviewId, item->bank->skills, item->bank->skillCount, item->bank->difficulty,
-                                  right, timeLeft);
-    } else {
-        SkillWeight skills[MAX_QUESTION_SKILLS];
-        int count = SpeedSkillWeights(item->skill, skills);
-        gains = AnswerRecordTimed(item->reviewId, skills, count, SpeedQuestionDifficulty(&speed.round.generated[index]),
-                                  right, timeLeft);
-    }
+    SkillWeight skills[MAX_QUESTION_SKILLS];
+    int count = SpeedSkillWeights(item->skill, skills);
+    SkillGains gains = AnswerRecordTimed(item->reviewId, skills, count,
+                                         SpeedQuestionDifficulty(&speed.round.generated[index]), right, timeLeft);
     // The XP streams off to the skill badges (a timeout's from the middle of the screen).
     SkillRewardShow(SkillRewardOrigin(), &gains);
 }
@@ -163,19 +156,18 @@ static SpeedScreenAction IntroPage(void)
             strncat(skills, SpeedSkillTitle(speed.skills[i]), sizeof skills - strlen(skills) - 1);
         }
         y += UiWrappedText(gFonts.text, skills, (Vector2){ x, y }, w, 20 * scale, COL_DIM, true) + 24;
-        y += Bullet("Work out the value of a variable after a few lines of code, with some of this lesson's own "
-                    "questions mixed in.", COL_ACCENT, x, y, w, scale);
+        y += Bullet("Work out the value of a variable after a few lines of code.", COL_ACCENT, x, y, w, scale);
         y += Bullet("10 questions, straight after one another: no breaks.", COL_ACCENT, x, y, w, scale);
         y += Bullet("At least 10 seconds each, more for longer, new or tricky questions. Answer with the number keys, "
                     "or click.", COL_ACCENT, x, y, w, scale);
         y += Bullet("One wrong answer or a timeout ends the run.", COL_ACCENT, x, y, w, scale);
-        y += Bullet("Answer all 10 for gold mastery of this lesson.", COL_GOLD, x, y, w, scale);
+        y += Bullet("Answer all 10 for gold mastery of this level.", COL_GOLD, x, y, w, scale);
     }
     y += 20;
 
     if (!IsChallenge() && ProgressGold(speed.lesson->id)) {
         IconDraw(ICON_STAR, (Vector2){ x + 16, y + 16 }, 30, COL_GOLD);
-        y += UiWrappedText(gFonts.bold, "You have gold mastery of this lesson. Play again any time.",
+        y += UiWrappedText(gFonts.bold, "You have gold mastery of this level. Play again any time.",
                            (Vector2){ x + 44, y + 2 }, w - 44, 21 * scale, COL_GOLD, true) + 28;
     }
     bool start = UiButtonIcon((Rectangle){ x, y, 260, 56 }, ICON_BOLT, "Start", true) || PressedStart();
@@ -313,42 +305,6 @@ static int GeneratedQuestionView(const SpeedQuestion *q, float tension, double n
     return clicked;
 }
 
-// One of a lesson's own questions: its prompt, any code, and its choices as a numbered list.
-static int BankQuestionView(const Question *q, float tension, double now, Vector2 mouse)
-{
-    float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
-    float w = W - 120 < 900 ? W - 120 : 900, x = (W - w) / 2;
-    Color hot = Mix(COL_ACCENT, COL_BAD, tension * 1.2f);
-    float y = QuestionHeader("QUIZ QUESTION", tension, now, x, w);
-
-    y += UiWrappedText(gFonts.bold, q->prompt, (Vector2){ x, y }, w, 26, COL_TEXT, true) + 16;
-    if (q->code) {
-        // The code shrinks when space is short, leaving room for the choices.
-        int lines = 1;
-        for (const char *c = q->code; *c; c++) lines += *c == '\n';
-        float room = H - y - q->choiceCount * 62 - 40;
-        float size = room / (lines * 1.5f + 1.5f);
-        size = size > 20 ? 20 : size < 12 ? 12 : size;
-        y += UiCodeBlock(q->code, (Vector2){ x, y }, w, size, true) + 16;
-    }
-
-    int clicked = -1;
-    for (int i = 0; i < q->choiceCount; i++) {
-        float textH = UiWrappedText(gFonts.text, q->choices[i], (Vector2){ 0, 0 }, w - 80, 21, COL_TEXT, false);
-        Rectangle box = { x, y, w, textH + 24 };
-        bool over = CheckCollisionPointRec(mouse, box);
-        if (over) UiWantHand();
-        UiRoundRect(box, 10, over ? COL_PANEL_HI : COL_PANEL);
-        DrawRectangleRoundedLinesEx(box, 0.25f, 8, 2, Fade(hot, 0.3f + 0.5f * tension));
-        UiRoundRect((Rectangle){ box.x + 12, box.y + box.height / 2 - 14, 28, 28 }, 6, COL_BG);
-        UiTextCentered(gFonts.bold, TextFormat("%d", i + 1), box.x + 26, box.y + box.height / 2 - 11, 18, COL_DIM);
-        UiWrappedText(gFonts.text, q->choices[i], (Vector2){ x + 56, y + 12 }, w - 80, 21, COL_TEXT, true);
-        if (over && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) clicked = i;
-        y += box.height + 10;
-    }
-    return clicked;
-}
-
 // "3, 2, 1" before the first question, under calm rain.
 static void CountIn(double now)
 {
@@ -376,7 +332,6 @@ static void RunPage(double now)
     BeginMode2D(camera);
     int clicked = -1, number = speed.round.number;
     if (speed.round.phase == SPEED_COUNTING_IN) CountIn(now);
-    else if (SpeedRoundIsBank(&speed.round, number)) clicked = BankQuestionView(speed.round.plan[number].bank, tension, now, mouse);
     else clicked = GeneratedQuestionView(&speed.round.generated[number], tension, now, mouse);
     EndMode2D();
 
@@ -441,11 +396,6 @@ static float ExplainedQuestion(int index, float x, float y, float w, float scale
 {
     const SpeedRound *r = &speed.round;
     int picked = r->picked[index];
-    if (SpeedRoundIsBank(r, index)) {  // a lesson question: the quiz's own review card
-        QuizReviewItem item;
-        QuizQuestionReview(r->plan[index].bank, picked, &item);
-        return QuizViewReview(&item, index + 1, x, y, w, scale, draw);
-    }
     const SpeedQuestion *q = &r->generated[index];
     float top = y;
     bool right = picked == q->correct;
@@ -476,7 +426,7 @@ static SpeedScreenAction FailedPage(double now)
     y += ExplainedQuestion(speed.round.number, x, y, w, scale, true) + 28;
 
     bool retry = UiButtonIcon((Rectangle){ x, y, 240, 54 }, ICON_RETRY, "Try again", true) || PressedStart();
-    bool back = UiButtonIconEx((Rectangle){ x + 256, y, 240, 54 }, ICON_BACK, "Back to lesson", 22, COL_PANEL,
+    bool back = UiButtonIconEx((Rectangle){ x + 256, y, 240, 54 }, ICON_BACK, "Back", 22, COL_PANEL,
                                COL_SECONDARY_HOVER, COL_TEXT, true);
     UiText(gFonts.text, "Enter: try again", x + 516, y + 18, 18, COL_DIM);
     y += 54;
@@ -511,10 +461,10 @@ static SpeedScreenAction GoldPage(double now)
     y += 76;
     UiTextCentered(gFonts.text, speed.lesson->title, cx, y, 26, COL_TEXT);
     y += 44;
-    UiTextCentered(gFonts.text, speed.newGold ? "10 out of 10 against the clock. This lesson is now gold."
+    UiTextCentered(gFonts.text, speed.newGold ? "10 out of 10 against the clock. This level is now gold."
                                               : "10 out of 10 against the clock, again!", cx, y, 20, COL_DIM);
     y += 60;
-    bool back = UiButtonIcon((Rectangle){ cx - 250, y, 240, 54 }, ICON_BACK, "Back to lesson", true)
+    bool back = UiButtonIcon((Rectangle){ cx - 250, y, 240, 54 }, ICON_BACK, "Back", true)
              || PressedStart();
     bool again = UiButtonIconEx((Rectangle){ cx + 10, y, 240, 54 }, ICON_RETRY, "Play again", 22, COL_PANEL,
                                 COL_SECONDARY_HOVER, COL_TEXT, true);

@@ -844,46 +844,21 @@ char *SpeedQuestionCode(const SpeedQuestion *q, int from, char *out, int size)
 // ---------------------------------------------------------------------------
 // The round
 
-bool SpeedRoundIsBank(const SpeedRound *round, int index)
-{
-    return index >= 0 && index < round->count && round->plan[index].bank != NULL;
-}
-
 int SpeedRoundChoiceCount(const SpeedRound *round, int index)
 {
-    if (index < 0 || index >= round->count) return 0;
-    return SpeedRoundIsBank(round, index) ? round->plan[index].bank->choiceCount : SPEED_CHOICES;
+    return index >= 0 && index < round->count ? SPEED_CHOICES : 0;
 }
 
 int SpeedRoundCorrect(const SpeedRound *round, int index)
 {
-    if (index < 0 || index >= round->count) return -1;
-    return SpeedRoundIsBank(round, index) ? round->plan[index].bank->correct : round->generated[index].correct;
+    return index >= 0 && index < round->count ? round->generated[index].correct : -1;
 }
 
-// Characters of reading in a lesson question: its prompt, code and choices.
-static int ReadingLength(const Question *q)
-{
-    int length = (int)strlen(q->prompt) + (q->code ? (int)strlen(q->code) : 0);
-    for (int i = 0; i < q->choiceCount; i++) length += (int)strlen(q->choices[i]);
-    return length;
-}
-
-double SpeedSecondsFor(const Question *bank, const SpeedQuestion *generated, SpeedFamiliarity familiarity)
+double SpeedSecondsFor(const SpeedQuestion *question, SpeedFamiliarity familiarity)
 {
     double seconds = SPEED_MIN_SECONDS;
-    if (bank) {
-        int length = ReadingLength(bank);
-        if (length > 120) seconds += (length - 120) / 50.0;  // about a second per extra line of reading
-        if (bank->code) {
-            int lines = 1;
-            for (const char *c = bank->code; *c; c++) lines += *c == '\n';
-            seconds += lines * 0.5;  // code takes tracing, not just reading
-        }
-    } else if (generated) {
-        int lines = generated->lineCount - generated->firstBodyLine;
-        if (lines > 4) seconds += (lines - 4) * 0.8;
-    }
+    int lines = question->lineCount - question->firstBodyLine;
+    if (lines > 4) seconds += (lines - 4) * 0.8;  // more code takes more tracing
     if (familiarity == SPEED_NEW) seconds += 4;
     if (familiarity == SPEED_STRUGGLING) seconds += 6;
     return seconds < SPEED_MIN_SECONDS ? SPEED_MIN_SECONDS : seconds > SPEED_MAX_SECONDS ? SPEED_MAX_SECONDS : seconds;
@@ -901,10 +876,10 @@ void SpeedRoundStart(SpeedRound *round, const SpeedPlanItem *plan, int count, bo
     for (int i = 0; i < count; i++) {
         round->plan[i] = plan[i];
         round->picked[i] = -1;
-        // Generated questions grow with the run, so its end is the hardest part.
-        if (!plan[i].bank) SpeedGenerate(plan[i].skill, i, &seed, &round->generated[i]);
+        // Questions grow with the run, so its end is the hardest part.
+        SpeedGenerate(plan[i].skill, i, &seed, &round->generated[i]);
         SpeedFamiliarity known = familiarity ? familiarity(plan[i].reviewId) : SPEED_KNOWN;
-        round->seconds[i] = SpeedSecondsFor(plan[i].bank, plan[i].bank ? NULL : &round->generated[i], known);
+        round->seconds[i] = SpeedSecondsFor(&round->generated[i], known);
     }
     round->phase = count > 0 ? SPEED_COUNTING_IN : SPEED_WON;
     round->phaseStart = now;

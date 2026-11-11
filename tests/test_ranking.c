@@ -49,28 +49,31 @@ int main(int argc, char **argv)
     assert(!AccountRankingCodeFolder(0,path,1));
     LessonSet set = {calloc(3,sizeof(Lesson)),3}; assert(set.items);
     snprintf(set.items[0].id,sizeof set.items[0].id,"c_a");
-    set.items[0].track=TRACK_C; set.items[0].questionCount=1;
+    set.items[0].track=TRACK_C; set.items[0].stepCount=2;
     snprintf(set.items[1].id,sizeof set.items[1].id,"c_b");
-    set.items[1].track=TRACK_C; // a reading-only lesson counts for completion but has no quiz points
+    set.items[1].track=TRACK_C; set.items[1].stepCount=1;
     snprintf(set.items[2].id,sizeof set.items[2].id,"cpp_a");
-    set.items[2].track=TRACK_CPP; set.items[2].questionCount=1;
-    Write(paths[0],"c_a 80\nc_a 90\ncpp_a 70\nc_b 100\nremoved_lesson 100\nc_a#1 100\nc_a@trace:x 100\nc_a!gold 100\n");
-    Write(paths[1],"c_a 100\ncpp_a 100\n");
+    set.items[2].track=TRACK_CPP; set.items[2].stepCount=1;
+    // Alice: everything, with a repeated step, a step beyond the level's last, a removed level,
+    // gold and lines from older versions (quiz scores, exercises), none of which count.
+    Write(paths[0],"c_a/1 100\nc_a/2 100\nc_a/2 100\ncpp_a/1 100\nc_b/1 100\nc_a/3 100\nremoved_lesson/1 100\n"
+                   "c_a!gold 100\nc_a 90\nc_a#1 100\n");
+    Write(paths[1],"c_a/1 100\ncpp_a/1 100\nc_b/1 100\n");  // Bob: half of c_a
     ProgressLoad(paths[2]);
-    ProgressRecord("sentinel",42);
+    ProgressRecordStep("sentinel",0);
     char *before=LoadFileText(paths[0]), *currentBefore=LoadFileText(paths[2]); assert(before && currentBefore);
     for(int i=0;i<3;i++) RankingRead(&rows[i],&set,TRACK_COUNT,paths[i]);
-    assert(rows[0].completed==3 && rows[0].quizPoints==160 && !rows[0].warning);
-    assert(rows[1].completed==2 && rows[1].quizPoints==200);
-    assert(rows[2].completed==0 && rows[2].quizPoints==0);
+    assert(rows[0].completed==3 && rows[0].stepsPassed==4 && !rows[0].warning);
+    assert(rows[1].completed==2 && rows[1].stepsPassed==3);
+    assert(rows[2].completed==0 && rows[2].stepsPassed==0);
     RankingSort(rows,3);
     assert(!strcmp(rows[0].name,"Alice") && rows[0].rank==1 && rows[1].rank==2 && rows[2].rank==3);
     RankingRead(&rows[0],&set,TRACK_C,paths[0]);
-    assert(rows[0].completed==2 && rows[0].quizPoints==90);
+    assert(rows[0].completed==2 && rows[0].stepsPassed==3);
     RankingRead(&rows[0],&set,TRACK_CPP,paths[0]);
-    assert(rows[0].completed==1 && rows[0].quizPoints==70);
+    assert(rows[0].completed==1 && rows[0].stepsPassed==1);
     RankingRead(&rows[0],&set,TRACK_COUNT,"no-such-ranking-file.txt");
-    assert(!rows[0].warning && rows[0].completed==0 && rows[0].quizPoints==0);
+    assert(!rows[0].warning && rows[0].completed==0 && rows[0].stepsPassed==0);
     // Real sandbox files: repeated evidence is counted once per concept, per selected track.
     assert(MakeDirectory(folders[0])==0 && MakeDirectory(folders[1])==0);
     assert(CodeLibrarySave(folders[0],"Loop one",false,"for (;;) {}",false)==CODE_SAVE_OK);
@@ -121,7 +124,7 @@ int main(int argc, char **argv)
     assert(!strcmp(modeRows[0].name,"Ben") && !strcmp(modeRows[1].name,"Dan"));
     assert(modeRows[0].rank==1 && modeRows[1].rank==1 && modeRows[2].rank==3 && modeRows[3].rank==4);
     RankingSortMode(modeRows,4,RANKING_PROGRESS);
-    assert(!strcmp(modeRows[0].name,"Zoe") && modeRows[0].completed==5 && modeRows[0].quizPoints==400);
+    assert(!strcmp(modeRows[0].name,"Zoe") && modeRows[0].completed==5 && modeRows[0].stepsPassed==400);
     RankingSortMode(NULL,0,RANKING_SKILLS);
     RankingReadSkills(&skillRows[0],TRACK_COUNT,""); assert(skillRows[0].warning);
     char *saved=CodeLibraryLoad(folders[1],"Arrays",false); assert(saved && !strcmp(saved,"int values[3];")); free(saved);
@@ -131,18 +134,19 @@ int main(int argc, char **argv)
     RankingSort(ties,1); assert(ties[0].rank==1);
     RankingSort(NULL,0);
     char damaged[1300]; snprintf(damaged,sizeof damaged,"%sdamaged.txt",directory);
-    Write(damaged,"c_a 1000\nc_a -1\nc_a 70bad\nc_a 9999999999999999999999999999999\nc_a 100 extra\n\nc_a 69\ncpp_a 70\n");
+    Write(damaged,"c_a/1 1000\nc_a/1 -1\nc_a/1 70bad\nc_a/1 9999999999999999999999999999999\nc_a/1 100 extra\n\n"
+                  "c_a/1 69\ncpp_a/1 100\n");
     RankingRead(&rows[0],&set,TRACK_COUNT,damaged);
-    assert(rows[0].warning && rows[0].completed==1 && rows[0].quizPoints==139);
+    assert(rows[0].warning && rows[0].completed==1 && rows[0].stepsPassed==1);
     FILE *file=fopen(damaged,"w"); assert(file);
     for(int i=0;i<300;i++) fputc('x',file);
-    fputs("\nc_a 100\n",file); fclose(file);
+    fputs("\nc_a/1 100\nc_a/2 100\n",file); fclose(file);
     RankingRead(&rows[0],&set,TRACK_COUNT,damaged);
-    assert(rows[0].warning && rows[0].completed==1 && rows[0].quizPoints==100);
+    assert(rows[0].warning && rows[0].completed==1 && rows[0].stepsPassed==2);
     LessonSet empty={0}; RankingRead(&rows[0],&empty,TRACK_COUNT,paths[0]);
-    assert(!rows[0].warning && rows[0].completed==0 && rows[0].quizPoints==0);
+    assert(!rows[0].warning && rows[0].completed==0 && rows[0].stepsPassed==0);
     assert(!strcmp(AccountCurrent(),"Cara") && !strcmp(AccountProgressPath(),paths[2]));
-    assert(ProgressBest("sentinel")==42 && ProgressBest("c_a")==-1);
+    assert(ProgressStepDone("sentinel",0) && !ProgressStepDone("c_a",0));
     char *after=LoadFileText(paths[0]), *currentAfter=LoadFileText(paths[2]);
     assert(after && currentAfter && !strcmp(before,after) && !strcmp(currentBefore,currentAfter));
     UnloadFileText(before); UnloadFileText(after); UnloadFileText(currentBefore); UnloadFileText(currentAfter);

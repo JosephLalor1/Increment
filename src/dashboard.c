@@ -1,4 +1,4 @@
-// The home screen: learning journeys, statistics, saved lessons and lesson search. See dashboard.h.
+// The home screen: the learning journeys and statistics. See dashboard.h.
 #include "dashboard.h"
 #include "account.h"
 #include "ambience.h"
@@ -8,11 +8,10 @@
 #include "journey_view.h"
 #include "layout.h"
 #include "review_view.h"
-#include "search_view.h"
 #include "skills_view.h"
 #include "mascot.h"
 #include "progress.h"
-#include "saved_view.h"
+#include "roadmap.h"
 #include "ui.h"
 
 #include <math.h>
@@ -38,7 +37,7 @@ static float TrackSummary(DashboardStats stats, const char *title, float x, floa
     UiRoundRect(card, 14, over ? COL_PANEL_HI : COL_PANEL);
     TextLine(title, x + 20, y + 16, w - 40, 26 * scale, COL_TEXT);
     float p = stats.lessons ? (float)stats.completed / stats.lessons : 0;
-    TextLine(TextFormat("%d / %d lessons complete  |  %.0f%%", stats.completed, stats.lessons, p * 100),
+    TextLine(TextFormat("%d / %d levels complete  |  %.0f%%", stats.completed, stats.lessons, p * 100),
              x + 20, y + titleH + 26, w - 40, 18 * scale, COL_DIM);
     ProgressBar((Rectangle){ x + 20, y + h - 62 * scale, w - 40, 12 }, p, COL_BG, COL_GOOD);
     UiIconText(stats.next >= 0 ? ICON_PLAY : ICON_RETRY, gFonts.text,
@@ -57,7 +56,7 @@ static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, fl
     const char *title = stats.lessons && stats.next < 0 ? "Amazing work! Keep going!"
                       : stats.completed > 0 ? "You're making great progress!" : "Ready to learn something new?";
     float titleH = UiWrappedText(gFonts.bold, title, (Vector2){ 0, 0 }, textW, 27 * scale, COL_TEXT, false);
-    float bodyH = UiWrappedText(gFonts.text, TextFormat("%d of %d lessons complete", stats.completed, stats.lessons),
+    float bodyH = UiWrappedText(gFonts.text, TextFormat("%d of %d levels complete", stats.completed, stats.lessons),
                                (Vector2){ 0, 0 }, textW, 19 * scale, COL_DIM, false);
     int next = stats.next >= 0 ? stats.next : stats.lessons ? 0 : -1;
     const char *nextTitle = next >= 0 ? set->items[next].title : "";
@@ -75,7 +74,7 @@ static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, fl
     UiTextCentered(gFonts.bold, TextFormat("%.0f%%", ratio * 100), center.x, center.y - 22 * scale, 32 * scale, COL_GOOD);
     UiTextCentered(gFonts.text, "complete", center.x, center.y + 17 * scale, 14 * scale, COL_DIM);
     UiWrappedText(gFonts.bold, title, (Vector2){ textX, y + 22 }, textW, 27 * scale, COL_TEXT, true);
-    TextLine(TextFormat("%d of %d lessons complete", stats.completed, stats.lessons), textX, y + 30 + titleH, textW, 19 * scale, COL_DIM);
+    TextLine(TextFormat("%d of %d levels complete", stats.completed, stats.lessons), textX, y + 30 + titleH, textW, 19 * scale, COL_DIM);
     if (next >= 0) {
         float buttonY = y + titleH + bodyH + 46;
         if (UiButtonIcon((Rectangle){ textX, buttonY, textW, 46 * scale }, stats.next < 0 ? ICON_TROPHY : ICON_PLAY,
@@ -86,11 +85,11 @@ static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, fl
     return h + 24;
 }
 
-// Four badges derived from progress: first lesson, five lessons, first exercise, all lessons.
+// Four badges derived from progress: first step, first level, five levels, all levels.
 static float Milestones(DashboardStats stats, float x, float y, float w, float scale)
 {
-    const char *names[] = { "First lesson", "Five lessons", "First exercise", "All lessons" };
-    bool earned[] = { stats.completed >= 1, stats.completed >= 5, stats.exercisesCompleted >= 1,
+    const char *names[] = { "First step", "First level", "Five levels", "All levels" };
+    bool earned[] = { stats.stepsDone >= 1, stats.completed >= 1, stats.completed >= 5,
                       stats.lessons > 0 && stats.completed == stats.lessons };
     float gap = 12, cardW = (w - gap) / 2;
     float h = 76 * scale;
@@ -111,7 +110,7 @@ static bool FilterChip(Rectangle r, const char *label, bool active)
                       active ? COL_ACCENT_HI : COL_SECONDARY_HOVER, active ? COL_ON_ACCENT : COL_TEXT, true);
 }
 
-// A clickable lesson row: status icon, title, a label line and a score bar. Sets *clicked.
+// A clickable level row: status icon, title, a label line and a bar of its passed steps. Sets *clicked.
 static float LessonRow(const Lesson *lesson, const char *label, float x, float y, float w, float scale, bool *clicked)
 {
     float size = 21 * scale;
@@ -122,13 +121,13 @@ static float LessonRow(const Lesson *lesson, const char *label, float x, float y
     bool over = UiMouseOver(row);
     if (over) UiWantHand();
     UiRoundRect(row, 10, over ? COL_PANEL_HI : COL_PANEL);
-    int score = ProgressBest(lesson->id);  // -1 when never attempted
-    bool passed = score >= PASS_PERCENT;
-    Icon status = passed ? ICON_CHECK : score >= 0 ? ICON_RETRY : ICON_BOOK;  // done / try again / not started
+    int done = RoadmapStepsDone(lesson);
+    bool passed = RoadmapLevelComplete(lesson);
+    Icon status = passed ? ICON_CHECK : done > 0 ? ICON_PLAY : ICON_CODE;  // done / under way / not started
     IconDraw(status, (Vector2){ x + 32, y + 28 }, 24, passed ? COL_GOOD : COL_ACCENT);
     TextLine(lesson->title, x + 60, y + 14, w - 96, size, COL_TEXT);
     TextLine(label, x + 20, y + titleH + 22, w - 40, 17 * scale, COL_DIM);
-    float fraction = score < 0 ? 0 : (float)score / 100;
+    float fraction = lesson->stepCount ? (float)done / lesson->stepCount : 0;
     ProgressBar((Rectangle){ x + 20, y + h - 20, w - 40, 6 }, fraction, COL_BG, passed ? COL_GOOD : COL_ACCENT);
     *clicked = over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
     return h + 12;
@@ -137,7 +136,7 @@ static float LessonRow(const Lesson *lesson, const char *label, float x, float y
 // ---------------------------------------------------------------------------
 // Page sections, top to bottom. Each draws at y and returns the height it used.
 
-// Title, the overall journey card, the exercise count and a status message.
+// Title, the overall journey card, the step count and a status message.
 // Sets *empty when there are no lessons at all (the rest of the page is skipped).
 static float OverviewSection(const LessonSet *set, DashboardStats all, float x, float y, float w, float scale,
                              int *selected, bool *empty)
@@ -146,18 +145,17 @@ static float OverviewSection(const LessonSet *set, DashboardStats all, float x, 
     y += TextLine("Your learning adventure", x, y, w, 34 * scale, COL_TEXT) + 12;
     y += TextLine("Small steps. Real progress. Choose your next challenge.", x, y, w, 19 * scale, COL_DIM) + 20;
     y += JourneyCard(set, all, x, y, w, scale, selected);
-    y += TextLine(TextFormat("Coding exercises: %d / %d completed", all.exercisesCompleted, all.exercises),
-                  x, y, w, 20 * scale, COL_TEXT) + 24;
+    y += TextLine(TextFormat("Coding steps: %d / %d passed", all.stepsDone, all.steps), x, y, w, 20 * scale, COL_TEXT) + 24;
 
     *empty = all.lessons == 0;
     if (*empty) {
-        y += TextLine("No lessons available yet. Add lesson files to assets/lessons to get started.", x, y, w,
+        y += TextLine("No levels available yet. Add lesson files to assets/lessons to get started.", x, y, w,
                       21 * scale, COL_DIM);
-    } else if (!all.completed && !all.attempted && !all.exercisesCompleted) {
-        y += TextLine("Your journey starts here. Choose a recommended lesson below; your progress will appear as you practise.",
+    } else if (!all.stepsDone) {
+        y += TextLine("Your journey starts here. Pass your first coding step and your progress will appear.",
                       x, y, w, 19 * scale, COL_ACCENT) + 24;
     } else if (all.completed == all.lessons) {
-        y += TextLine("Congratulations! Every lesson is complete. Revisit any topic to keep your skills sharp.",
+        y += TextLine("Congratulations! Every level is complete. Replay any of them to keep your skills sharp.",
                       x, y, w, 21 * scale, COL_GOOD) + 24;
     }
     return y - top;
@@ -206,27 +204,7 @@ static float TrackSection(const LessonSet *set, float x, float y, float w, float
     return y - top;
 }
 
-static float QuizSection(DashboardStats all, float x, float y, float w, float scale)
-{
-    float top = y;
-    y += TextLine("Quiz performance", x, y, w, 28 * scale, COL_TEXT) + 12;
-    y += TextLine("Best saved scores only. A quiz passes at 70%; attempt history is not recorded.", x, y, w,
-                  18 * scale, COL_DIM) + 12;
-    y += TextLine(TextFormat("Passed: %d / %d  |  Attempted, below pass: %d  |  Not attempted: %d", all.passed,
-                             all.quizzes, all.attempted - all.passed, all.quizzes - all.attempted),
-                  x, y, w, 20 * scale, COL_TEXT) + 10;
-    y += TextLine(TextFormat("Quiz lessons not yet passed: %d", all.quizzes - all.passed), x, y, w, 20 * scale,
-                  COL_TEXT) + 10;
-    if (all.attempted) {
-        y += TextLine(TextFormat("Average best score: %.1f%%  |  Highest best score: %d%%", all.average, all.highest),
-                      x, y, w, 20 * scale, COL_ACCENT) + 24;
-    } else {
-        y += TextLine("Average and highest score: no quizzes attempted yet.", x, y, w, 20 * scale, COL_DIM) + 24;
-    }
-    return y - top;
-}
-
-// The next lesson in each track, then every attempted quiz still below the pass mark.
+// The next level in each track, to carry on with.
 static float RecommendationSection(const LessonSet *set, float x, float y, float w, float scale, int *selected)
 {
     float top = y;
@@ -235,37 +213,18 @@ static float RecommendationSection(const LessonSet *set, float x, float y, float
         const char *track = TrackName((Track)t);
         DashboardStats stats = DashboardCalculate(set, (Track)t);
         if (stats.next < 0) {
-            y += TextLine(TextFormat("%s: %s", track, stats.lessons ? "All lessons complete!" : "No lessons available."),
+            y += TextLine(TextFormat("%s: %s", track, stats.lessons ? "All levels complete!" : "No levels available."),
                           x, y, w, 19 * scale, COL_GOOD) + 12;
             continue;
         }
         const Lesson *lesson = &set->items[stats.next];
-        int score = ProgressBest(lesson->id);
-        const char *label = score < 0
-            ? TextFormat("%s | Recommended next - not attempted", track)
-            : TextFormat("%s | Recommended next - review best score: %d%%", track, score);
+        int done = RoadmapStepsDone(lesson);
+        const char *label = done == 0
+            ? TextFormat("%s | Recommended next - not started", track)
+            : TextFormat("%s | Recommended next - %d / %d steps passed", track, done, lesson->stepCount);
         bool clicked;
         y += LessonRow(lesson, label, x, y, w, scale, &clicked);
         if (clicked) *selected = stats.next;
-    }
-
-    int revisionCount = 0;
-    for (int i = 0; i < set->count; i++) {
-        const Lesson *lesson = &set->items[i];
-        int score = ProgressBest(lesson->id);
-        bool needsRevision = lesson->questionCount > 0 && score >= 0 && score < PASS_PERCENT;
-        if (!needsRevision) continue;
-        if (revisionCount++ == 0) {
-            y += TextLine("Revision based on recorded quiz scores", x, y + 8, w, 21 * scale, COL_ACCENT) + 20;
-        }
-        bool clicked;
-        y += LessonRow(lesson, TextFormat("%s | Best quiz: %d%% - below the pass threshold", TrackName(lesson->track), score),
-                       x, y, w, scale, &clicked);
-        if (clicked) *selected = i;
-    }
-    if (revisionCount == 0) {
-        y += TextLine("No recorded quiz scores below the pass threshold. Unattempted lessons appear in the topic list.",
-                      x, y, w, 18 * scale, COL_DIM) + 16;
     }
     return y - top + 16;
 }
@@ -278,9 +237,9 @@ static float SpeedRoundSection(const LessonSet *set, DashboardStats all, float x
     if (all.speedRounds == 0) return 0;
     float top = y;
     y += TextLine("Speed rounds", x, y, w, 28 * scale, COL_TEXT) + 12;
-    y += TextLine("Ten generated \"what is x?\" questions against the clock, 10 seconds each. Win a lesson's round for "
+    y += TextLine("Ten generated \"what is x?\" questions against the clock, 10 seconds each. Win a level's round for "
                   "gold mastery.", x, y, w, 18 * scale, COL_DIM) + 12;
-    y += TextLine(TextFormat("Gold mastery: %d / %d lessons", all.gold, all.speedRounds), x, y, w, 20 * scale,
+    y += TextLine(TextFormat("Gold mastery: %d / %d levels", all.gold, all.speedRounds), x, y, w, 20 * scale,
                   all.gold ? COL_GOLD : COL_TEXT) + 10;
     ProgressBar((Rectangle){ x, y, w, 7 }, (float)all.gold / all.speedRounds, COL_PANEL_HI, COL_GOLD);
     y += 24;
@@ -322,32 +281,28 @@ static float SpeedRoundSection(const LessonSet *set, DashboardStats all, float x
     return rowTop - top + 16;
 }
 
-// Which lessons the topic list shows, besides the track filter.
-typedef enum { TOPICS_ALL, TOPICS_TO_REVIEW, TOPICS_UNATTEMPTED, TOPICS_COMPLETED, TOPIC_FILTER_COUNT } TopicFilter;
+// Which levels the topic list shows, besides the track filter.
+typedef enum { TOPICS_ALL, TOPICS_UNDER_WAY, TOPICS_NOT_STARTED, TOPICS_COMPLETED, TOPIC_FILTER_COUNT } TopicFilter;
 
 static bool TopicShown(const Lesson *lesson, Track track, TopicFilter filter)
 {
-    int score = ProgressBest(lesson->id);
     if (track != TRACK_COUNT && lesson->track != track) return false;
+    if (!RoadmapLevelReady(lesson)) return false;
+    int done = RoadmapStepsDone(lesson);
     switch (filter) {
-    case TOPICS_TO_REVIEW:   return lesson->questionCount > 0 && score >= 0 && score < PASS_PERCENT;
-    case TOPICS_UNATTEMPTED: return score < 0;
-    case TOPICS_COMPLETED:   return score >= PASS_PERCENT;
+    case TOPICS_UNDER_WAY:   return done > 0 && done < lesson->stepCount;
+    case TOPICS_NOT_STARTED: return done == 0;
+    case TOPICS_COMPLETED:   return done == lesson->stepCount;
     default:                 return true;
     }
 }
 
-// "C | Best quiz: 80% | Passed" and the like, for one topic row.
+// "C | 3 / 10 steps passed | Under way" and the like, for one topic row.
 static const char *TopicLabel(const Lesson *lesson)
 {
-    const char *track = TrackName(lesson->track);
-    int score = ProgressBest(lesson->id);
-    if (!lesson->questionCount) {
-        return TextFormat("%s | No quiz | %s", track, score >= PASS_PERCENT ? "Marked complete" : "Not completed");
-    }
-    const char *status = score < 0 ? "Not attempted" : score >= PASS_PERCENT ? "Passed" : "Needs revision";
-    if (score < 0) return TextFormat("%s | %s", track, status);
-    return TextFormat("%s | Best quiz: %d%% | %s", track, score, status);
+    int done = RoadmapStepsDone(lesson);
+    const char *status = done == 0 ? "Not started" : done == lesson->stepCount ? "Complete" : "Under way";
+    return TextFormat("%s | %d / %d steps passed | %s", TrackName(lesson->track), done, lesson->stepCount, status);
 }
 
 static struct {
@@ -360,8 +315,7 @@ static float TopicSection(const LessonSet *set, float x, float y, float w, float
 {
     float top = y;
     y += TextLine("Topic performance", x, y, w, 28 * scale, COL_TEXT) + 12;
-    y += TextLine("Select any lesson to study, retry its quiz, or practise its exercises.", x, y, w, 18 * scale,
-                  COL_DIM) + 16;
+    y += TextLine("Select any level to play it, or to replay its steps.", x, y, w, 18 * scale, COL_DIM) + 16;
 
     static const char *trackLabels[] = { "All tracks", "C", "C++" };
     static const Track trackValues[] = { TRACK_COUNT, TRACK_C, TRACK_CPP };
@@ -372,7 +326,7 @@ static float TopicSection(const LessonSet *set, float x, float y, float w, float
     }
     y += 54;
 
-    static const char *filterLabels[TOPIC_FILTER_COUNT] = { "All lessons", "To review", "Unattempted", "Completed" };
+    static const char *filterLabels[TOPIC_FILTER_COUNT] = { "All levels", "Under way", "Not started", "Completed" };
     chipW = (w - 30) / 4;
     for (int i = 0; i < TOPIC_FILTER_COUNT; i++) {
         Rectangle chip = { x + i * (chipW + 10), y, chipW, 42 };
@@ -390,14 +344,12 @@ static float TopicSection(const LessonSet *set, float x, float y, float w, float
         if (clicked) *selected = i;
     }
     if (shown == 0) {
-        y += TextLine("No lessons match this view. Try another filter or track.", x, y, w, 20 * scale, COL_DIM) + 16;
+        y += TextLine("No levels match this view. Try another filter or track.", x, y, w, 20 * scale, COL_DIM) + 16;
     }
     return y - top;
 }
 
-// The whole page, starting at y. Returns the clicked lesson index or -1; *height is the
-// page's height, for scrolling.
-// The statistics page. Returns a lesson to open, or -1; sets *speedRound to a lesson whose
+// The statistics page, starting at y; *height is its height, for scrolling. Returns a lesson to open, or -1; sets *speedRound to a lesson whose
 // speed round should start, and *challenge when a short challenge should.
 static int DrawPage(const LessonSet *set, float x, float y, float w, float scale, float *height, int *speedRound,
                     ReviewView *questions, bool *challenge)
@@ -414,14 +366,12 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
     }
     y += MilestoneSection(all, x, y, w, scale);
     y += TrackSection(set, x, y, w, scale, &selected);
-    y += QuizSection(all, x, y, w, scale);
     y += SpeedRoundSection(set, all, x, y, w, scale, speedRound);
     bool practiseSkills;
     y += SkillsViewDraw(x, y, w, scale, &practiseSkills);
-    ReviewChoice reviewed;
-    y += ReviewViewDraw(questions, set, x, y, w, scale, &reviewed);
-    if (reviewed.openLesson >= 0) selected = reviewed.openLesson;
-    *challenge = reviewed.challenge || practiseSkills;  // challenges favour the weakest skills
+    bool reviewChallenge;
+    y += ReviewViewDraw(questions, x, y, w, scale, &reviewChallenge);
+    *challenge = reviewChallenge || practiseSkills;  // challenges favour the weakest skills
     y += RecommendationSection(set, x, y, w, scale, &selected);
     y += TopicSection(set, x, y, w, scale, &selected);
     *height = y - top + 32;
@@ -434,14 +384,12 @@ static int DrawPage(const LessonSet *set, float x, float y, float w, float scale
 static struct {
     float scroll;                      // statistics view
     float contentHeight;               // measured last frame, for clamping the scroll
-    HomeView view;                     // what shows below the search box
+    HomeView view;                     // what shows below the home bar
     Track journeyTrack;                // the journey tab that's open
     float journeyScroll[TRACK_COUNT];  // where each journey is drawn (eases towards the target)
     float journeyTarget[TRACK_COUNT];  // where each journey is scrolling to
     float journeyHeight[TRACK_COUNT];
-    SearchView search;
-    SavedView saved;
-    ReviewView questions;              // the statistics' "Your questions" section
+    ReviewView questions;              // the statistics' "Your speed round questions" section
 } page;
 
 void DashboardOpen(void)
@@ -450,20 +398,17 @@ void DashboardOpen(void)
     page.contentHeight = 0;
     page.view = HOME_VIEW_JOURNEY;
     page.journeyTrack = TRACK_C;
-    page.saved = (SavedView){ 0 };
     for (int i = 0; i < TRACK_COUNT; i++) {
         page.journeyScroll[i] = page.journeyTarget[i] = page.journeyHeight[i] = 0;
     }
     topics.track = TRACK_COUNT;
     topics.filter = TOPICS_ALL;
-    SearchViewClear(&page.search);
 }
 
 void DashboardShow(HomeView view, Track track)
 {
     if (track >= 0 && track < TRACK_COUNT) page.journeyTrack = track;
     if (view >= 0 && view < HOME_VIEW_COUNT) page.view = view;
-    SearchViewClear(&page.search);
 }
 
 void DashboardDemo(float scroll)
@@ -472,13 +417,6 @@ void DashboardDemo(float scroll)
     page.contentHeight = 100000;  // let the requested scroll survive the first frame's clamp
     page.journeyScroll[page.journeyTrack] = page.journeyTarget[page.journeyTrack] = scroll;
     page.journeyHeight[page.journeyTrack] = 100000;
-    page.saved.scroll = scroll;
-    page.saved.height = 100000;
-}
-
-void DashboardDemoSearch(const char *query, SearchFilter filter)
-{
-    SearchViewDemo(&page.search, query, filter);
 }
 
 // An icon button in the home bar's style.
@@ -487,15 +425,15 @@ static bool BarButton(Rectangle r, Icon icon, const char *label)
     return UiButtonIconEx(r, icon, label, 18, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
 }
 
-// The Journey / Statistics / Saved switch: one pill with the open view in the accent
+// The Journey / Statistics switch: one pill with the open view in the accent
 // colour, the bar's one highlighted button. right is its
 // right edge; returns its left edge.
-#define VIEW_SWITCH_W 356.0f  // the segment widths below plus the inset on both sides
+#define VIEW_SWITCH_W 256.0f  // the segment widths below plus the inset on both sides
 static float ViewSwitch(float right, float y, float h)
 {
-    static const Icon icons[HOME_VIEW_COUNT] = { ICON_BOOK, ICON_TROPHY, ICON_BOOKMARK };
-    static const char *labels[HOME_VIEW_COUNT] = { "Journey", "Statistics", "Saved" };
-    static const float widths[HOME_VIEW_COUNT] = { 116, 132, 100 };
+    static const Icon icons[HOME_VIEW_COUNT] = { ICON_BOOK, ICON_TROPHY };
+    static const char *labels[HOME_VIEW_COUNT] = { "Journey", "Statistics" };
+    static const float widths[HOME_VIEW_COUNT] = { 116, 132 };
     const float inset = 4;
     float left = right - VIEW_SWITCH_W;
     UiRoundRect((Rectangle){ left, y, VIEW_SWITCH_W, h }, 8, COL_BG);
@@ -507,7 +445,6 @@ static float ViewSwitch(float right, float y, float h)
         if (UiButtonIconEx(segment, icons[i], labels[i], 17, open ? COL_ACCENT : COL_BG,
                            open ? COL_ACCENT_HI : COL_SECONDARY_HOVER, open ? COL_ON_ACCENT : COL_DIM, true)) {
             page.view = (HomeView)i;
-            SearchViewClear(&page.search);  // the switch means "show me this", not "filter the results"
         }
         x += widths[i];
     }
@@ -581,7 +518,7 @@ static int JourneyView(const LessonSet *set, float top)
     Track track = page.journeyTrack;
     DashboardStats stats = DashboardCalculate(set, track);
     int percent = stats.lessons ? stats.completed * 100 / stats.lessons : 0;
-    UiText(gFonts.text, TextFormat("%s  |  %d / %d lessons complete  |  %d%%", TrackName(track), stats.completed,
+    UiText(gFonts.text, TextFormat("%s  |  %d / %d levels complete  |  %d%%", TrackName(track), stats.completed,
                                    stats.lessons, percent),
            x, top + 56, 18, COL_TEXT);
     ProgressBar((Rectangle){ x, top + 86, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
@@ -635,31 +572,21 @@ HomeAction DashboardScreen(const LessonSet *set)
 {
     HomeAction action = { HOME_STAY, -1 };
     action.kind = HomeBar();
+    if (IsKeyPressed(KEY_ESCAPE)) page.view = HOME_VIEW_JOURNEY;
 
-    // Esc leaves the search box first, then clears the search, then goes back to the journey.
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        if (UiAnyFocus()) UiFocus(NULL);
-        else if (SearchViewActive(&page.search)) SearchViewClear(&page.search);
-        else page.view = HOME_VIEW_JOURNEY;
-    }
-
-    bool submitted;
-    Rectangle box = { ContentX(), TOPBAR_H + 14, ContentWidth() - 564, 46 };
-    float top = SearchViewBox(&page.search, box, &submitted);
-    if (BarButton((Rectangle){ box.x + box.width + 12, box.y, 132, 46 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
-    if (BarButton((Rectangle){ box.x + box.width + 156, box.y, 160, 46 }, ICON_TARGET, "Practice Quiz")) action.kind = HOME_PRACTICE;
-    if (BarButton((Rectangle){ box.x + box.width + 328, box.y, 112, 46 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
-    if (BarButton((Rectangle){ box.x + box.width + 452, box.y, 112, 46 }, ICON_TROPHY, "Rankings")) action.kind = HOME_RANKINGS;
+    // The row under the home bar: the recovery code reminder if there is one, then a short
+    // challenge and the rankings on the right.
+    float top = TOPBAR_H + 14;
+    float right = ContentX() + ContentWidth();
+    if (BarButton((Rectangle){ right - 276, top, 132, 42 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
+    if (BarButton((Rectangle){ right - 132, top, 132, 42 }, ICON_TROPHY, "Rankings")) action.kind = HOME_RANKINGS;
     bool openSettings = false;
-    top = RecoveryReminder(ContentX(), top, &openSettings);
+    RecoveryReminder(ContentX(), top + 10, &openSettings);
     if (openSettings) action.kind = HOME_SETTINGS;
+    top += 42 + 14;
 
     int clicked;
-    if (SearchViewActive(&page.search)) {
-        clicked = SearchViewResults(&page.search, set, (Rectangle){ 0, top, (float)GetScreenWidth(),
-                                                                    GetScreenHeight() - top }, submitted);
-        if (clicked >= 0) UiFocus(NULL);  // so Backspace in the lesson goes back, not into the box
-    } else if (page.view == HOME_VIEW_STATISTICS) {
+    if (page.view == HOME_VIEW_STATISTICS) {
         int speedRound = -1;
         bool challenge = false;
         clicked = StatisticsView(set, top, &speedRound, &challenge);
@@ -668,11 +595,6 @@ HomeAction DashboardScreen(const LessonSet *set)
             action.kind = HOME_SPEED_ROUND;
             action.lessonIndex = speedRound;
         }
-    } else if (page.view == HOME_VIEW_SAVED) {
-        Rectangle view = { 0, top, (float)GetScreenWidth(), GetScreenHeight() - top };
-        SavedChoice saved = SavedViewDraw(&page.saved, set, view);
-        clicked = saved.openLesson;
-        if (saved.browse) page.view = HOME_VIEW_JOURNEY;
     } else {
         clicked = JourneyView(set, top);
     }

@@ -179,6 +179,7 @@ void EditorSetText(Editor *e, const char *text)
     e->preferredCol = -1;
     e->lastKind = EDIT_NONE;
     e->markCount = 0;
+    e->hintLine = 0;
     ClearStack(e->undo, &e->undoCount);
     ClearStack(e->redo, &e->redoCount);
     e->version++;
@@ -488,6 +489,12 @@ void EditorSetMarks(Editor *e, const int *lines, int count)
     for (int i = 0; i < e->markCount; i++) e->marks[i] = lines[i];
 }
 
+void EditorSetHint(Editor *e, int line, bool before)
+{
+    e->hintLine = line > 0 ? line : 0;
+    e->hintBefore = before;
+}
+
 static bool Marked(const Editor *e, int line1)
 {
     for (int i = 0; i < e->markCount; i++) if (e->marks[i] == line1) return true;
@@ -704,8 +711,11 @@ void EditorWidget(Editor *e, Rectangle r)
         float y = L.text.y + line * L.lineH - e->scrollY;
         if (line >= first) {
             float x0 = L.text.x - e->scrollX;
+            bool hinted = e->hintLine == line + 1 && !e->hintBefore;
             if (Marked(e, line + 1)) {
                 DrawRectangle((int)(L.text.x - 4), (int)y, (int)L.text.width + 8, (int)L.lineH, Fade(COL_BAD, 0.14f));
+            } else if (hinted) {
+                DrawRectangle((int)(L.text.x - 4), (int)y, (int)L.text.width + 8, (int)L.lineH, Fade(COL_ACCENT, 0.18f));
             } else if (focused && sa == sb && line == curLine) {
                 DrawRectangle((int)(L.text.x - 4), (int)y, (int)L.text.width + 8, (int)L.lineH, Fade(COL_PANEL_HI, 0.55f));
             }
@@ -738,6 +748,11 @@ void EditorWidget(Editor *e, Rectangle r)
         ls = le + 1;
     }
 
+    // A hint for a missing line: a bar in the gap where it belongs.
+    if (e->hintLine && e->hintBefore) {
+        float y = L.text.y + (e->hintLine - 1) * L.lineH - e->scrollY;
+        DrawRectangle((int)(L.text.x - 4), (int)y - 2, (int)L.text.width + 8, 4, COL_ACCENT);
+    }
     if (e->len == 0 && !focused && e->placeholder) {
         DrawTextEx(gFonts.text, e->placeholder, (Vector2){ L.text.x, L.text.y + 2 }, e->fontSize, 0, COL_DIM);
     }
@@ -756,9 +771,10 @@ void EditorWidget(Editor *e, Rectangle r)
             const char *num = TextFormat("%d", line + 1);
             float w = MeasureTextEx(gFonts.mono, num, e->fontSize * 0.85f, sp).x;
             bool marked = Marked(e, line + 1);
-            Color c = marked ? COL_BAD : (line == curLine && focused ? COL_TEXT : Fade(COL_DIM, 0.7f));
+            bool hinted = e->hintLine == line + 1 && !e->hintBefore;
+            Color c = marked ? COL_BAD : hinted ? COL_ACCENT : (line == curLine && focused ? COL_TEXT : Fade(COL_DIM, 0.7f));
             DrawTextEx(gFonts.mono, num, (Vector2){ r.x + L.gutter - w, y + 4 }, e->fontSize * 0.85f, sp, c);
-            if (marked) DrawCircleV((Vector2){ r.x + 9, y + L.lineH / 2 }, 3.5f, COL_BAD);
+            if (marked || hinted) DrawCircleV((Vector2){ r.x + 9, y + L.lineH / 2 }, 3.5f, marked ? COL_BAD : COL_ACCENT);
         }
         EndScissorMode();
     }

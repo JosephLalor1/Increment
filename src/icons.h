@@ -26,9 +26,8 @@ typedef enum {
     ICON_TARGET,
     ICON_CODE,
     ICON_MAIL,
-    ICON_BOOKMARK,         // outline: not saved
-    ICON_BOOKMARK_FILLED,  // saved
-    ICON_NOTE,             // a page of writing: lesson notes
+    ICON_BULB,             // a light bulb: hints
+    ICON_PLUS,             // a line to add
     ICON_STAR,             // filled star: gold mastery
     ICON_BOLT,             // lightning bolt: speed rounds
     ICON_COUNT

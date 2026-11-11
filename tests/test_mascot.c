@@ -54,14 +54,15 @@ int main(int argc, char **argv)
     for (int i = 0; i < 4; i++) {
         snprintf(set.items[i].id, sizeof set.items[i].id, "%s", ids[i]);
         set.items[i].track = i % 2 ? TRACK_CPP : TRACK_C;
+        set.items[i].stepCount = i == 2 ? 2 : 1;
     }
     FoxProgressSnapshot before = FoxProgressCapture(&set, 2);
-    ProgressRecord("c_last", 69);
-    assert(FoxProgressCompleted(&set, 2, before) == FOX_MILESTONE_NONE);
-    ProgressRecord("c_last", 70);
+    ProgressRecordStep("c_last", 0);
+    assert(FoxProgressCompleted(&set, 2, before) == FOX_MILESTONE_NONE);  // one step of two
+    ProgressRecordStep("c_last", 1);
     assert(FoxProgressCompleted(&set, 2, before) == FOX_MILESTONE_LESSON);
     before = FoxProgressCapture(&set, 0);
-    ProgressRecord("c_first", 100); // final outstanding lesson, not the last file
+    ProgressRecordStep("c_first", 0); // final outstanding level, not the last file
     assert(FoxProgressCompleted(&set, 0, before) == FOX_MILESTONE_COURSE);
     assert(!FoxProgressCapture(&set, 1).courseComplete); // C cannot graduate C++
     before = FoxProgressCapture(&set, 0);
@@ -74,14 +75,14 @@ int main(int argc, char **argv)
     assert(after && strcmp(saved, after) == 0); // read-only lookups do not save
     UnloadFileText(saved);
     UnloadFileText(after);
-    ProgressRecord("c_first", 0); // retry preserves best and does not re-celebrate
-    assert(ProgressBest("c_first") == 100);
+    ProgressRecordStep("c_first", 0); // replaying a step does not re-celebrate
+    assert(ProgressStepDone("c_first", 0));
     assert(FoxProgressCompleted(&set, 0, before) == FOX_MILESTONE_NONE);
     before = FoxProgressCapture(&set, 1);
-    ProgressRecord("cpp_first", 100);
+    ProgressRecordStep("cpp_first", 0);
     assert(FoxProgressCompleted(&set, 1, before) == FOX_MILESTONE_LESSON);
     before = FoxProgressCapture(&set, 3);
-    ProgressRecord("cpp_last", 100);
+    ProgressRecordStep("cpp_last", 0);
     assert(FoxProgressCompleted(&set, 3, before) == FOX_MILESTONE_COURSE);
     before = FoxProgressCapture(&set, 3);
     ProgressLoad(path); // restarts do not replay a graduation

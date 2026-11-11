@@ -57,7 +57,7 @@ static void TestSkillNames(void)
 // A plan of n generated arithmetic questions, as the tests' runs use.
 static int ArithmeticPlan(SpeedPlanItem *plan, int n)
 {
-    for (int i = 0; i < n; i++) plan[i] = (SpeedPlanItem){ NULL, SPEED_ARITHMETIC, "skill:arithmetic" };
+    for (int i = 0; i < n; i++) plan[i] = (SpeedPlanItem){ SPEED_ARITHMETIC, "skill:arithmetic" };
     return n;
 }
 
@@ -120,31 +120,19 @@ static void TestRound(void)
     SpeedQuestion q;
     uint32_t seed = 5;
     SpeedGenerate(SPEED_POINTERS, 0, &seed, &q);
-    double known = SpeedSecondsFor(NULL, &q, SPEED_KNOWN), fresh = SpeedSecondsFor(NULL, &q, SPEED_NEW);
-    double struggling = SpeedSecondsFor(NULL, &q, SPEED_STRUGGLING);
+    double known = SpeedSecondsFor(&q, SPEED_KNOWN), fresh = SpeedSecondsFor(&q, SPEED_NEW);
+    double struggling = SpeedSecondsFor(&q, SPEED_STRUGGLING);
     assert(known >= SPEED_MIN_SECONDS && fresh > known && struggling > fresh && struggling <= SPEED_MAX_SECONDS);
-    char longPrompt[600];
-    memset(longPrompt, 'a', sizeof longPrompt - 1);
-    longPrompt[sizeof longPrompt - 1] = '\0';
-    Question wordy = { .prompt = longPrompt, .code = "int x = 1;\nint y = 2;\nx += y;", .choices = { "1", "3" },
-                       .choiceCount = 2, .correct = 1 };
-    Question brief = { .prompt = "Short?", .choices = { "yes", "no" }, .choiceCount = 2, .correct = 0 };
-    assert(SpeedSecondsFor(&brief, NULL, SPEED_KNOWN) == SPEED_MIN_SECONDS);
-    assert(SpeedSecondsFor(&wordy, NULL, SPEED_KNOWN) > SPEED_MIN_SECONDS);
-    assert(SpeedSecondsFor(&wordy, NULL, SPEED_STRUGGLING) <= SPEED_MAX_SECONDS);
+    SpeedQuestion longer = q;  // more lines to trace take longer
+    longer.lineCount = longer.firstBodyLine + 12;
+    assert(SpeedSecondsFor(&longer, SPEED_KNOWN) > known);
+    assert(SpeedSecondsFor(&longer, SPEED_STRUGGLING) <= SPEED_MAX_SECONDS);
     SpeedRoundStart(&round, plan, 2, true, AlwaysNew, 3, 0);
     double newTime = round.seconds[0];
     SpeedRoundStart(&round, plan, 2, true, AlwaysStruggling, 3, 0);
     assert(round.seconds[0] > newTime);
-
-    // A lesson question in a run: its own choices and answer.
-    SpeedPlanItem mixed[2] = { { &brief, SPEED_ARITHMETIC, "c_01?00000000" }, plan[0] };
-    SpeedRoundStart(&round, mixed, 2, true, NULL, 3, 0);
-    assert(SpeedRoundIsBank(&round, 0) && !SpeedRoundIsBank(&round, 1));
-    assert(SpeedRoundChoiceCount(&round, 0) == 2 && SpeedRoundCorrect(&round, 0) == 0);
-    SpeedRoundUpdate(&round, SPEED_COUNT_IN);
-    assert(SpeedRoundAnswer(&round, 3, SPEED_COUNT_IN + 1) == SPEED_IGNORED);  // no fourth choice
-    assert(SpeedRoundAnswer(&round, 0, SPEED_COUNT_IN + 1) == SPEED_RIGHT);
+    assert(SpeedRoundChoiceCount(&round, 0) == SPEED_CHOICES && SpeedRoundChoiceCount(&round, 5) == 0);
+    assert(SpeedRoundCorrect(&round, -1) == -1);
 }
 
 static bool Listed(const char *line, const char **list, int count)

@@ -74,7 +74,7 @@ float SkillsViewDraw(float x, float y, float w, float scale, bool *practise)
     float totalXp = 0;
     for (int s = 0; s < SKILL_COUNT; s++) totalXp += SkillProgressOf((Skill)s)->xp;
     const char *summary = tried == 0
-        ? "No skills tried yet: answer a quiz or a speed round to start earning XP."
+        ? "No skills tried yet: pass a coding step or play a speed round to start earning XP."
         : TextFormat("Total: %.0f XP across %d skills  |  Strongest: %s  |  To work on: %s", totalXp, tried,
                      SkillTitle(weakest[tried - 1]), SkillTitle(weakest[0]));
     y += UiWrappedText(gFonts.text, summary, (Vector2){ x, y }, w, 20 * scale, COL_TEXT, true) + 14;

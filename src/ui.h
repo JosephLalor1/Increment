@@ -43,7 +43,7 @@ void UiSetTheme(bool light, int accent);
 Color UiAccentSwatch(int accent, bool light);
 const char *UiAccentName(int accent);
 
-// Size multiplier for lesson and quiz text (the user's text size setting). Screens that show
+// Size multiplier for lesson text: code, outputs and journey titles (the user's text size setting). Screens that show
 // lesson-sized text read it here, so they don't depend on where the setting is stored.
 void UiSetTextScale(float scale);
 float UiTextScale(void);  // 1.0 until set

@@ -2,35 +2,26 @@
 #define PROGRESS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
-// The signed-in user's best scores, stored as "id percent" lines in a text file.
-//
-// Completion namespaces are separate from lesson quiz scores:
-//   <lesson id>               best quiz score for the lesson (0-100)
-//   <lesson id>#<n>           100 once exercise n (1-based) has been passed
-//   <lesson id>!gold          100 once the lesson's speed round has been won (gold mastery)
-//   <lesson id>@trace:<id>    100 once a stable tracing task id has been passed
-// Only this module builds those ids; everyone else asks with the functions below.
+// The signed-in learner's progress, stored as "id value" lines in a text file:
+//   <lesson id>/<n>     100 once step n (1-based) of the level has been passed
+//   <lesson id>!gold    100 once the level's speed round has been won (gold mastery)
+// Only this module builds those ids; everyone else asks with the functions below. How far a
+// learner is through a level or a track is worked out from these by roadmap.h. Lines from
+// older versions (quiz scores, exercises) are kept in the file but mean nothing now.
 
-#define PASS_PERCENT 70  // a lesson counts as complete at this quiz score or above
-
-void ProgressLoad(const char *path);  // "" clears the scores (signed out)
+void ProgressLoad(const char *path);  // "" clears it (signed out)
 bool ProgressSave(void);
 
-int ProgressBest(const char *lessonId);           // best quiz score, -1 if never attempted
-bool ProgressLessonPassed(const char *lessonId);  // best score >= PASS_PERCENT
-const char *ProgressScoreNote(const char *lessonId);  // "New" or "Best: 80%", for lesson rows (temporary string)
-void ProgressRecord(const char *lessonId, int percent);  // keeps the best score and saves
+bool ProgressStepDone(const char *lessonId, int stepIndex);   // zero-based index
+// Marks the step passed and saves. Returns false if it couldn't be saved (or signed out).
+bool ProgressRecordStep(const char *lessonId, int stepIndex);
+// Reads a stored id back: true for a step's id, giving its lesson id and zero-based step
+// index. For tools that read another learner's file (rankings).
+bool ProgressParseStepId(const char *id, char *lessonId, size_t size, int *stepIndex);
 
-bool ProgressExerciseDone(const char *lessonId, int exerciseIndex);  // zero-based index
-void ProgressRecordExercise(const char *lessonId, int exerciseIndex); // marks it passed and saves
-
-// Tracing completion uses stable author ids, independently of quizzes/exercises/gold.
-bool ProgressTraceDone(const char *lessonId, const char *traceId);
-// Returns false when completion could not be saved, allowing submission to be retried.
-bool ProgressRecordTrace(const char *lessonId, const char *traceId);
-
-bool ProgressGold(const char *lessonId);        // the lesson's speed round has been won
+bool ProgressGold(const char *lessonId);        // the level's speed round has been won
 void ProgressRecordGold(const char *lessonId);  // marks gold mastery and saves
 
 #endif

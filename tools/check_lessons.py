@@ -1,25 +1,23 @@
-"""Checks every lesson in assets/lessons.
+"""Checks every level in assets/lessons.
 
-- Structure: title/track present, every question has 2+ choices, exactly one '*' answer,
-  and an explanation; block/question limits; ASCII-only text; code lines short enough
-  to fit the code box.
-- Code: every code block containing main() is compiled (gcc -std=c11 for the C track,
-  g++ -std=c++17 for C++) and run. If the block is followed by a paragraph "Output:" and
-  then a code block, the program's stdout must match that block exactly.
-- Exercises: the starter code must compile but not already produce the expected output,
-  and the @solution must compile cleanly and produce it exactly (compared as the app
-  does: trailing spaces and blank lines ignored).
-- Optional exercise @hint lines are kept separate from descriptions and checked for
-  empty clues and the same eight-hint limit as the app.
-- Quiz coding questions ("?code Prompt", then starter code, @expect, @solution and
-  optional @input/@hint lines, like an exercise) are checked the same way as exercises.
-  Every lesson's quiz must have at least one.
+A level is a header (@id, @track, @title, optional @speed) and up to 16 coding steps. There
+is nothing to read: any other line outside a code block is a problem.
 
-Markers inside a code block (as comments) change what's expected:
-  // does not compile   -> compilation must fail
-  // undefined behaviour -> compiled but not run
-  // stdin: 3 7 4 9     -> whitespace-separated input fed to the program
-Programs that read input with no stdin marker get an empty stdin.
+- Structure: each step has a "~" line (difficulty 1-3, then up to 4 known skill:weight
+  pairs), starter code, an @expect block and a @solution; @input is optional. The last step
+  is the hardest (no step's difficulty is above the last one's). ASCII only; code lines fit
+  the editor (66 columns).
+- No words in code: starters and solutions have no comments, except the gap marker "// ?" in
+  a starter, which marks where a line is missing; solutions must fill every gap.
+- Running: the starter must compile but not already print the target, and the solution must
+  compile without warnings and print it exactly (compared as the app does: trailing spaces
+  and blank lines ignored). "@step broken" marks a step whose starter deliberately doesn't
+  compile (a bug to fix); then it must fail to compile.
+- The second run: the app refuses solutions that only print the answer by running them again
+  with the step's given values changed (src/step_check.h). tools/step_variant.c builds that
+  run here with the app's own code, and the changed solution must compile without warnings,
+  finish normally and print the same thing twice. If it can't (a size that must match an
+  initialiser list, say), mark the step "@step fixed" to switch its second run off.
 
 usage: python -I tools/check_lessons.py [lesson.txt ...]
 """
@@ -33,158 +31,62 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LESSONS = os.path.join(ROOT, 'assets', 'lessons')
 BIN = os.path.join(os.environ.get('RAYLIB_DIR', r'C:\raylib'), 'w64devkit', 'bin')
 MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many columns
-MAX_BLOCKS, MAX_QUESTIONS, MAX_CHOICES = 256, 32, 6
-MAX_EXERCISE_HINTS = 8
-# The skill names an "@speed" line may use (src/speed_round.c generates their questions).
-# The skills a question's "~" line may name, and how many (src/skills.c).
+MAX_STEPS = 16
+GAP_MARKER = '// ?'
+# The skills a step's "~" line may name, and how many (src/skills.c).
 SKILLS = ('program_structure', 'output', 'input', 'types', 'operators', 'conditions', 'loops', 'arrays', 'strings',
           'functions', 'scope', 'pointers', 'indirection', 'parameter_passing', 'pointer_arithmetic', 'dynamic_memory',
           'memory_safety', 'function_pointers', 'cpp_basics', 'references', 'classes', 'constructors', 'encapsulation',
           'copying', 'data_structures', 'tracing', 'debugging', 'problem_solving')
-MAX_QUESTION_SKILLS = 4
+MAX_STEP_SKILLS = 4
+# The skill names an "@speed" line may use (src/speed_round.c generates their questions).
 SPEED_SKILLS = ('variables', 'arithmetic', 'conditions', 'loops', 'arrays', 'strings', 'functions',
                 'pointers', 'pointer_to_pointer', 'pass_by_pointer', 'pointer_arithmetic', 'malloc',
                 'function_pointers', 'references', 'new_delete', 'objects', 'linked_list')
-
-
-TASK_FIELDS = {'input': 'input', 'expect': 'expected', 'solution': 'solution'}
-
-
-def new_task(title, line, desc=''):
-    """An exercise, or a quiz coding question's program (whose prompt is its description)."""
-    return {'title': title, 'desc': desc, 'starter': None, 'input': None, 'expected': None,
-            'solution': None, 'hints': [], 'line': line}
-
-
-def parse_task_line(task, line):
-    """An exercise or coding question's @hint/@input/@expect/@solution line. Returns the
-    field the next code block fills, '' for a hint, or None if line is something else."""
-    if re.match(r'@hint(?:\s|$)', line):
-        task['hints'].append(line[5:].strip())
-        return ''
-    m = re.match(r'@(input|expect|solution)\b', line)
-    return TASK_FIELDS[m.group(1)] if m else None
+FIELDS = {'@input': 'input', '@expect': 'expected', '@solution': 'solution'}
 
 
 def parse(path):
-    """Returns (meta, blocks, questions, exercises). blocks: list of (type, text)."""
-    meta, blocks, questions, exercises = {}, [], [], []
-    para, para_type, code, in_code, in_quiz = [], None, [], False, False
-    is_memory = False  # the open fence is ```memory: a pointer diagram script, not code
-    in_ex, target = False, None  # in an exercise; which field the next code block fills
-    traces, in_trace = [], False
-
-    def flush():
-        nonlocal para, para_type
-        if para:
-            blocks.append((para_type, ' '.join(para)))
-        para, para_type = [], None
-
-    for n, raw in enumerate(open(path, encoding='utf-8').read().split('\n'), 1):
+    """Returns (header, steps, problems). Each step is a dict with its line number, whether it's
+    "broken", its "~" tokens and its code blocks."""
+    header, steps, problems = {}, [], []
+    target = None  # which field of the current step the next code block fills
+    code = None    # lines of the code block being read, or None outside one
+    with open(path, encoding='utf-8') as f:
+        lines = f.read().split('\n')
+    for number, raw in enumerate(lines, 1):
         line = raw.rstrip('\r')
-        if in_code:
+        if code is not None:
             if line.startswith('```'):
-                text = '\n'.join(code)
-                if in_trace:
-                    traces[-1]['code'] = text
-                elif in_ex:
-                    exercises[-1][target or 'starter'] = text
-                    target = None
-                elif in_quiz and questions and questions[-1]['task']:
-                    questions[-1]['task'][target or 'starter'] = text
-                    target = None
-                elif in_quiz and questions:
-                    questions[-1]['code'] = text
+                if not steps:
+                    problems.append(f'line {number}: code outside a step')
                 else:
-                    blocks.append(('memory' if is_memory else 'code', text))
-                in_code, code = False, []
+                    steps[-1][target or 'starter'] = '\n'.join(code)
+                code, target = None, None
             else:
                 code.append(line.replace('\t', '    '))
             continue
         if line.startswith('```'):
-            flush()
-            in_code = True
-            is_memory = line.startswith('```memory') and not in_ex and not in_quiz and not in_trace
-            continue
-        m = re.match(r'@(title|id|track|kind|speed) (.*)', line)
-        if m:
-            meta[m.group(1)] = m.group(2).strip()
-            continue
-        if line.startswith('@quiz'):
-            flush()
-            in_trace = False
-            in_quiz, in_ex = True, False
-            continue
-        if line.startswith('@exercise'):
-            flush()
-            in_trace = False
-            in_quiz, in_ex, target = False, True, None
-            exercises.append(new_task(line[9:].strip(), n))
-            continue
-        if line.startswith('@trace '):
-            flush()
-            in_trace, in_quiz, in_ex = True, False, False
-            parts = line[7:].strip().split(' ', 1)
-            traces.append({'id': parts[0] if parts else '', 'title': parts[1] if len(parts) > 1 else '',
-                           'code': None, 'predict': None, 'answer': None, 'explain': None})
-            continue
-        if in_trace:
-            m = re.match(r'@(predict|answer|explain) (.*)', line)
-            if m:
-                traces[-1][m.group(1)] = m.group(2)
-            elif line.strip():
-                traces[-1]['invalid'] = True
-            continue
-        if in_ex:
-            field = parse_task_line(exercises[-1], line)
-            if field:
-                target = field
-            elif field is None and line.strip():
-                exercises[-1]['desc'] += ' ' + line
-            continue
-        if in_quiz:
-            task = questions[-1]['task'] if questions else None
-            field = parse_task_line(task, line) if task else None
-            if line.startswith('? ') or line.startswith('?code '):
-                coding = line.startswith('?code ')
-                prompt = line[6:].strip() if coding else line[2:]
-                questions.append({'prompt': prompt, 'choices': [], 'correct': [], 'explain': None, 'code': None,
-                                  'line': n, 'task': new_task('Coding question', n, prompt) if coding else None,
-                                  'skills': None})
-                target = None
-            elif line.startswith('~ ') and questions:
-                questions[-1]['skills'] = line[2:].split()
-            elif field is not None:
-                if field:
-                    target = field
-            elif line[:2] in ('- ', '* ') and questions:
-                if line[0] == '*':
-                    questions[-1]['correct'].append(len(questions[-1]['choices']))
-                questions[-1]['choices'].append(line[2:])
-            elif line.startswith('! ') and questions:
-                questions[-1]['explain'] = line[2:]
-            elif line.strip():
-                print(f'  {os.path.basename(path)}:{n}: unrecognised quiz line: {line!r}')
-            continue
-        if not line.strip():
-            flush()
-        elif line.startswith('# '):
-            flush()
-            blocks.append(('heading', line[2:]))
-        elif line.startswith('- '):
-            flush()
-            blocks.append(('bullet', line[2:]))
-        elif line.startswith('  ') and blocks and blocks[-1][0] == 'bullet' and not para:
-            blocks[-1] = ('bullet', blocks[-1][1] + ' ' + line.strip())
+            code = []
+        elif not line.strip():
+            pass
+        elif line.split(' ')[0] in ('@id', '@track', '@title', '@speed'):
+            key, _, value = line.partition(' ')
+            header[key[1:]] = value.strip()
+        elif line == '@step' or (line.startswith('@step ') and set(line.split()[1:]) <= {'broken', 'fixed'}):
+            steps.append({'line': number, 'broken': 'broken' in line.split(), 'fixed': 'fixed' in line.split(),
+                          'skills': None,
+                          'starter': None, 'input': None, 'expected': None, 'solution': None})
+            target = None
+        elif steps and line.startswith('~ '):
+            steps[-1]['skills'] = line[2:].split()
+        elif steps and line in FIELDS:
+            target = FIELDS[line]
         else:
-            t = 'note' if line.startswith('> ') else 'text'
-            if para and para_type != t:
-                flush()
-            para_type = t
-            para.append(line[2:] if t == 'note' else line)
-    flush()
-    meta['traces'] = traces
-    return meta, blocks, questions, exercises
+            problems.append(f'line {number}: levels have nothing to read, but this line is text: {line[:60]!r}')
+    if code is not None:
+        problems.append('a code block is never closed')
+    return header, steps, problems
 
 
 def normalize(text):
@@ -195,7 +97,53 @@ def normalize(text):
     return lines
 
 
-def compile_and_run(code, cpp, workdir, name, stdin=None):
+def build_variant_tool(workdir):
+    """Compiles tools/step_variant.c; returns its path, or None with a problem printed."""
+    exe = os.path.join(workdir, 'step_variant.exe')
+    sources = [os.path.join(ROOT, 'tools', 'step_variant.c'), os.path.join(ROOT, 'src', 'step_check.c'),
+               os.path.join(ROOT, 'src', 'code_skills.c')]
+    r = subprocess.run([os.path.join(BIN, 'gcc.exe'), '-std=c99', '-Wall', *sources, '-o', exe],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print('could not build tools/step_variant.c:\n' + r.stderr)
+        return None
+    return exe
+
+
+def check_variation(step, where, cpp, workdir, tag, tool):
+    """Problems with the step's second run. Returns (problems, whether the step has one)."""
+    paths = {}
+    for field in ('starter', 'solution', 'input'):
+        if step[field] is None:
+            continue
+        paths[field] = os.path.join(workdir, f'{tag}_{field}.txt')
+        with open(paths[field], 'w', encoding='utf-8', newline='') as f:
+            f.write(step[field])
+    prefix = os.path.join(workdir, tag + '_varied')
+    r = subprocess.run([tool, 'cpp' if cpp else 'c', paths['starter'], paths['solution'], paths.get('input', '-'),
+                        prefix], capture_output=True, text=True)
+    lines = r.stdout.strip().split('\n')
+    problems = [f'{where}: the solution fails its own check ({line})' for line in lines[1:]]
+    changes, _, summary = lines[0].partition(' ')
+    if step['fixed'] or changes == '0':
+        return problems, False
+    code = open(prefix + '.code', encoding='utf-8').read()
+    stdin = open(prefix + '.in', encoding='utf-8').read() + '\n' if step['input'] is not None else '\n'
+    what = f'{where}: second run ({summary or "changed input"})'
+    advice = '; fix the step or mark it "@step fixed"'
+    ok, err, first = compile_and_run(code, cpp, workdir, tag + '_varied', stdin)
+    if not ok or err.strip():
+        return problems + [f'{what}: the changed solution does not compile cleanly{advice}:\n{err}'], True
+    _, _, second = compile_and_run(code, cpp, workdir, tag + '_varied', stdin)
+    if first == '<timed out>' or first != second:
+        problems.append(f'{what}: the changed solution times out or prints different things each run{advice}')
+    elif normalize(first) == normalize(step['expected']):
+        return problems, False  # the change makes no difference: the app skips the second run too
+    return problems, True
+
+
+def compile_and_run(code, cpp, workdir, name, stdin):
+    """Returns (compiled, compiler messages, output or None)."""
     src = os.path.join(workdir, name + ('.cpp' if cpp else '.c'))
     exe = os.path.join(workdir, name + '.exe')
     with open(src, 'w', encoding='utf-8') as f:
@@ -206,11 +154,6 @@ def compile_and_run(code, cpp, workdir, name, stdin=None):
                         src, '-o', exe], capture_output=True, text=True)
     if r.returncode != 0:
         return False, r.stderr, None
-    if stdin is None:
-        m = re.search(r'//\s*stdin:\s*(.*)', code)
-        stdin = '\n'.join(m.group(1).split()) + '\n' if m else ''
-    if 'undefined behaviour' in code:
-        return True, r.stderr, None
     try:
         p = subprocess.run([exe], input=stdin, capture_output=True, text=True, timeout=5)
         return True, r.stderr, p.stdout
@@ -218,52 +161,15 @@ def compile_and_run(code, cpp, workdir, name, stdin=None):
         return True, r.stderr, '<timed out>'
 
 
-def check_task(ex, where, tag, cpp, workdir):
-    """Problems with an exercise or coding question: the starter must compile but not
-    already pass, and the solution must compile cleanly and pass."""
-    problems = []
-    if len(ex['hints']) > MAX_EXERCISE_HINTS:
-        problems.append(f'{where}: too many hints (max {MAX_EXERCISE_HINTS})')
-    if any(not hint for hint in ex['hints']):
-        problems.append(f'{where}: empty hint')
-    if not ex['title']:
-        problems.append(f'{where}: no title')
-    if not ex['desc'].strip():
-        problems.append(f'{where}: no description')
-    if not ex['starter']:
-        return problems + [f'{where}: no starter code']
-    if ex['expected'] is None:
-        return problems + [f'{where}: no @expect block']
-    stdin = (ex['input'] or '') + '\n'
-    ok, err, out = compile_and_run(ex['starter'], cpp, workdir, tag + '_starter', stdin)
-    if not ok:
-        problems.append(f'{where}: starter code does not compile:\n{err}')
-    elif out is not None and normalize(out) == normalize(ex['expected']):
-        problems.append(f'{where}: the starter code already produces the expected output')
-    if not ex['solution']:
-        return problems + [f'{where}: no @solution (needed to prove the exercise can be solved)']
-    ok, err, out = compile_and_run(ex['solution'], cpp, workdir, tag + '_solution', stdin)
-    if not ok:
-        problems.append(f'{where}: solution does not compile:\n{err}')
-    elif err.strip():
-        problems.append(f'{where}: solution has warnings:\n{err}')
-    elif normalize(out) != normalize(ex['expected']):
-        problems.append(f'{where}: solution output differs.\n  expected: {normalize(ex["expected"])}\n'
-                        f'  actual:   {normalize(out)}')
-    return problems
-
-
 def check_skills(tokens, where):
-    """Problems with a question's "~ <difficulty> skill:weight ..." line (tokens split on spaces)."""
+    """Problems with a step's "~ <difficulty> skill:weight ..." line (tokens split on spaces)."""
     if not tokens:
-        return [f'{where}: no skills line ("~ <difficulty 1-3> skill:weight ...")']
+        return [f'{where}: no "~" line ("~ <difficulty 1-3> [skill:weight ...]")']
     problems = []
     if tokens[0] not in ('1', '2', '3'):
-        problems.append(f'{where}: the skills line must start with a difficulty from 1 to 3')
-    if not tokens[1:]:
-        problems.append(f'{where}: the skills line names no skills')
-    if len(tokens[1:]) > MAX_QUESTION_SKILLS:
-        problems.append(f'{where}: more than {MAX_QUESTION_SKILLS} skills')
+        problems.append(f'{where}: the "~" line must start with a difficulty from 1 to 3')
+    if len(tokens[1:]) > MAX_STEP_SKILLS:
+        problems.append(f'{where}: more than {MAX_STEP_SKILLS} skills')
     for token in tokens[1:]:
         name, _, weight = token.partition(':')
         if name not in SKILLS:
@@ -276,155 +182,103 @@ def check_skills(tokens, where):
     return problems
 
 
-def check(path, workdir):
-    name = os.path.basename(path)
+def comment_problems(code, where, allow_gap):
+    """Code may hold no words for the learner to read: no comments, bar the gap marker."""
     problems = []
-    meta, blocks, questions, exercises = parse(path)
-    cpp = meta.get('track') in ('C++', 'cpp')
-    traces = meta.get('traces', [])
-    if len(traces) > 8:
-        problems.append('too many tracing exercises (max 8)')
-    trace_ids = set()
-    for ti, trace in enumerate(traces):
-        if not re.fullmatch(r'[A-Za-z0-9_-]{1,31}', trace['id']) or trace['id'] in trace_ids:
-            problems.append(f'trace {ti + 1}: invalid or duplicate stable id')
-        trace_ids.add(trace['id'])
-        if trace.get('invalid') or any(not trace.get(field) for field in ('title', 'code', 'predict', 'answer', 'explain')):
-            problems.append(f'trace {ti + 1}: missing fields or unrecognised directive')
+    for line in code.split('\n'):
+        stripped = line.strip()
+        if allow_gap and stripped == GAP_MARKER:
             continue
-        if any(len(line) > MAX_CODE_COLS for line in trace['code'].splitlines()):
-            problems.append(f'trace {ti + 1}: code exceeds {MAX_CODE_COLS} columns')
-        if len(trace['answer']) >= 512 or any(ord(c) > 126 for c in trace['answer']):
-            problems.append(f'trace {ti + 1}: answer must fit the ASCII answer field (511 characters)')
-        if re.search(r'\bmain\s*\(', trace['code']):
-            ok, err, out = compile_and_run(trace['code'], cpp, workdir, f'trace_{ti}')
-            if not ok or err:
-                problems.append(f'trace {ti + 1}: does not compile cleanly: {err}')
-            elif out is None or out.split() != trace['answer'].split():
-                problems.append(f'trace {ti + 1}: output differs from @answer')
+        # Comments outside string literals (a "//" inside quotes is output, not a comment).
+        outside = re.sub(r'"(\\.|[^"\\])*"|\'(\\.|[^\'\\])*\'', '""', line)
+        if '//' in outside or '/*' in outside:
+            problems.append(f'{where}: comment in code (only "{GAP_MARKER}" is allowed, on its own): {stripped!r}')
+    return problems
 
-    # Exercises and quiz coding questions: the starter compiles but doesn't already pass;
-    # the solution passes.
-    for ei, ex in enumerate(exercises):
-        problems += check_task(ex, f'exercise "{ex["title"]}" (line {ex["line"]})',
-                               f'{os.path.splitext(name)[0]}_ex{ei}', cpp, workdir)
-    for qi, q in enumerate(questions):
-        if q['task']:
-            problems += check_task(q['task'], f'coding question at line {q["line"]}',
-                                   f'{os.path.splitext(name)[0]}_code{qi}', cpp, workdir)
 
-    for key in ('id', 'title', 'track'):
-        if key not in meta:
-            problems.append(f'missing @{key}')
-    for skill in meta.get('speed', '').replace(',', ' ').split():
-        if skill not in SPEED_SKILLS:
-            problems.append(f'@speed: unknown skill {skill!r} (known: {" ".join(SPEED_SKILLS)})')
-    if len(blocks) > MAX_BLOCKS:
-        problems.append(f'{len(blocks)} blocks (max {MAX_BLOCKS})')
-    if len(questions) > MAX_QUESTIONS:
-        problems.append(f'{len(questions)} questions (max {MAX_QUESTIONS})')
-    if not questions:
-        problems.append('no quiz questions')
-
-    text = open(path, encoding='utf-8').read()
-    for n, line in enumerate(text.split('\n'), 1):
-        bad = [c for c in line if ord(c) > 126]
-        if bad:
-            problems.append(f'line {n}: non-ASCII {"".join(sorted(set(bad)))!r}')
-
-    if questions and not any(q['task'] for q in questions):
-        problems.append('the quiz has no coding question (?code)')
-    for q in questions:
-        where = f'question at line {q["line"]}'
-        problems += check_skills(q['skills'], where)
-        if q['task']:
-            if q['choices']:
-                problems.append(f'{where}: a coding question has no choices')
-            if not q['explain']:
-                problems.append(f'{where}: no explanation')
-            continue
-        if len(q['choices']) < 2 or len(q['choices']) > MAX_CHOICES:
-            problems.append(f'{where}: {len(q["choices"])} choices')
-        if len(q['correct']) != 1:
-            problems.append(f'{where}: {len(q["correct"])} correct answers')
-        if not q['explain']:
-            problems.append(f'{where}: no explanation')
-        if len(set(q['choices'])) != len(q['choices']):
-            problems.append(f'{where}: duplicate choices')
-
-    codes = [b[1] for b in blocks if b[0] == 'code'] + [q['code'] for q in questions if q['code']]
-    # A coding question's starter and solution are shown on the quiz page too.
-    codes += [q['task'][k] for q in questions if q['task'] for k in ('starter', 'solution') if q['task'][k]]
-    # In a pointer diagram only the "> code" lines are shown as code. (Whether the whole
-    # script is valid is checked by tests\test_memory_model.c, which uses the app's parser.)
-    codes += ['\n'.join(re.sub(r'^> ?', '', l.strip()) for l in b[1].split('\n') if l.strip().startswith('>'))
-              for b in blocks if b[0] == 'memory']
-    for c in codes:
-        for line in c.split('\n'):
+def check_step(step, index, cpp, workdir, tag, tool):
+    """Returns (problems, whether the step has a second run)."""
+    where = f'step {index + 1} (line {step["line"]})'
+    problems = check_skills(step['skills'], where)
+    for field in ('starter', 'expected', 'solution'):
+        if step[field] is None:
+            problems.append(f'{where}: no {"starter code" if field == "starter" else "@" + field[:6]} block')
+    if problems:
+        return problems, False
+    for field in ('starter', 'solution', 'input', 'expected'):
+        text = step[field] or ''
+        for n, line in enumerate(text.split('\n'), 1):
             if len(line) > MAX_CODE_COLS:
-                problems.append(f'code line too long ({len(line)}): {line.strip()[:50]}')
+                problems.append(f'{where}: {field} line {n} is {len(line)} columns (max {MAX_CODE_COLS})')
+            if any(ord(c) > 126 or (ord(c) < 32 and c != '\t') for c in line):
+                problems.append(f'{where}: {field} line {n} is not plain ASCII')
+    problems += comment_problems(step['starter'], where + ' starter', True)
+    problems += comment_problems(step['solution'], where + ' solution', False)
 
-    runs = 0
-    for i, (kind, body) in enumerate(blocks):
-        if kind != 'code' or not re.search(r'\bmain\s*\(', body):
-            continue
-        runs += 1
-        tag = f'{os.path.splitext(name)[0]}_{i}'
-        expect_fail = 'does not compile' in body
-        ok, err, out = compile_and_run(body, cpp, workdir, tag)
-        first = body.strip().split('\n')[0][:40]
-        if expect_fail:
-            if ok:
-                problems.append(f'program "{first}" was marked "does not compile" but compiled')
-            continue
-        if not ok:
-            problems.append(f'program "{first}" failed to compile:\n{err}')
-            continue
-        if err.strip() and 'undefined behaviour' not in body:  # UB demos may warn on purpose
-            problems.append(f'program "{first}" has warnings:\n{err}')
-        if out == '<timed out>' and 'while (1)' not in body and 'while(1)' not in body:
-            problems.append(f'program "{first}" timed out')
-        # Expected output: a following "Output:" paragraph then a code block.
-        if (out is not None and i + 2 < len(blocks) and blocks[i + 1] == ('text', 'Output:')
-                and blocks[i + 2][0] == 'code'):
-            want = [l.rstrip() for l in blocks[i + 2][1].strip('\n').split('\n')]
-            # Tabs are compared as a terminal shows them (8-column stops).
-            got = [l.expandtabs(8).rstrip() for l in out.replace('\r', '').strip('\n').split('\n')]
-            if want != got:
-                problems.append(f'program "{first}" output differs.\n  expected: {want}\n  actual:   {got}')
-    # "What does this print?" questions: run the snippet and compare with the marked answer.
-    for qi, q in enumerate(questions):
-        if not q['code'] or not q['prompt'].lower().startswith('what does this print') or len(q['correct']) != 1:
-            continue
-        body = q['code']
-        if cpp:
-            head = '#include <iostream>\n#include <cstring>\nusing namespace std;\n'
-        else:
-            head = '#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n'
-        prog = head + (body if re.search(r'\bmain\s*\(', body) else 'int main() {\n' + body + '\n}')
-        ok, err, out = compile_and_run(prog, cpp, workdir, f'{os.path.splitext(name)[0]}_q{qi}')
-        runs += 1
-        want = q['choices'][q['correct'][0]].strip()
-        if not ok:
-            problems.append(f'quiz snippet at line {q["line"]} failed to compile:\n{err}')
-        elif out is not None and out.strip() != want:
-            problems.append(f'quiz at line {q["line"]}: answer is {want!r} but the code prints {out.strip()!r}')
-    return problems, runs, len(questions), len(exercises)
+    stdin = (step['input'] or '') + '\n'
+    ok, err, out = compile_and_run(step['starter'], cpp, workdir, tag + '_starter', stdin)
+    if step['broken'] and ok:
+        problems.append(f'{where}: "@step broken", but the starter compiles')
+    elif not step['broken'] and not ok:
+        problems.append(f'{where}: starter does not compile (mark the step "@step broken" if that is the bug):\n{err}')
+    elif ok and out is not None and normalize(out) == normalize(step['expected']):
+        problems.append(f'{where}: the starter already prints the target')
+    ok, err, out = compile_and_run(step['solution'], cpp, workdir, tag + '_solution', stdin)
+    if not ok:
+        problems.append(f'{where}: solution does not compile:\n{err}')
+    elif err.strip():
+        problems.append(f'{where}: solution has warnings:\n{err}')
+    elif normalize(out) != normalize(step['expected']):
+        problems.append(f'{where}: solution output differs.\n  expected: {normalize(step["expected"])}\n'
+                        f'  actual:   {normalize(out)}')
+    varied_problems, varied = check_variation(step, where, cpp, workdir, tag, tool)
+    return problems + varied_problems, varied
+
+
+def check(path, workdir, tool):
+    """Returns (problems, steps, steps with a second run)."""
+    name = os.path.splitext(os.path.basename(path))[0]
+    header, steps, problems = parse(path)
+    for key in ('id', 'track', 'title'):
+        if not header.get(key):
+            problems.append(f'no @{key}')
+    if header.get('track') not in (None, 'C', 'C++'):
+        problems.append(f'@track must be C or C++, not {header["track"]!r}')
+    for skill in header.get('speed', '').split():
+        if skill not in SPEED_SKILLS:
+            problems.append(f'@speed names an unknown skill {skill!r}')
+    if len(steps) > MAX_STEPS:
+        problems.append(f'{len(steps)} steps (max {MAX_STEPS})')
+    cpp = header.get('track') == 'C++'
+    second_runs = 0
+    for i, step in enumerate(steps):
+        step_problems, varied = check_step(step, i, cpp, workdir, f'{name}_{i + 1}', tool)
+        problems += step_problems
+        second_runs += varied
+    difficulties = [int(s['skills'][0]) for s in steps if s['skills'] and s['skills'][0] in ('1', '2', '3')]
+    if difficulties and max(difficulties) > difficulties[-1]:
+        problems.append('the last step should be the hardest: an earlier step has a higher difficulty')
+    return problems, len(steps), second_runs
 
 
 def main():
     paths = sys.argv[1:] or sorted(
         os.path.join(LESSONS, f) for f in os.listdir(LESSONS) if f.endswith('.txt'))
-    total = 0
+    total = steps = 0
     with tempfile.TemporaryDirectory() as work:
+        tool = build_variant_tool(work)
+        if not tool:
+            return 1
         for p in paths:
-            problems, runs, nq, nex = check(p, work)
-            status = 'ok' if not problems else f'{len(problems)} problem(s)'
-            print(f'{os.path.basename(p)}: {runs} program(s), {nq} question(s), {nex} exercise(s): {status}')
+            problems, count, second_runs = check(p, work, tool)
+            steps += count
+            status = 'not written yet' if count == 0 and not problems else 'ok' if not problems \
+                else f'{len(problems)} problem(s)'
+            print(f'{os.path.basename(p)}: {count} step(s), {second_runs} with a second run: {status}')
             for pr in problems:
                 print('  - ' + pr.replace('\n', '\n    '))
             total += len(problems)
-    print(f'\n{len(paths)} lesson(s), {total} problem(s)')
+    print(f'\n{len(paths)} level(s), {steps} step(s), {total} problem(s)')
     return 1 if total else 0
 
 

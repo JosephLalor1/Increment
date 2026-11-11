@@ -3,10 +3,10 @@
 
 #include <stdbool.h>
 
-// Skills and the rules for their XP. Every question exercises one or more skills, each with a
-// weight (a question that's mostly code tracing and only a little about pointers might be
-// tracing 1, pointers 0.3) and a difficulty from 1 to 3. Answering right earns XP in its
-// skills; answering wrong loses some. This is the catalogue and the arithmetic only: the
+// Skills and the rules for their XP. Every coding step and speed round question exercises one
+// or more skills, each with a weight (a question that's mostly code tracing and only a little
+// about pointers might be tracing 1, pointers 0.3) and a difficulty from 1 to 3. Getting it
+// right earns XP in its skills; getting it wrong loses some. This is the catalogue and the arithmetic only: the
 // learner's own XP is kept by skill_progress.h. Pure functions, unit-tested
 // (tests/test_skills.c).
 
@@ -61,7 +61,7 @@ typedef struct {
     int rightBefore;  // times the learner had got this question right before
     int wrongBefore;  // and wrong
     float timeLeft;   // answered against the clock (speed rounds): the share of the time left,
-                      // 0 to 1; negative for untimed answers (quizzes)
+                      // 0 to 1; negative for untimed answers (coding steps)
 } SkillAnswer;
 
 // The XP one skill gains (positive) or loses (negative) for an answer. Right: 10 x weight x

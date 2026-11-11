@@ -866,12 +866,12 @@ bool AccountDelete(const char *password, const char **err)
     remove(UserFile(removed.name, ".txt"));
     remove(UserFile(removed.name, ".settings.txt"));
     remove(UserFile(removed.name, ".email.txt"));
-    remove(UserFile(removed.name, ".bookmarks.txt"));
+    remove(UserFile(removed.name, ".bookmarks.txt"));  // saved lessons, from older versions
     remove(UserFile(removed.name, ".review.txt"));  // answer history and review schedule
     remove(UserFile(removed.name, ".skills.txt"));  // skill XP
     PlatformRemoveDir(UserFile(removed.name, "_code/saved")); // named sandbox programs
-    PlatformRemoveDir(UserFile(removed.name, "_code"));   // code editor drafts
-    PlatformRemoveDir(UserFile(removed.name, "_notes"));  // lesson notes
+    PlatformRemoveDir(UserFile(removed.name, "_code"));   // code drafts: the editor's and each step's
+    PlatformRemoveDir(UserFile(removed.name, "_notes"));  // lesson notes, from older versions
     memset(&mail, 0, sizeof mail);
     current = -1;
     settings = defaultSettings;
@@ -883,14 +883,6 @@ const char *AccountCurrent(void) { return current >= 0 ? accounts[current].name 
 bool AccountHasRecovery(void) { return current >= 0 && accounts[current].hasRecovery; }
 
 const char *AccountProgressPath(void) { return progressPath; }
-
-const char *AccountBookmarksPath(void)
-{
-    static char path[1100];
-    if (current < 0) return "";
-    snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".bookmarks.txt"));
-    return path;
-}
 
 const char *AccountReviewPath(void)
 {
@@ -906,15 +898,6 @@ const char *AccountSkillsPath(void)
     if (current < 0) return "";
     snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".skills.txt"));
     return path;
-}
-
-const char *AccountNotesDir(void)
-{
-    static char dir[1100];
-    if (current < 0) return NULL;
-    snprintf(dir, sizeof dir, "%s", UserFile(accounts[current].name, "_notes"));
-    if (!DirectoryExists(dir)) MakeDirectory(dir);
-    return dir;
 }
 
 const char *AccountCodeDir(void)

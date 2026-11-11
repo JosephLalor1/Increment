@@ -1,7 +1,7 @@
 // Increment: a desktop app for learning C and C++.
 //
 // This file starts the app and owns navigation. Each screen lives in its own module and
-// reports what the user asked for (an action, a choice, or a lesson to open); the functions
+// reports what the user asked for (an action, a choice, or a level to play); the functions
 // below decide which screen comes next. No screen switches screens itself.
 
 #include "raylib.h"
@@ -9,24 +9,18 @@
 #include "account.h"
 #include "account_screens.h"
 #include "app_screen.h"
-#include "bookmarks.h"
 #include "review.h"
 #include "skill_progress.h"
 #include "skill_reward.h"
 #include "code_screen.h"
-#include "courses_screen.h"
-#include "practice_screen.h"
-#include "tracing_screen.h"
 #include "ranking_screen.h"
 #include "dashboard.h"
 #include "dev_shot.h"
 #include "email.h"
 #include "layout.h"
 #include "lesson.h"
-#include "lesson_screen.h"
+#include "level_screen.h"
 #include "mascot.h"
-#include "memory_view.h"
-#include "notes_panel.h"
 #include "progress.h"
 #include "speed_screen.h"
 #include "splash.h"
@@ -41,9 +35,8 @@ static LessonSet lessons;
 
 static struct {
     AppScreen screen;
-    AppScreen lessonReturn;
-    AppScreen codeReturn;     // where the code editor goes back to
-    AppScreen speedReturn;    // where a speed round goes back to: its lesson or the statistics
+    AppScreen speedReturn;    // where a speed round goes back to: the journey or the statistics
+    int level;                // the level being played (an index into lessons)
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
     double splashStart;       // GetTime() when the splash began
     float splashTime;         // --shot splash: a fixed moment of the animation, or < 0 to run live
@@ -54,23 +47,12 @@ static struct {
 // ---------------------------------------------------------------------------
 // Opening screens
 
-// Remember the originating browser, so Back returns to Home or Courses. Setting the
-// notes folder here keeps the lesson screen independent of accounts.
-static void OpenLesson(int lessonIndex, AppScreen origin)
+// Plays a level. The draft folder is set here so the level screen doesn't depend on accounts.
+static void OpenLevel(int lessonIndex)
 {
-    app.lessonReturn = origin;
-    NotesPanelSetFolder(AccountNotesDir());
-    LessonScreenOpen(&lessons, lessonIndex, origin == SCREEN_COURSES ? "Courses" : "Home");
-    app.screen = SCREEN_LESSON;
-}
-
-// Switches to the code editor. Call before one of the CodeOpen* functions, which load the
-// signed-in user's draft from the folder set here.
-static void OpenCodeEditor(AppScreen returnTo)
-{
-    CodeSetDraftFolder(AccountCodeDir());
-    app.codeReturn = returnTo;
-    app.screen = SCREEN_CODE;
+    app.level = lessonIndex;
+    LevelScreenOpen(&lessons, lessonIndex, AccountCodeDir());
+    app.screen = SCREEN_LEVEL;
 }
 
 static void OpenSpeedRound(const Lesson *lesson, AppScreen returnTo)
@@ -88,17 +70,13 @@ static void OpenSettings(void)
 
 static void ShowLogin(void)
 {
-    LessonScreenClearAttempt();
-    PracticeScreenFree();
-    TracingScreenClear();
+    LevelScreenClose();  // saves the draft into the previous user's folder before it's forgotten
     RankingScreenClear();
     MascotResetInteractions();
-    ProgressLoad("");  // drop the previous user's scores and bookmarks from memory
-    BookmarksLoad("");
+    ProgressLoad("");  // drop the previous user's progress from memory
     ReviewLoad("");  // and their answer history and skill XP
     SkillsLoad("");
     SkillRewardClear();  // no badges of theirs left on the sign-in page
-    NotesPanelSetFolder(NULL);  // the next user mustn't see (or save into) these notes
     LoginReset();
     ApplyUserAppearance();
     app.screen = SCREEN_LOGIN;
@@ -126,7 +104,6 @@ static void EnterApp(void)
 static void SignedIn(void)
 {
     ProgressLoad(AccountProgressPath());
-    BookmarksLoad(AccountBookmarksPath());
     ReviewLoad(AccountReviewPath());
     SkillsLoad(AccountSkillsPath());
     if (VerifyNeeded()) {  // the account isn't usable until its email is verified
@@ -195,28 +172,21 @@ static void RunHome(void)
 {
     HomeAction action = DashboardScreen(&lessons);
     switch (action.kind) {
-    case HOME_OPEN_LESSON: OpenLesson(action.lessonIndex, SCREEN_HOME); break;
+    case HOME_OPEN_LESSON: OpenLevel(action.lessonIndex); break;
     case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
     case HOME_CHALLENGE:
         SpeedScreenOpenChallenge(&lessons);
         app.speedReturn = SCREEN_HOME;
         app.screen = SCREEN_SPEED;
         break;
-    case HOME_PRACTICE:
-        PracticeScreenOpen(&lessons);
-        app.screen = SCREEN_PRACTICE;
-        break;
-    case HOME_COURSES:
-        CoursesScreenOpen(TRACK_C);
-        app.screen = SCREEN_COURSES;
-        break;
     case HOME_RANKINGS:
         RankingScreenOpen(&lessons);
         app.screen = SCREEN_RANKINGS;
         break;
     case HOME_CODE_EDITOR:
-        OpenCodeEditor(SCREEN_HOME);
+        CodeSetDraftFolder(AccountCodeDir());
         CodeOpenPlayground();
+        app.screen = SCREEN_CODE;
         break;
     case HOME_SETTINGS: OpenSettings(); break;
     case HOME_LOG_OUT:  LogOut(); break;
@@ -225,76 +195,22 @@ static void RunHome(void)
     }
 }
 
-static void RunLesson(void)
+// Back to the journey, showing the level's track; or straight on to the next level.
+static void RunLevel(void)
 {
-    LessonAction action = LessonScreen();
-    const Lesson *lesson = LessonScreenLesson();
-    switch (action.kind) {
-    case LESSON_BACK:
-        app.screen = app.lessonReturn;
-        break;
-    case LESSON_ROADMAP:  // "Return to Roadmap": that track's journey
-        DashboardShow(HOME_VIEW_JOURNEY, lesson->track);
+    LevelAction action = LevelScreen();
+    if (action.kind == LEVEL_OPEN_LEVEL) {
+        OpenLevel(action.lessonIndex);
+    } else if (action.kind == LEVEL_BACK) {
+        DashboardShow(HOME_VIEW_JOURNEY, lessons.items[app.level].track);
         app.screen = SCREEN_HOME;
-        break;
-    case LESSON_PROGRESS:  // "View Progress": the statistics
-        DashboardShow(HOME_VIEW_STATISTICS, lesson->track);
-        app.screen = SCREEN_HOME;
-        break;
-    case LESSON_TRY_EXAMPLE:
-        OpenCodeEditor(SCREEN_LESSON);
-        CodeOpenSnippet(TextFormat("Try it: %s", lesson->title), action.exampleCode, lesson->track == TRACK_CPP);
-        break;
-    case LESSON_OPEN_EXERCISE:
-        OpenCodeEditor(SCREEN_LESSON);
-        CodeOpenExercise(lesson, action.exerciseIndex);
-        break;
-    case LESSON_OPEN_TRACING:
-        TracingScreenOpen(lesson, action.exerciseIndex);
-        app.screen = SCREEN_TRACING;
-        break;
-    case LESSON_OPEN_QUIZ_CODE:
-        OpenCodeEditor(SCREEN_LESSON);
-        CodeOpenQuizQuestion(lesson, action.questionIndex, action.startFresh);
-        break;
-    case LESSON_SPEED_ROUND:
-        OpenSpeedRound(lesson, SCREEN_LESSON);
-        break;
-    case LESSON_STAY:
-        break;
     }
-}
-
-static void RunCode(void)
-{
-    // Back to the menu or the lesson; the lesson screen keeps its own scroll position.
-    // A quiz's coding question passes its result back (CodeQuizSolved is false otherwise).
-    if (!CodeScreen()) return;
-    app.screen = app.codeReturn;
-    if (app.codeReturn == SCREEN_LESSON) LessonScreenQuizCodeResult(CodeQuizSolved());
 }
 
 // A speed round goes back to where it was opened from: its lesson or the statistics.
 static void RunSpeed(void)
 {
     if (SpeedScreen() == SPEED_SCREEN_BACK) app.screen = app.speedReturn;
-}
-
-static void RunCourses(void)
-{
-    int lesson = CoursesScreen(&lessons);
-    if (lesson == COURSES_BACK) app.screen = SCREEN_HOME;
-    else if (lesson >= 0) OpenLesson(lesson, SCREEN_COURSES);
-}
-
-static void RunPractice(void)
-{
-    PracticeAction action = PracticeScreen();
-    if (action == PRACTICE_HOME) app.screen = SCREEN_HOME;
-    else if (action == PRACTICE_LESSONS) {
-        CoursesScreenOpen(PracticeScreenTrack());
-        app.screen = SCREEN_COURSES;
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -371,8 +287,6 @@ int main(int argc, char **argv)
 
     ShowLogin();                   // prepares the login form...
     app.screen = SCREEN_SPLASH;    // ...which shows once the splash finishes
-    app.codeReturn = SCREEN_HOME;
-    app.lessonReturn = SCREEN_HOME;
     app.splashStart = GetTime();
     app.splashTime = -1;
 
@@ -403,14 +317,11 @@ int main(int argc, char **argv)
         case SCREEN_RECOVERY:  RunRecovery();      break;
         case SCREEN_VERIFY:    RunVerify();        break;
         case SCREEN_SETTINGS:  RunSettings();      break;
-        case SCREEN_CODE:      RunCode();          break;
+        case SCREEN_CODE:      if (CodeScreen()) app.screen = SCREEN_HOME; break;
         case SCREEN_HOME:      RunHome();          break;
-        case SCREEN_LESSON:    RunLesson();        break;
-        case SCREEN_PRACTICE: RunPractice(); break;
-        case SCREEN_SPEED:    RunSpeed();    break;
-        case SCREEN_COURSES: RunCourses(); break;
-        case SCREEN_TRACING: if (TracingScreen()) app.screen = SCREEN_LESSON; break;
-        case SCREEN_RANKINGS: if (RankingScreen()) app.screen = SCREEN_HOME; break;
+        case SCREEN_LEVEL:     RunLevel();         break;
+        case SCREEN_SPEED:     RunSpeed();         break;
+        case SCREEN_RANKINGS:  if (RankingScreen()) app.screen = SCREEN_HOME; break;
         }
 
         // The skill badges after an answer float over whichever screen is showing.
@@ -423,10 +334,8 @@ int main(int argc, char **argv)
     }
 
     CodeShutdown();
+    LevelScreenShutdown();  // saves the draft of a step left open when the window was closed
     RankingScreenClear();
-    PracticeScreenFree();
-    NotesPanelShutdown();  // saves notes typed just before the window was closed
-    MemoryViewShutdown();
     EmailShutdown();
     LessonsUnload(&lessons);
     MascotUnload();

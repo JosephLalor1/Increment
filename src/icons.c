@@ -124,22 +124,17 @@ void IconDraw(Icon icon, Vector2 c, float size, Color col)
         float flap[] = { -0.33f, -0.2f, 0.0f, 0.06f, 0.33f, -0.2f };
         PenPoly(flap, 3);
     } break;
-    case ICON_BOOKMARK:
-    case ICON_BOOKMARK_FILLED: {
-        // A ribbon with a notch cut into its foot.
-        float ribbon[] = { -0.24f, -0.36f, 0.24f, -0.36f, 0.24f, 0.38f, 0.0f, 0.16f, -0.24f, 0.38f, -0.24f, -0.36f };
-        PenPoly(ribbon, 6);
-        if (icon == ICON_BOOKMARK_FILLED) {
-            PenFillBox(-0.24f, -0.36f, 0.48f, 0.52f, 0.0f);
-            PenTri(-0.24f, 0.16f, 0.0f, 0.16f, -0.24f, 0.38f);
-            PenTri(0.24f, 0.16f, 0.0f, 0.16f, 0.24f, 0.38f);
-        }
-    } break;
-    case ICON_NOTE:
-        PenBox(-0.3f, -0.38f, 0.6f, 0.76f, 0.07f);
-        PenLine(-0.15f, -0.18f, 0.15f, -0.18f);
-        PenLine(-0.15f, 0.0f, 0.15f, 0.0f);
-        PenLine(-0.15f, 0.18f, 0.05f, 0.18f);
+    case ICON_BULB:
+        // The glass, its neck and the screw base.
+        PenRing(0, -0.1f, 0.26f, 135, 405);
+        PenLine(-0.18f, 0.08f, -0.11f, 0.2f);
+        PenLine(0.18f, 0.08f, 0.11f, 0.2f);
+        PenLine(-0.11f, 0.22f, 0.11f, 0.22f);
+        PenLine(-0.07f, 0.34f, 0.07f, 0.34f);
+        break;
+    case ICON_PLUS:
+        PenLine(-0.3f, 0, 0.3f, 0);
+        PenLine(0, -0.3f, 0, 0.3f);
         break;
     case ICON_STAR: {
         // Five points, filled as a fan of triangles from the centre.

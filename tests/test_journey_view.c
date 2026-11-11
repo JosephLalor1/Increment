@@ -24,8 +24,10 @@ int main(int argc, char **argv)
     char path[1024];
     snprintf(path, sizeof path, "%s/journey_progress.txt", argv[1]);
     ProgressLoad(path);
-    ProgressRecord(set.items[0].id, 100);
-    ProgressRecord(set.items[1].id, 60);
+    // The first level complete and the second under way.
+    for (int s = 0; s < set.items[0].stepCount; s++) ProgressRecordStep(set.items[0].id, s);
+    ProgressRecordStep(set.items[1].id, 0);
+    assert(RoadmapLevelComplete(&set.items[0]) && RoadmapLevelReady(&set.items[1]));
     assert(JourneyViewFocus(&set, TRACK_C) > 0);
     assert(JourneyViewFocus(&set, TRACK_CPP) == 0);
     char *before = LoadFileText(path);
@@ -54,12 +56,13 @@ int main(int argc, char **argv)
     assert(after && strcmp(before, after) == 0);
     UnloadFileText(before);
     UnloadFileText(after);
-    assert(ProgressBest(set.items[0].id) == 100 && ProgressBest(set.items[1].id) == 60);
+    assert(RoadmapLevelComplete(&set.items[0]) && RoadmapStepsDone(&set.items[1]) == 1);
 
     MascotUnload();
     MascotLoad("build/nonexistent_journey_assets");
     assert(!MascotAvailable());
-    for (int i = 0; i < set.count; i++) ProgressRecord(set.items[i].id, 100);
+    for (int i = 0; i < set.count; i++)
+        for (int s = 0; s < set.items[i].stepCount; s++) ProgressRecordStep(set.items[i].id, s);
     int done, total;
     assert(RoadmapNext(&set, TRACK_CPP, &done, &total) == -1 && done == total);
     assert(JourneyViewFocus(&set, TRACK_CPP) == 0);
