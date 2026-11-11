@@ -70,9 +70,12 @@ void EditorSetText(Editor *e, const char *text);                 // replace and 
 void EditorReplaceAll(Editor *e, const char *text, double now);  // replace, undoable
 
 void EditorInsertText(Editor *e, const char *s, double now);  // paste: filters to ASCII, tabs to spaces
-void EditorTypeChar(Editor *e, char c, double now);           // '}' on a blank line dedents
+// Types a character. In code mode: '}' on a blank line dedents; an opening bracket or quote
+// brings its closer and leaves the caret between them (or wraps the selection); typing a
+// closer that is already there steps over it.
+void EditorTypeChar(Editor *e, char c, double now);
 void EditorNewline(Editor *e, double now);                    // keeps indentation, +4 after '{'
-void EditorBackspace(Editor *e, double now);                  // removes a whole 4-space indent step
+void EditorBackspace(Editor *e, double now);                  // removes a whole 4-space indent step, or an empty pair "()"
 void EditorDeleteForward(Editor *e, double now);
 void EditorIndent(Editor *e, bool outdent, double now);       // Tab / Shift+Tab, on all selected lines
 void EditorDeleteSelection(Editor *e, double now);
@@ -96,6 +99,10 @@ void EditorSetMarks(Editor *e, const int *lines, int count);
 // or with before set, the gap above it where a new line belongs (line may be one past the
 // last). Unlike marks it survives edits; setting the text clears it.
 void EditorSetHint(Editor *e, int line, bool before);
+
+// Where the character at text offset pos is drawn (the middle of its left edge) when the
+// editor is drawn in r, for effects that point at the caret or at a line.
+Vector2 EditorTextPoint(const Editor *e, Rectangle r, int pos);
 
 // Handles mouse and keyboard input for this frame and draws the editor in r.
 // Uses its own scissor region, so don't call it inside a scrolling view.

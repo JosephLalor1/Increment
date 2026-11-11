@@ -147,6 +147,83 @@ static void TestIndentSelection(void)
     EditorFree(&e);
 }
 
+static void TestPairs(void)
+{
+    Editor e;
+    EditorInit(&e, "", true);
+    // An opener brings its closer; typing the closer steps over it.
+    Type(&e, "printf(", 0);
+    CHECK_TEXT(&e, "printf()");
+    CHECK(e.cursor == 7);
+    Type(&e, "\"hi", 0);
+    CHECK_TEXT(&e, "printf(\"hi\")");
+    Type(&e, "\");", 0);
+    CHECK_TEXT(&e, "printf(\"hi\");");
+    CHECK(e.cursor == e.len);
+
+    // A closer that is really missing is typed, not stepped over.
+    EditorSetText(&e, "f(g(x)");
+    EditorSetCursor(&e, 5, false);  // f(g(x|)
+    EditorTypeChar(&e, ')', 0);
+    CHECK_TEXT(&e, "f(g(x))");
+
+    // Brackets, braces and character quotes pair too; an apostrophe after a letter doesn't,
+    // and nothing pairs in front of a word.
+    EditorSetText(&e, "");
+    Type(&e, "a[", 0);
+    CHECK_TEXT(&e, "a[]");
+    EditorSetText(&e, "c = ");
+    EditorMoveCursor(&e, MOVE_DOC_END, false);
+    EditorTypeChar(&e, '\'', 0);
+    CHECK_TEXT(&e, "c = ''");
+    EditorSetText(&e, "// don");
+    EditorMoveCursor(&e, MOVE_DOC_END, false);
+    EditorTypeChar(&e, '\'', 0);
+    CHECK_TEXT(&e, "// don'");
+    EditorSetText(&e, "x");
+    EditorSetCursor(&e, 0, false);
+    EditorTypeChar(&e, '(', 0);
+    CHECK_TEXT(&e, "(x");
+
+    // Backspace between an empty pair removes both; with something inside, only the opener's side.
+    EditorSetText(&e, "f()");
+    EditorSetCursor(&e, 2, false);
+    EditorBackspace(&e, 0);
+    CHECK_TEXT(&e, "f");
+    EditorSetText(&e, "f(x)");
+    EditorSetCursor(&e, 3, false);
+    EditorBackspace(&e, 0);
+    CHECK_TEXT(&e, "f()");
+
+    // An opener typed over a selection wraps it and keeps it selected.
+    EditorSetText(&e, "a + b");
+    EditorSelectAll(&e);
+    EditorTypeChar(&e, '(', 0);
+    CHECK_TEXT(&e, "(a + b)");
+    char *inside = EditorCopySelection(&e);
+    CHECK(inside && strcmp(inside, "a + b") == 0);
+    free(inside);
+
+    // A block typed out in full, closing brace and all, ends with one brace, not two.
+    EditorSetText(&e, "");
+    Type(&e, "while (1) {\nx++;\n}", 0);
+    CHECK_TEXT(&e, "while (1) {\n    x++;\n}");
+    CHECK(e.cursor == e.len);
+    // But a brace that is genuinely missing is still typed.
+    EditorSetText(&e, "{\n    {\n    \n}");
+    EditorSetCursor(&e, 12, false);  // the end of the blank line
+    EditorTypeChar(&e, '}', 0);
+    CHECK_TEXT(&e, "{\n    {\n}\n}");
+
+    // Plain text boxes don't pair.
+    Editor plain;
+    EditorInit(&plain, "", false);
+    EditorTypeChar(&plain, '(', 0);
+    CHECK_TEXT(&plain, "(");
+    EditorFree(&plain);
+    EditorFree(&e);
+}
+
 static void TestUndoRedo(void)
 {
     Editor e;
@@ -241,6 +318,7 @@ int main(void)
 {
     TestTypingAndCursor();
     TestAutoIndent();
+    TestPairs();
     TestBackspaceAndDelete();
     TestIndentSelection();
     TestUndoRedo();

@@ -131,6 +131,10 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
     if (argc < 3 || strcmp(argv[1], "--shot") != 0) return shot;
     shot.outputPath = argv[2];
     shot.framesLeft = 3;
+    // INCREMENT_SHOT_DELAY=<ms>: capture that long after the screen is ready (and any program
+    // has finished), to catch animations part-way through.
+    const char *delay = getenv("INCREMENT_SHOT_DELAY");
+    if (delay) shot.delayFrames = atoi(delay) * 60 / 1000;
 
     const char *height = getenv("INCREMENT_SHOT_HEIGHT");
     if (height) SetWindowSize(1280, atoi(height));
@@ -164,6 +168,7 @@ bool DevShotCapture(DevShot *shot)
     // A shot of the code editor or a level waits for the compile and run to finish (up to ~30 s).
     bool running = CodeBusy() || LevelScreenBusy();
     if (running && shot->framesLeft == 1 && shot->framesWaited++ < 1800) return false;
+    if (shot->framesLeft == 1 && shot->delayFrames-- > 0) return false;  // let effects play on
     if (--shot->framesLeft > 0) return false;
 
     rlDrawRenderBatchActive();  // pending batched draws aren't in the framebuffer yet

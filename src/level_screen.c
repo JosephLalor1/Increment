@@ -4,6 +4,7 @@
 #include "drafts.h"
 #include "editor.h"
 #include "layout.h"
+#include "level_fx.h"
 #include "mascot.h"
 #include "progress.h"
 #include "roadmap.h"
@@ -23,6 +24,8 @@
 #define PIP_RADIUS 13.0f        // a step's circle in the top bar
 #define SHAKE_SECONDS 0.35      // the output panel shakes this long after a wrong run
 #define PASS_GLOW_SECONDS 1.2   // and glows this long after a pass
+#define LINE_REVEAL_SECONDS 0.07  // output lines appear one after another, this far apart
+#define LINE_TYPE_SECONDS 0.012   // and each is typed out, this long a character
 
 // After the output matches the target, the step still has to be solved honestly
 // (step_check.h): the constructs it is about must be there, and a second run with different
@@ -70,10 +73,16 @@ static struct {
     Skill missingConstruct;
 
     int hintsShown;    // 0 to STEP_HINT_LEVELS
+    double hintAt;     // when the latest hint was revealed: the strip animates from then
     StepHint hint;
     unsigned hintVersion;  // the code version the hint was worked out for
 
     float targetScroll, outputScroll;
+    double shownAt;        // when the output now on show arrived: its lines appear from then
+    int linesRevealed;     // how many of them have appeared (each sparks once as it does)
+    unsigned typedVersion; // the code version the typing sparks last saw
+    unsigned ranVersion;   // the code version of the last run: Run beckons once it's stale
+    LevelFxLayout fxLayout;
     bool celebrating;  // the level was just completed
     double celebrateAt;
     bool demo;         // set up for a --shot: nothing is saved
@@ -101,6 +110,8 @@ static void StartRun(bool byLearner)
     RunnerCancel(&ls.checker);
     ls.check = CHECK_NONE;
     ls.learnerRun = byLearner;
+    ls.ranVersion = ls.code.version;
+    LevelFxEmit(FX_RUN_STARTED);
     EditorSetMarks(&ls.code, NULL, 0);
     RunnerStart(&ls.runner, ls.code.text, Cpp(), CurrentStep()->input);
 }
@@ -142,6 +153,7 @@ static void CheckPassed(void)
 {
     ls.check = CHECK_OK;
     ls.passedAt = GetTime();
+    LevelFxEmit(FX_PASSED);
     RecordPass();
 }
 
@@ -149,6 +161,7 @@ static void CheckFailed(CheckState why)
 {
     ls.check = why;
     ls.failedAt = GetTime();
+    LevelFxEmit(FX_REFUSED);
     MascotReact(FOX_EDITOR, FOX_INCORRECT);
 }
 
@@ -208,6 +221,8 @@ static void CheckerFinished(void)
         } else {
             snprintf(ls.checkNote, sizeof ls.checkNote, "%s", ls.variation.summary);
             ls.outputScroll = ls.targetScroll = 0;
+            ls.shownAt = GetTime();  // the second run's output is typed out in its turn
+            ls.linesRevealed = 0;
             CheckFailed(CHECK_VALUES_FAILED);
         }
     }
@@ -219,11 +234,17 @@ static void RunFinished(void)
     Runner *r = &ls.runner;
     ls.ran = true;
     ls.outputScroll = 0;
+    ls.shownAt = GetTime();
+    ls.linesRevealed = 0;
     if (r->result == RESULT_COMPILE_ERROR) {
         int lines[RUNNER_MAX_DIAGS], n = 0;
         for (int i = 0; i < r->diagCount; i++) if (r->diags[i].error) lines[n++] = r->diags[i].line;
         EditorSetMarks(&ls.code, lines, n);
         ls.markedVersion = ls.code.version;
+        if (ls.learnerRun) {  // lightning from the first faulty line
+            if (n > 0) LevelFxLightning(EditorTextPoint(&ls.code, ls.fxLayout.editor, EditorPosOf(&ls.code, lines[0] - 1, 0)));
+            LevelFxEmit(FX_COMPILE_FAILED);
+        }
     }
     int badLine;
     bool wasPassed = ls.passed;
@@ -235,6 +256,7 @@ static void RunFinished(void)
     } else if (ls.learnerRun) {
         ls.failedAt = GetTime();
         MascotReact(FOX_EDITOR, FOX_INCORRECT);
+        if (r->result != RESULT_COMPILE_ERROR) LevelFxEmit(FX_OUTPUT_WRONG);
     }
 }
 
@@ -265,6 +287,8 @@ static void OpenStep(int index, bool leavingStep)
     ls.targetScroll = ls.outputScroll = 0;
     EditorSetHint(&ls.code, 0, false);
     UiFocus(&ls.code);
+    ls.typedVersion = ls.code.version;
+    LevelFxEmit(FX_STEP_OPENED);
     StartRun(false);  // so the learner sees straight away what the code prints now
 }
 
@@ -280,6 +304,7 @@ void LevelScreenOpen(const LessonSet *set, int lessonIndex, const char *draftFol
     ls.lesson = &set->items[lessonIndex];
     snprintf(ls.draftFolder, sizeof ls.draftFolder, "%s", draftFolder ? draftFolder : "");
     ls.celebrating = ls.demo = false;
+    LevelFxReset();
     OpenStep(RoadmapResumeStep(ls.lesson), false);
     ls.open = true;
 }
@@ -330,9 +355,15 @@ static void UpdateHint(void)
 // and from the second hint the line's shape, from the third the line itself.
 static void HintStrip(Rectangle r)
 {
-    UiRoundRect(r, 8, COL_NOTE_BG);
+    // A new hint lights the strip up in gold; the bulb swells, and the first hint slides the
+    // strip into place.
+    float age = (float)(GetTime() - ls.hintAt), fresh = age < 0.8f ? 1 - age / 0.8f : 0;
+    if (ls.hintsShown == 1 && age < 0.25f) r.y += (1 - age / 0.25f) * (1 - age / 0.25f) * 50;
+    UiRoundRect(r, 8, ColorLerp(COL_NOTE_BG, COL_GOLD, fresh * 0.35f));
+    if (fresh > 0) DrawRectangleRoundedLinesEx(r, 0.3f, 8, 2, Fade(COL_GOLD, fresh));
     float size = 18 * UiTextScale(), cy = r.y + r.height / 2;
-    IconDraw(ICON_BULB, (Vector2){ r.x + 22, cy }, 22, COL_ACCENT);
+    DrawCircleV((Vector2){ r.x + 22, cy }, 16 + fresh * 8, Fade(COL_GOLD, 0.25f * fresh));
+    IconDraw(ICON_BULB, (Vector2){ r.x + 22, cy }, 22 * (1 + fresh * 0.35f), fresh > 0 ? ColorLerp(COL_ACCENT, COL_GOLD, fresh) : COL_ACCENT);
     if (ls.hint.kind == STEP_HINT_NONE) {
         IconDraw(ICON_CHECK, (Vector2){ r.x + 58, cy }, 20, COL_GOOD);
         return;
@@ -342,8 +373,13 @@ static void HintStrip(Rectangle r)
     const char *line = TextFormat("%d", ls.hint.line + 1);
     UiText(gFonts.mono, line, r.x + 78, cy - size * 0.6f, size, COL_ACCENT);
     if (ls.hintsShown < 2 || ls.hint.kind == STEP_HINT_REMOVE) return;
+    // The code is typed out when its hint is revealed.
+    char code[STEP_HINT_TEXT];
+    snprintf(code, sizeof code, "%s", ls.hintsShown >= 3 ? ls.hint.target : ls.hint.shape);
+    int typed = (int)(age / 0.018f);
+    if (typed < (int)strlen(code)) code[typed] = '\0';
     BeginScissorMode((int)r.x + 120, (int)r.y, (int)r.width - 132, (int)r.height);
-    UiCodeLine(ls.hintsShown >= 3 ? ls.hint.target : ls.hint.shape, r.x + 124, cy - size * 0.6f, size);
+    UiCodeLine(code, r.x + 124, cy - size * 0.6f, size);
     EndScissorMode();
 }
 
@@ -376,19 +412,32 @@ static bool SameLine(const char *a, const char *b, int n)
 }
 
 // A panel's frame and title (an icon and a word); returns the area inside for its lines.
-static Rectangle Panel(Rectangle r, Icon icon, const char *title, Color edge)
+// backdrop draws the panel's moving background (level_fx.h), or is NULL.
+static Rectangle Panel(Rectangle r, Icon icon, const char *title, Color edge, void (*backdrop)(Rectangle))
 {
     UiRoundRect(r, 10, COL_CODE_BG);
+    if (backdrop) backdrop(r);
     if (edge.a) DrawRectangleRoundedLinesEx(r, 20 / fminf(r.width, r.height), 8, 2.5f, edge);
     UiIconText(icon, gFonts.bold, title, r.x + 16, r.y + 12, 17, COL_DIM);
     return (Rectangle){ r.x + 10, r.y + 44, r.width - 20, r.height - 54 };
 }
 
+// How big a tick or cross is drawn `age` seconds after its line appeared: it pops past full
+// size and settles.
+static float PopScale(float age)
+{
+    float t = age / 0.22f;
+    if (t >= 1) return 1;
+    return t < 0.6f ? t / 0.6f * 1.35f : 1.35f - (t - 0.6f) / 0.4f * 0.35f;
+}
+
 // Lines of output in area, scrolled by *scroll (the wheel scrolls it). When compareWith is
 // set, each line is ticked where it matches the same line there, or crossed and tinted red,
-// and lines missing from the end show as empty red slots.
+// and lines missing from the end show as empty red slots; the lines then appear one after
+// another from ls.shownAt, typed out, each sparking as its tick or cross pops in.
 static void OutputLinesView(Rectangle area, const char *text, const char *compareWith, float *scroll)
 {
+    float shownFor = compareWith ? (float)(GetTime() - ls.shownAt) : 1000;
     float size = 18 * UiTextScale(), lineH = size * 1.45f, gutter = compareWith ? 30 : 6;
     int lines = OutputLines(text);
     int rows = compareWith && OutputLines(compareWith) > lines ? OutputLines(compareWith) : lines;
@@ -401,17 +450,27 @@ static void OutputLinesView(Rectangle area, const char *text, const char *compar
     char line[512];
     for (int i = 1; i <= rows; i++) {
         float y = area.y + (i - 1) * lineH - *scroll;
-        if (y + lineH < area.y || y > area.y + area.height) continue;
+        float age = shownFor - (i - 1) * (float)LINE_REVEAL_SECONDS;  // since this line appeared
+        if (age < 0) break;
+        bool onScreen = y + lineH >= area.y && y <= area.y + area.height;
         if (compareWith) {
             bool same = SameLine(text, compareWith, i);
+            if (i > ls.linesRevealed) {  // it has just appeared
+                ls.linesRevealed = i;
+                if (onScreen) LevelFxLine((Vector2){ area.x + 14, y + lineH / 2 }, same);
+            }
+            if (!onScreen) continue;
             Color tint = same ? COL_GOOD : COL_BAD;
-            if (!same) UiRoundRect((Rectangle){ area.x, y, area.width, lineH - 3 }, 5, Fade(COL_BAD, 0.14f));
+            float pulse = same ? 0 : (sinf((float)GetTime() * 5 + i) + 1) * 0.04f;  // wrong lines throb
+            if (!same) UiRoundRect((Rectangle){ area.x, y, area.width, lineH - 3 }, 5, Fade(COL_BAD, 0.12f + pulse));
             if (i > lines) DrawRectangleRoundedLinesEx((Rectangle){ area.x + gutter, y + 2, area.width - gutter - 6, lineH - 7 },
                                                        0.4f, 6, 1.5f, Fade(COL_BAD, 0.6f));
-            IconDraw(same ? ICON_CHECK : ICON_CROSS, (Vector2){ area.x + 14, y + lineH / 2 - 1 }, 15, tint);
+            IconDraw(same ? ICON_CHECK : ICON_CROSS, (Vector2){ area.x + 14, y + lineH / 2 - 1 }, 15 * PopScale(age), tint);
         }
-        if (i > lines) continue;
+        if (i > lines || !onScreen) continue;
         RunnerGetLine(text, i, line, sizeof line);
+        int typed = (int)(age / (float)LINE_TYPE_SECONDS);
+        if (typed < (int)strlen(line)) line[typed] = '\0';
         UiText(gFonts.mono, line, area.x + gutter, y + (lineH - size) / 2 - 1, size, COL_TEXT);
     }
     EndScissorMode();
@@ -448,9 +507,13 @@ static void ProblemView(Rectangle area)
 // the given values that must stay (a padlock, then code), or the missing construct's logo.
 static void CheckStrip(Rectangle r)
 {
+    // It slides up into place, and its cross wobbles for a moment.
+    float age = (float)(GetTime() - ls.failedAt), slide = age < 0.3f ? 1 - age / 0.3f : 0;
+    r.y += slide * slide * 60;
+    float wobble = age < 0.7f ? sinf(age * 38) * 5 * (1 - age / 0.7f) : 0;
     UiRoundRect(r, 8, COL_BAD_BG);
     float size = 17 * UiTextScale(), cy = r.y + r.height / 2;
-    IconDraw(ICON_CROSS, (Vector2){ r.x + 20, cy }, 18, COL_BAD);
+    IconDraw(ICON_CROSS, (Vector2){ r.x + 20 + wobble, cy }, 18, COL_BAD);
     if (ls.check == CHECK_CONSTRUCT_MISSING) {
         SkillIconDraw(ls.missingConstruct, (Vector2){ r.x + 56, cy }, 28, COL_TEXT);
         UiText(gFonts.bold, SkillTitle(ls.missingConstruct), r.x + 80, cy - size * 0.6f, size, COL_TEXT);
@@ -481,13 +544,21 @@ static void OutputColumn(Rectangle column)
     const char *input = varied ? ls.variation.input : step->input;
 
     Rectangle target = { column.x, y, column.width, targetH };
-    OutputLinesView(Panel(target, ICON_TARGET, "Target", BLANK), expected, NULL, &ls.targetScroll);
+    OutputLinesView(Panel(target, ICON_TARGET, "Target", BLANK, LevelFxTargetBackdrop), expected, NULL, &ls.targetScroll);
     y += targetH + gap;
+
+    // Between the panels: how much of the output matches the target so far.
+    const char *shown = varied ? ls.checker.programOutput : r->result == RESULT_OK ? r->programOutput : NULL;
+    int wanted = OutputLines(expected), matching = 0;
+    for (int i = 1; shown && ls.ran && !RunnerBusy(r) && i <= wanted && i <= ls.linesRevealed; i++)
+        matching += SameLine(shown, expected, i);
+    int rows = shown && OutputLines(shown) > wanted ? OutputLines(shown) : wanted;
+    LevelFxMatchBar((Rectangle){ column.x + 4, y - gap + 4, column.width - 8, 4 }, rows ? (float)matching / rows : 0);
 
     if (input) {
         float inputH = 44 + 18 * UiTextScale() * 1.45f * (float)(OutputLines(input) > 3 ? 3 : OutputLines(input)) + 10;
         float scroll = 0;
-        OutputLinesView(Panel((Rectangle){ column.x, y, column.width, inputH }, ICON_USER, "Input", BLANK), input,
+        OutputLinesView(Panel((Rectangle){ column.x, y, column.width, inputH }, ICON_USER, "Input", BLANK, NULL), input,
                         NULL, &scroll);
         y += inputH + gap;
     }
@@ -502,7 +573,10 @@ static void OutputColumn(Rectangle column)
                               14, Fade(COL_GOOD, 0.25f * glow));
     bool wrong = refused || (!ls.passed && ls.ran && ls.learnerRun && !RunnerBusy(r));
     Color edge = cleared ? COL_GOOD : wrong ? Fade(COL_BAD, 0.6f) : BLANK;
-    Rectangle area = Panel(mine, ICON_PLAY, "Output", edge);
+    Rectangle area = Panel(mine, ICON_PLAY, "Output", edge, LevelFxOutputBackdrop);
+    ls.fxLayout.target = target;
+    ls.fxLayout.output = mine;
+    ls.fxLayout.badge = (Vector2){ mine.x + mine.width - 34, mine.y + 26 };
     if (refused) {  // room for the strip that shows why
         area.height -= 54;
         CheckStrip((Rectangle){ mine.x + 10, mine.y + mine.height - 54, mine.width - 20, 44 });
@@ -523,7 +597,7 @@ static void OutputColumn(Rectangle column)
         DrawCircleV(badge, 18 + 4 * glow, COL_GOOD);
         IconDraw(ICON_CHECK, badge, 22, COL_ON_ACCENT);
     } else if (checking) {  // the second run is under way
-        UiTextCentered(gFonts.mono, TextFormat("%.*s", dots + 1, "...."), badge.x - 10, badge.y - 14, 22, COL_DIM);
+        LevelFxSpinner(badge);
     }
 }
 
@@ -543,7 +617,13 @@ static void StepPips(void)
         bool over = open && !current && CheckCollisionPointCircle(GetMousePosition(), c, PIP_RADIUS + 3)
                  && UiMouseOver((Rectangle){ c.x - PIP_RADIUS, c.y - PIP_RADIUS, PIP_RADIUS * 2, PIP_RADIUS * 2 });
         if (over) UiWantHand();
-        if (current) DrawRing(c, PIP_RADIUS + 3, PIP_RADIUS + 5.5f, 0, 360, 48, COL_ACCENT);
+        if (current) {  // ringed, with a dot in orbit
+            DrawRing(c, PIP_RADIUS + 3, PIP_RADIUS + 5.5f, 0, 360, 48, COL_ACCENT);
+            float orbit = (float)GetTime() * 2.2f;
+            DrawCircleV((Vector2){ c.x + cosf(orbit) * (PIP_RADIUS + 4.25f), c.y + sinf(orbit) * (PIP_RADIUS + 4.25f) }, 3,
+                        COL_ON_ACCENT);
+            ls.fxLayout.pip = c;
+        }
         DrawCircleV(c, PIP_RADIUS, done ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL_HI);
         if (done) IconDraw(ICON_CHECK, c, 14, COL_ON_ACCENT);
         else if (open || current) UiTextCentered(gFonts.bold, TextFormat("%d", i + 1), c.x, c.y - 9, 15,
@@ -640,6 +720,8 @@ LevelAction LevelScreen(void)
     if (ls.checkerWasBusy && !checking) CheckerFinished();
     ls.checkerWasBusy = checking = RunnerBusy(&ls.checker);  // one check run may start the next
     bool busy = RunnerBusy(&ls.runner) || checking;
+    LevelFxActivity(RunnerBusy(&ls.runner), checking);
+    LevelFxUpdate(GetFrameTime());
     if (ls.code.markCount && ls.code.version != ls.markedVersion) EditorSetMarks(&ls.code, NULL, 0);
     UpdateHint();
 
@@ -648,6 +730,7 @@ LevelAction LevelScreen(void)
 
     bool back = TopBar(ls.lesson->title);
     StepPips();
+    LevelFxProgressLine(TOPBAR_H - 3, (float)RoadmapStepsDone(ls.lesson) / (float)ls.lesson->stepCount);
 
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
     float pad = 16, barY = TOPBAR_H + 12, barH = 42;
@@ -664,20 +747,35 @@ LevelAction LevelScreen(void)
             ls.wasBusy = ls.checkerWasBusy = false;
             ls.check = CHECK_NONE;
         }
-    } else if (UiButtonIconEx((Rectangle){ x, barY, 130, barH }, ICON_PLAY, "Run", 20, COL_ACCENT, COL_ACCENT_HI,
-                              COL_ON_ACCENT, true)) {
-        run = true;
+    } else {
+        Rectangle runButton = { x, barY, 130, barH };
+        if (ls.code.version != ls.ranVersion) {  // the code has changed since it last ran: Run beckons
+            float pulse = (sinf((float)GetTime() * 4) + 1) / 2;
+            Rectangle halo = { runButton.x - 3 - pulse * 2, runButton.y - 3 - pulse * 2, runButton.width + 6 + pulse * 4,
+                               runButton.height + 6 + pulse * 4 };
+            DrawRectangleRoundedLinesEx(halo, 0.3f, 8, 2, Fade(COL_ACCENT, 0.25f + 0.45f * pulse));
+        }
+        if (UiButtonIconEx(runButton, ICON_PLAY, "Run", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, true)) run = true;
     }
     x += 142;
     if (UiButtonIconEx((Rectangle){ x, barY, 120, barH }, ICON_RETRY, "Reset", 19, COL_PANEL, COL_SECONDARY_HOVER,
                        COL_TEXT, !busy)) {
         EditorReplaceAll(&ls.code, CurrentStep()->starter, GetTime());  // Ctrl+Z brings the old code back
+        ls.typedVersion = ls.code.version;  // a reset isn't typing
+        LevelFxRewind((Vector2){ x + 28, barY + barH / 2 });
     }
     x += 132;
     bool cleared = StepCleared();
     if (HintButton((Rectangle){ x, barY, 130, barH }, ls.hintsShown < STEP_HINT_LEVELS && !cleared)) {
         ls.hintsShown++;
+        ls.hintAt = GetTime();
         ls.hintVersion = ls.code.version - 1;  // work it out afresh
+        UpdateHint();
+        // The bulb's light flies to the line the hint is about (where the editor was last drawn).
+        int line = ls.hint.line < EditorLineCount(&ls.code) ? ls.hint.line : EditorLineCount(&ls.code) - 1;
+        LevelFxHint((Vector2){ x + 28, barY + barH / 2 },
+                    EditorTextPoint(&ls.code, ls.fxLayout.editor, EditorPosOf(&ls.code, line, 0)),
+                    ls.hint.kind != STEP_HINT_NONE);
         MascotReact(FOX_EDITOR, FOX_TIP);
     }
     x += 142;
@@ -694,18 +792,33 @@ LevelAction LevelScreen(void)
     }
     float right = W - pad;
     DifficultyMeter(right, barY);
-    UiText(gFonts.mono, TextFormat("%s  %d/%d", TrackName(ls.lesson->track), ls.step + 1, ls.lesson->stepCount),
-           right - 46 - UiTextWidth(gFonts.mono, TextFormat("%s  %d/%d", TrackName(ls.lesson->track), ls.step + 1,
-                                                             ls.lesson->stepCount), 19),
-           barY + 10, 19, COL_DIM);
+    const char *place = TextFormat("%s  %d/%d", TrackName(ls.lesson->track), ls.step + 1, ls.lesson->stepCount);
+    float placeX = right - 46 - UiTextWidth(gFonts.mono, place, 19);
+    UiText(gFonts.mono, place, placeX, barY + 10, 19, COL_DIM);
+    // The fox watches from the toolbar: thinking during a run, set on trying again after a
+    // miss, and jumping for joy at a pass.
+    if (MascotAvailable() && placeX - 76 > x + 160) {
+        bool missed = ls.ran && ls.learnerRun && !busy && !cleared;
+        FoxEmotion mood = cleared ? FOX_CELEBRATING : busy ? FOX_THINKING : missed ? FOX_DETERMINED : FOX_CODING;
+        MascotDrawActor(FOX_EDITOR, (Rectangle){ placeX - 76, barY - 6 - LevelFxHop(), 58, 54 }, mood);
+    }
 
     // Code on the left (with the hint strip under it), target and output on the right.
     float top = barY + barH + 12, bottom = H - pad;
     float codeW = (W - pad * 3) * 0.58f;
     float stripH = ls.hintsShown ? 48 : 0;
-    EditorWidget(&ls.code, (Rectangle){ pad, top, codeW, bottom - top - (stripH ? stripH + 10 : 0) });
+    Rectangle editor = { pad, top, codeW, bottom - top - (stripH ? stripH + 10 : 0) };
+    EditorWidget(&ls.code, editor);
+    ls.fxLayout.editor = editor;
+    if (ls.code.version != ls.typedVersion) {  // typed something: sparks at the caret
+        ls.typedVersion = ls.code.version;
+        if (UiHasFocus(&ls.code)) LevelFxKey(EditorTextPoint(&ls.code, editor, ls.code.cursor));
+    }
+    LevelFxEditorGlow();
     if (stripH) HintStrip((Rectangle){ pad, bottom - stripH, codeW, stripH });
     OutputColumn((Rectangle){ pad * 2 + codeW, top, W - pad * 3 - codeW, bottom - top });
+    LevelFxSetLayout(ls.fxLayout);
+    LevelFxDrawOver();
 
     if (ls.celebrating) {
         UiClearClip();

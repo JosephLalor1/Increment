@@ -16,6 +16,7 @@ typedef struct {
     float splashTime;        // splash: seconds into the animation to show; < 0 runs it live
     int framesLeft;          // frames to draw before capturing (layout settles over a couple)
     int framesWaited;        // frames spent waiting for a program to finish running
+    int delayFrames;         // extra frames to wait after that (INCREMENT_SHOT_DELAY)
 } DevShot;
 
 // Reads --shot from the command line and prepares the requested screen's state (signing in

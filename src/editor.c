@@ -234,11 +234,111 @@ void EditorInsertText(Editor *e, const char *s, double now)
     free(clean);
 }
 
+// ---------------------------------------------------------------------------
+// Bracket and quote pairs (code mode)
+
+// The character that closes c, or 0 if c doesn't open a pair. Quotes close themselves.
+static char CloserOf(char c)
+{
+    switch (c) {
+    case '(': return ')';
+    case '[': return ']';
+    case '{': return '}';
+    case '"': return '"';
+    case '\'': return '\'';
+    default:  return 0;
+    }
+}
+
+static bool IsCloser(char c) { return c == ')' || c == ']' || c == '}' || c == '"' || c == '\''; }
+
+// How many times c appears on the caret's line.
+static int CountOnLine(const Editor *e, char c)
+{
+    int count = 0;
+    for (int i = LineStart(e, e->cursor); i < LineEnd(e, e->cursor); i++) count += e->text[i] == c;
+    return count;
+}
+
+// Whether typing the closer c should just step over the same character already after the
+// caret: only when that one already completes its pair on this line, so a closer that is
+// really missing still gets typed ("f(g(x|)" needs another bracket; "f(x|)" doesn't).
+static bool StepsOverCloser(const Editor *e, char c)
+{
+    if (e->cursor >= e->len || e->text[e->cursor] != c) return false;
+    if (c == '"' || c == '\'') return CountOnLine(e, c) % 2 == 0;
+    char opener = c == ')' ? '(' : c == ']' ? '[' : '{';
+    return CountOnLine(e, c) >= CountOnLine(e, opener);
+}
+
+// Whether typing the opener c should bring its closer with it: not in front of a word
+// (the learner is wrapping something by hand), and for quotes not when the quote ends a
+// string or is an apostrophe after a letter.
+static bool PairsUp(const Editor *e, char c)
+{
+    char next = e->cursor < e->len ? e->text[e->cursor] : '\n';
+    if (!strchr(" \n)]};,", next)) return false;
+    if (c != '"' && c != '\'') return true;
+    char previous = e->cursor > 0 ? e->text[e->cursor - 1] : ' ';
+    if (IsWord(previous) || previous == c || previous == '\\') return false;
+    return CountOnLine(e, c) % 2 == 0;  // an odd count means this quote closes one
+}
+
+// "}" typed on a blank line, when the block's own "}" (brought by its "{") waits on the next
+// line and every brace in the text has its partner: the learner is closing the block by
+// hand, so the blank line goes and the caret lands after the brace that is already there,
+// instead of leaving one brace too many. Returns whether it did.
+static bool JoinsWaitingBrace(Editor *e)
+{
+    int ls = LineStart(e, e->cursor), le = LineEnd(e, e->cursor);
+    for (int i = ls; i < le; i++) if (e->text[i] != ' ') return false;
+    if (le >= e->len) return false;  // no next line
+    int brace = le + 1;
+    while (brace < e->len && e->text[brace] == ' ') brace++;
+    if (brace >= e->len || e->text[brace] != '}') return false;
+    int depth = 0;
+    for (int i = 0; i < e->len; i++) depth += (e->text[i] == '{') - (e->text[i] == '}');
+    if (depth != 0) return false;
+    RawDelete(e, ls, le + 1);  // the blank line and its newline
+    e->cursor = e->anchor = brace - (le + 1 - ls) + 1;
+    e->preferredCol = -1;
+    e->revealCursor = true;
+    return true;
+}
+
 void EditorTypeChar(Editor *e, char c, double now)
 {
     if (e->readOnly || c < 32 || c > 126) return;
     BeginEdit(e, EDIT_TYPE, now);
+
+    // An opener typed over a selection wraps it, and keeps it selected.
+    if (e->code && CloserOf(c) && EditorHasSelection(e)) {
+        int a = SelMin(e), b = SelMax(e);
+        char closer = CloserOf(c);
+        RawInsert(e, b, &closer, 1);
+        RawInsert(e, a, &c, 1);
+        e->anchor = a + 1;
+        e->cursor = b + 1;
+        e->preferredCol = -1;
+        e->revealCursor = true;
+        return;
+    }
     RemoveSelection(e);
+    if (e->code && c == '}' && JoinsWaitingBrace(e)) return;
+    if (e->code && IsCloser(c) && StepsOverCloser(e, c)) {
+        e->cursor++;
+        e->anchor = e->cursor;
+        e->preferredCol = -1;
+        e->revealCursor = true;
+        return;
+    }
+    if (e->code && CloserOf(c) && PairsUp(e, c)) {  // "(" brings ")" and leaves the caret between
+        char pair[2] = { c, CloserOf(c) };
+        InsertAtCursor(e, pair, 2);
+        e->cursor--;
+        e->anchor = e->cursor;
+        return;
+    }
 
     // A closing brace typed on a line that is only indentation steps back one level.
     if (c == '}' && e->code) {
@@ -306,6 +406,9 @@ void EditorBackspace(Editor *e, double now)
             int col = e->cursor - ls;
             if (blank && col > 0) from = e->cursor - ((col - 1) % 4 + 1);
         }
+        // Between an empty pair, "(|)", the closer goes with its opener.
+        char closer = e->code ? CloserOf(e->text[e->cursor - 1]) : 0;
+        if (closer && e->cursor < e->len && e->text[e->cursor] == closer) RawDelete(e, e->cursor, e->cursor + 1);
         RawDelete(e, from, e->cursor);
         e->cursor = e->anchor = from;
     }
@@ -537,6 +640,13 @@ static int LongestLine(const Editor *e)
 
 // Where the scroll bars go and how much they scroll: a vertical bar on the right edge and
 // a horizontal one along the bottom, each only when the text doesn't fit that way.
+Vector2 EditorTextPoint(const Editor *e, Rectangle r, int pos)
+{
+    Layout L = MakeLayout(e, r);
+    return (Vector2){ L.text.x - e->scrollX + EditorColOf(e, pos) * L.charW,
+                      L.text.y - e->scrollY + EditorLineOf(e, pos) * L.lineH + L.lineH / 2 };
+}
+
 typedef struct {
     Rectangle vertical, horizontal;
     bool showVertical, showHorizontal;
