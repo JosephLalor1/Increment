@@ -10,6 +10,7 @@
 #define MAX_SLOTS 256   // literal values looked at in one program
 #define MAX_GIVENS 32   // values changed for one step
 #define NAME_SIZE 48
+#define MAX_STRING_SLOT 40  // a string value this long or longer (quotes included) isn't varied
 
 // A place in a program where a variable is set to a literal value: "b = 3" in
 // "int a = 10, b = 3;", or one element of "int n[3] = {1, 2, 3};".
@@ -73,10 +74,29 @@ static int FindSlots(const char *code, Slot *slots)
             p = end ? end + 2 : p + strlen(p);
             continue;
         }
-        if (c == '"') {  // strings are never values to vary
-            p++;
-            while (*p && *p != '"' && *p != '\n') p += *p == '\\' && p[1] ? 2 : 1;
+        if (c == '"') {
+            const char *start = p++;
+            bool letters = false;
+            while (*p && *p != '"' && *p != '\n') {
+                letters |= isalpha((unsigned char)*p) != 0 && (p == start + 1 || p[-1] != '\\');
+                p += *p == '\\' && p[1] ? 2 : 1;
+            }
             if (*p == '"') p++;
+            // A string is a slot when it's the whole value a variable is set to
+            // (char name[20] = "Alice";), has letters to change and is short enough to patch.
+            // Strings anywhere else (printf formats above all) are left alone.
+            int length = (int)(p - start);
+            char after = *SkipSpace(p);
+            bool whole = after == ';' || (after == ',' && parens == 0);
+            if (assigning && before == '=' && whole && letters && parens == 0 && brackets == 0 && listDepth == 0
+                && owner[0] && length < MAX_STRING_SLOT && count < MAX_SLOTS) {
+                Slot *slot = &slots[count++];
+                slot->start = (int)(start - code);
+                slot->length = length;
+                snprintf(slot->name, sizeof slot->name, "%s", owner);
+                slot->ordinal = 0;
+                slot->used = false;
+            }
             before = '"';
             continue;
         }
@@ -173,13 +193,30 @@ static int FindGivens(const Step *step, Slot *solutionSlots, int solutionCount, 
     return count;
 }
 
+// A letter moved delta places along the alphabet, wrapping round, in its own case.
+static char ShiftLetter(char letter, int delta)
+{
+    char base = isupper((unsigned char)letter) ? 'A' : 'a';
+    return (char)(base + (letter - base + delta) % 26);
+}
+
 // Writes the literal `text` changed by delta (1 or more) into out: a number grows by delta
-// (its fraction and suffix kept), a letter moves delta places along the alphabet.
+// (its fraction and suffix kept), a letter moves delta places along the alphabet, and so
+// does every letter of a string (its escapes and any % conversions stay as they are, and
+// so does its length, so it still fits wherever it is kept).
 static void ChangeLiteral(const char *text, int length, int delta, char *out, int size)
 {
+    if (text[0] == '"') {
+        int n = 0;
+        for (int i = 0; i < length && n < size - 1; i++) {
+            bool kept = i > 0 && (text[i - 1] == '\\' || text[i - 1] == '%');
+            out[n++] = isalpha((unsigned char)text[i]) && !kept ? ShiftLetter(text[i], delta) : text[i];
+        }
+        out[n] = '\0';
+        return;
+    }
     if (text[0] == '\'') {
-        char base = isupper((unsigned char)text[1]) ? 'A' : 'a';
-        snprintf(out, (size_t)size, "'%c'", base + (text[1] - base + delta) % 26);
+        snprintf(out, (size_t)size, "'%c'", ShiftLetter(text[1], delta));
         return;
     }
     int digits = 0;
@@ -225,20 +262,39 @@ static char *ApplyPatches(const char *code, Patch *patches, int count)
     return out;
 }
 
-// The step's input with every number in it changed (malloc'd); *changes counts them.
+// The length of the word at p if it is letters only, up to a space or the end, and short
+// enough to patch; 0 otherwise.
+static int WordLength(const char *p)
+{
+    int n = 0;
+    while (isalpha((unsigned char)p[n])) n++;
+    return n > 0 && n < MAX_STRING_SLOT && (p[n] == '\0' || isspace((unsigned char)p[n])) ? n : 0;
+}
+
+// The step's input with every number in it changed, and every word of letters moved along
+// the alphabet (malloc'd); *changes counts them.
 static char *VaryInput(const char *input, int *changes)
 {
     static Patch patches[MAX_GIVENS];
     int count = 0;
     for (const char *p = input; *p && count < MAX_GIVENS;) {
-        bool tokenStart = p == input || isspace((unsigned char)p[-1]) || p[-1] == '-';
+        bool afterSpace = p == input || isspace((unsigned char)p[-1]);
+        bool tokenStart = afterSpace || p[-1] == '-';
         int length = tokenStart && p[0] != '\'' ? LiteralLength(p) : 0;
+        int word = afterSpace ? WordLength(p) : 0;
         if (length > 0 && (p[length] == '\0' || isspace((unsigned char)p[length]))) {
             patches[count].start = (int)(p - input);
             patches[count].length = length;
             ChangeLiteral(p, length, DeltaFor(count), patches[count].text, sizeof patches[count].text);
             count++;
             p += length;
+        } else if (word > 0) {
+            patches[count].start = (int)(p - input);
+            patches[count].length = word;
+            for (int i = 0; i < word; i++) patches[count].text[i] = ShiftLetter(p[i], DeltaFor(count));
+            patches[count].text[word] = '\0';
+            count++;
+            p += word;
         } else {
             p++;
         }

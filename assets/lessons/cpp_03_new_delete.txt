@@ -42,6 +42,7 @@ int main() {
 using namespace std;
 
 int main() {
+    int value = 5;
     int* x = new int;
     cout << "made" << endl;
     delete x;
@@ -59,7 +60,8 @@ made
 using namespace std;
 
 int main() {
-    int* x = new int(5);
+    int value = 5;
+    int* x = new int(value);
     cout << "made" << endl;
     cout << *x << endl;
     delete x;

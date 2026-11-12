@@ -2,10 +2,13 @@
 // app's own code, so the checker tests exactly what learners will meet.
 //
 // usage: step_variant <c|cpp> <starter file> <solution file> <input file or -> <out prefix>
+//        [<expected file> [<skill:weight> ...]]
 //
 // Writes <out prefix>.code (the solution with its given values changed) and, if there's
 // input, <out prefix>.in. Prints one line: the number of changes, then the changed values.
-// Also checks the solution against its own step: prints "missing ..." lines if it is refused.
+// Also checks the solution against its own step: prints "missing ..." or "cheat ..." lines
+// if it is refused (the cheat checks need the step's expected output and "~" skills).
+#include "../src/step_cheats.h"
 #include "../src/step_check.h"
 
 #include <stdio.h>
@@ -37,7 +40,7 @@ static void WriteFile(const char *prefix, const char *extension, const char *tex
 
 int main(int argc, char **argv)
 {
-    if (argc != 6) return 2;
+    if (argc < 6) return 2;
     bool cpp = strcmp(argv[1], "cpp") == 0;
     Step step = { 0 };
     step.starter = ReadFile(argv[2]);
@@ -59,5 +62,19 @@ int main(int argc, char **argv)
     if (missing) printf("missing givens: %s\n", summary);
     Skill construct;
     if (StepMissingConstructs(&step, step.solution, cpp, &construct, 1)) printf("missing construct\n");
+
+    // Nor may it look like a cheat (step_cheats.h).
+    if (argc > 6) {
+        step.expected = ReadFile(argv[6]);
+        for (int i = 7; i < argc && step.skillCount < MAX_QUESTION_SKILLS; i++) {
+            char name[64];
+            float weight;
+            Skill skill;
+            if (sscanf(argv[i], "%63[^:]:%f", name, &weight) == 2 && SkillFromName(name, -1, &skill))
+                step.skills[step.skillCount++] = (SkillWeight){ skill, weight };
+        }
+        StepCheat cheat = StepCheatFind(&step, step.solution);
+        if (cheat.kind != CHEAT_NONE) printf("cheat in solution: %s\n", cheat.note);
+    }
     return 0;
 }

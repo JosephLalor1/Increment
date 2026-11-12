@@ -28,7 +28,7 @@ if errorlevel 1 exit /b 1
 
 
 
-"%CC%" %CFLAGS% tests\test_steps.c src\line_diff.c src\step_hints.c src\step_skills.c src\step_check.c src\code_skills.c src\lesson.c src\skills.c src\drafts.c -o build\test_steps.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_steps.c src\line_diff.c src\step_hints.c src\step_skills.c src\step_check.c src\step_cheats.c src\code_skills.c src\lesson.c src\skills.c src\drafts.c -o build\test_steps.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_steps.exe
 if errorlevel 1 set FAILED=1
@@ -70,6 +70,8 @@ build\test_speed_round.exe "%RAYLIB_DIR%\w64devkit\bin"
 if errorlevel 1 set FAILED=1
 "%CC%" %CFLAGS% tests\test_backup.c src\backup.c -o build\test_backup.exe %LIBS%
 if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_probe.c src\memory_probe.c -o build\test_probe.exe
+if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_window_mode.c src\window_mode.c -o build\test_window_mode.exe %LIBS%
 if errorlevel 1 exit /b 1
 
@@ -87,6 +89,9 @@ if errorlevel 1 set FAILED=1
 build\test_window_mode.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_backup.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+rem Compiles and runs instrumented C and C++ programs to check what they report.
+build\test_probe.exe "%RAYLIB_DIR%\w64devkit\bin" "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_mascot.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

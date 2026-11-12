@@ -13,14 +13,18 @@
 //
 // 1. A second run with different values. The step's "givens" are the literal values that its
 //    starter and its solution both set ("int a = 3;" in both: the learner is meant to work
-//    with a, not replace it). Changing every given, and every number in the step's input, the
-//    same way in the solution and in the learner's code must still give matching output. So
+//    with a, not replace it); a string a variable is set to counts too (char name[20] =
+//    "Alice";). Changing every given (numbers grow, letters move along the alphabet, in
+//    strings as well), and every number and word in the step's input, the same way in the
+//    solution and in the learner's code must still give matching output. So
 //    "a = 8; b = 3;" passes a swap with 3 and 8 but not with 4 and 10, and printing the
 //    answer as text fails as soon as the values change. If the learner's code no longer sets
 //    a given to its value (they edited the given instead), that is caught without a run.
 // 2. Missing constructs. If the solution needs a loop, a condition, an array, a function, a
 //    pointer, input and so on (code_skills.h) and the learner's code has none, it didn't do
 //    what the step is for (five printf lines instead of a loop).
+//
+// Cheats that show in the code without a run are step_cheats.h's.
 //
 // A step marked "@step fixed" skips the second run, for the rare program whose given values
 // can't change safely (a size that must match an initialiser list, say).

@@ -5,12 +5,15 @@
 #include "editor.h"
 #include "layout.h"
 #include "level_fx.h"
+#include "memory_probe.h"
+#include "memory_view.h"
 #include "mascot.h"
 #include "progress.h"
 #include "roadmap.h"
 #include "runner.h"
 #include "skill_icons.h"
 #include "skill_reward.h"
+#include "step_cheats.h"
 #include "step_check.h"
 #include "step_hints.h"
 #include "step_skills.h"
@@ -38,6 +41,9 @@ typedef enum {
     CHECK_VALUES_FAILED,      // with other values, the output is wrong: the answer was written in
     CHECK_GIVEN_CHANGED,      // a given value was edited instead of worked with
     CHECK_CONSTRUCT_MISSING,  // the code lacks something the step is about (a loop, say)
+    CHECK_ANSWER_WRITTEN,     // the target's computed values are typed into the code (step_cheats.h)
+    CHECK_FUNCTION_UNTOUCHED, // a function the step is about was left as it came
+    CHECK_INDEXED,            // [ ] where the step is about pointer arithmetic
 } CheckState;
 
 // What a hint costs: the share of a pass's XP left after revealing that many hints.
@@ -77,6 +83,18 @@ static struct {
     char checkNote[STEP_CHECK_SUMMARY];  // the values involved in a failed check, as code
     Skill missingConstruct;
 
+    // The picture of memory under the editor, for code with pointers (memory_view.h). The
+    // scan follows the code as it is typed; after each run that works, a second, instrumented
+    // run on its own Runner reports where everything really is.
+    ProbeScan scan;
+    unsigned scanVersion;      // the code version the scan was made for
+    Runner probe;
+    bool probeWasBusy;
+    unsigned probingVersion;   // the code version the probe is running
+    ProbeSnapshot snapshot;    // the last report read
+    unsigned snapshotVersion;  // the code version it is of: current, or a memory
+    float memoryHeight;        // the panel's height now: it eases open and shut
+
     int hintsShown;    // 0 to STEP_HINT_LEVELS
     double hintAt;     // when the latest hint was revealed: the strip animates from then
     StepHint hint;
@@ -110,9 +128,43 @@ static void SaveDraft(void)
 // ---------------------------------------------------------------------------
 // Running and checking
 
+// Keeps the scan of the code's variables up to date with the editor.
+static void UpdateScan(void)
+{
+    if (ls.scanVersion == ls.code.version) return;
+    ProbeScanCode(ls.code.text, &ls.scan);
+    ls.scanVersion = ls.code.version;
+}
+
+// After a run that worked: runs the code again with its memory report added, if it has
+// pointers to show. The learner isn't kept waiting for it.
+static void StartProbe(void)
+{
+    RunnerCancel(&ls.probe);
+    UpdateScan();
+    if (!ls.scan.hasPointers || ls.code.version != ls.ranVersion) return;
+    char *instrumented = ProbeInstrument(ls.code.text);
+    if (!instrumented) return;
+    ls.probingVersion = ls.code.version;
+    RunnerStart(&ls.probe, instrumented, Cpp(), CurrentStep()->input);
+    free(instrumented);
+}
+
+// Called once when the probe finishes: a whole report replaces the picture's facts; a
+// failed one leaves the last report as a memory.
+static void ProbeFinished(void)
+{
+    ProbeSnapshot report;
+    if (ls.probe.result == RESULT_OK && ProbeRead(ls.probe.programOutput, &report)) {
+        ls.snapshot = report;
+        ls.snapshotVersion = ls.probingVersion;
+    }
+}
+
 static void StartRun(bool byLearner)
 {
     SaveDraft();
+    RunnerCancel(&ls.probe);
     RunnerCancel(&ls.checker);
     ls.check = CHECK_NONE;
     ls.learnerRun = byLearner;
@@ -201,6 +253,13 @@ static void BeginCheck(void)
         CheckFailed(CHECK_CONSTRUCT_MISSING);
         return;
     }
+    StepCheat cheat = StepCheatFind(step, ls.code.text);  // what the code alone gives away
+    if (cheat.kind != CHEAT_NONE) {
+        snprintf(ls.checkNote, sizeof ls.checkNote, "%s", cheat.note);
+        CheckFailed(cheat.kind == CHEAT_ANSWER_WRITTEN ? CHECK_ANSWER_WRITTEN
+                    : cheat.kind == CHEAT_FUNCTION_UNTOUCHED ? CHECK_FUNCTION_UNTOUCHED : CHECK_INDEXED);
+        return;
+    }
     bool useless = ls.variedExpected && !ls.variedExpected[0];  // the second run can't tell anything
     if (!ls.variation.solution || useless) {
         CheckPassed();
@@ -267,6 +326,7 @@ static void RunFinished(void)
             LevelFxEmit(FX_COMPILE_FAILED);
         }
     }
+    if (r->result == RESULT_OK) StartProbe();
     int badLine;
     bool wasPassed = ls.passed;
     ls.passed = r->result == RESULT_OK && r->programOutput && !r->outputTruncated
@@ -290,6 +350,9 @@ static void OpenStep(int index, bool leavingStep)
     if (leavingStep) SaveDraft();
     RunnerCancel(&ls.runner);
     RunnerCancel(&ls.checker);
+    RunnerCancel(&ls.probe);
+    memset(&ls.snapshot, 0, sizeof ls.snapshot);
+    MemoryViewReset();
     ls.step = index;
     const Step *step = CurrentStep();
     StepVariationFree(&ls.variation);
@@ -306,6 +369,9 @@ static void OpenStep(int index, bool leavingStep)
     if (ls.openedCode) memcpy(ls.openedCode, ls.code.text, (size_t)ls.code.len + 1);
     ls.resetDepth = 0;
     ls.unearnedAt = -10;
+    ls.scanVersion = ls.code.version - 1;  // scan the new code
+    UpdateScan();
+    ls.memoryHeight = 0;
     ls.code.fontSize = 19 * UiTextScale();
     ls.ran = ls.passed = ls.rewarded = false;
     ls.passedAt = ls.failedAt = -10;
@@ -341,6 +407,7 @@ void LevelScreenClose(void)
     SaveDraft();
     RunnerCancel(&ls.runner);
     RunnerCancel(&ls.checker);
+    RunnerCancel(&ls.probe);
     ls.open = false;
     UiFocus(NULL);
 }
@@ -351,6 +418,7 @@ void LevelScreenShutdown(void)
     if (!ls.ready) return;
     RunnerFree(&ls.runner);
     RunnerFree(&ls.checker);
+    RunnerFree(&ls.probe);
     StepVariationFree(&ls.variation);
     free(ls.variedExpected);
     free(ls.variedCode);
@@ -531,7 +599,9 @@ static void ProblemView(Rectangle area)
 
 // Why a run that printed the target doesn't count, without words: a strip along the bottom
 // of the output panel with a cross, then the changed values the code failed with (as code),
-// the given values that must stay (a padlock, then code), or the missing construct's logo.
+// the given values that must stay (a padlock, then code), the missing construct's logo, or
+// what gave a cheat away: the target sign and the answer found typed in, the functions logo
+// and the function left unwritten, the pointer arithmetic logo and the indexing used.
 static void CheckStrip(Rectangle r)
 {
     // It slides up into place, and its cross wobbles for a moment.
@@ -546,7 +616,12 @@ static void CheckStrip(Rectangle r)
         UiText(gFonts.bold, SkillTitle(ls.missingConstruct), r.x + 80, cy - size * 0.6f, size, COL_TEXT);
         return;
     }
-    IconDraw(ls.check == CHECK_GIVEN_CHANGED ? ICON_LOCK : ICON_RETRY, (Vector2){ r.x + 52, cy }, 18, COL_TEXT);
+    // What the code shown is: the target itself typed in, a function still to write, [ ]
+    // where pointers should walk, givens that must stay (a padlock), or the changed values.
+    if (ls.check == CHECK_FUNCTION_UNTOUCHED) SkillIconDraw(SKILL_FUNCTIONS, (Vector2){ r.x + 52, cy }, 24, COL_TEXT);
+    else if (ls.check == CHECK_INDEXED) SkillIconDraw(SKILL_POINTER_ARITHMETIC, (Vector2){ r.x + 52, cy }, 24, COL_TEXT);
+    else IconDraw(ls.check == CHECK_ANSWER_WRITTEN ? ICON_TARGET : ls.check == CHECK_GIVEN_CHANGED ? ICON_LOCK : ICON_RETRY,
+                  (Vector2){ r.x + 52, cy }, 18, COL_TEXT);
     BeginScissorMode((int)r.x + 72, (int)r.y, (int)r.width - 82, (int)r.height);
     UiCodeLine(ls.checkNote, r.x + 76, cy - size * 0.6f, size);
     EndScissorMode();
@@ -566,7 +641,8 @@ static void OutputColumn(Rectangle column)
     bool varied = ls.check == CHECK_VALUES_FAILED;
     bool checking = ls.check == CHECK_EXPECTING || ls.check == CHECK_RUNNING;
     bool refused = ls.check == CHECK_VALUES_FAILED || ls.check == CHECK_GIVEN_CHANGED
-                || ls.check == CHECK_CONSTRUCT_MISSING;
+                || ls.check == CHECK_CONSTRUCT_MISSING || ls.check == CHECK_ANSWER_WRITTEN
+                || ls.check == CHECK_FUNCTION_UNTOUCHED || ls.check == CHECK_INDEXED;
     const char *expected = varied ? ls.variedExpected : step->expected;
     const char *input = varied ? ls.variation.input : step->input;
 
@@ -747,6 +823,10 @@ LevelAction LevelScreen(void)
     if (ls.checkerWasBusy && !checking) CheckerFinished();
     ls.checkerWasBusy = checking = RunnerBusy(&ls.checker);  // one check run may start the next
     bool busy = RunnerBusy(&ls.runner) || checking;
+    RunnerUpdate(&ls.probe);  // in the background: it never holds the learner up
+    if (ls.probeWasBusy && !RunnerBusy(&ls.probe)) ProbeFinished();
+    ls.probeWasBusy = RunnerBusy(&ls.probe);
+    UpdateScan();
     LevelFxActivity(RunnerBusy(&ls.runner), checking);
     LevelFxUpdate(GetFrameTime());
     if (ls.code.markCount && ls.code.version != ls.markedVersion) EditorSetMarks(&ls.code, NULL, 0);
@@ -771,6 +851,7 @@ LevelAction LevelScreen(void)
                            ColorBrightness(COL_BAD, 0.15f), COL_ON_ACCENT, true)) {
             RunnerCancel(&ls.runner);
             RunnerCancel(&ls.checker);
+            RunnerCancel(&ls.probe);
             ls.wasBusy = ls.checkerWasBusy = false;
             ls.check = CHECK_NONE;
         }
@@ -845,7 +926,22 @@ LevelAction LevelScreen(void)
     float top = barY + barH + 12, bottom = H - pad;
     float codeW = (W - pad * 3) * 0.58f;
     float stripH = ls.hintsShown ? 48 : 0;
-    Rectangle editor = { pad, top, codeW, bottom - top - (stripH ? stripH + 10 : 0) };
+    float leftH = bottom - top - (stripH ? stripH + 10 : 0);
+    // Code with pointers gets the picture of memory under the editor: as tall as its rows
+    // need, up to a share of the column, easing open when the first pointer is declared.
+    int memoryRows = ls.scan.count > ls.snapshot.blockCount ? ls.scan.count : ls.snapshot.blockCount;
+    float memoryWanted = ls.scan.hasPointers ? fminf(leftH * 0.46f, 62 + memoryRows * 40 * UiTextScale()) : 0;
+    ls.memoryHeight += (memoryWanted - ls.memoryHeight) * (1 - expf(-GetFrameTime() * 12));
+    if (fabsf(memoryWanted - ls.memoryHeight) < 0.5f || ls.demo) ls.memoryHeight = memoryWanted;
+    bool memoryShown = ls.memoryHeight > 70;
+    Rectangle editor = { pad, top, codeW, leftH - (memoryShown ? ls.memoryHeight + 10 : 0) };
+    if (memoryShown) {
+        Rectangle panel = { pad, editor.y + editor.height + 10, codeW, ls.memoryHeight };
+        bool fresh = ls.snapshot.valid && ls.snapshotVersion == ls.code.version;
+        MemoryViewDraw(Panel(panel, ICON_NEXT, "Memory", BLANK, NULL), &ls.scan, &ls.snapshot, fresh);
+        // While the report is on its way, dots run in the panel's corner.
+        if (RunnerBusy(&ls.probe)) LevelFxSpinner((Vector2){ panel.x + panel.width - 26, panel.y + 22 });
+    }
     EditorWidget(&ls.code, editor);
     ls.fxLayout.editor = editor;
     if (ls.code.version != ls.typedVersion) {  // typed something: sparks at the caret
@@ -920,4 +1016,7 @@ void LevelScreenDemoCelebration(void)
     ls.celebrateAt = GetTime() - 2;  // the pips have all ticked in
 }
 
-bool LevelScreenBusy(void) { return ls.open && (RunnerBusy(&ls.runner) || RunnerBusy(&ls.checker)); }
+bool LevelScreenBusy(void)
+{
+    return ls.open && (RunnerBusy(&ls.runner) || RunnerBusy(&ls.checker) || RunnerBusy(&ls.probe));
+}

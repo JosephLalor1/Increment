@@ -5,6 +5,7 @@
 #include "../src/drafts.h"
 #include "../src/lesson.h"
 #include "../src/line_diff.h"
+#include "../src/step_cheats.h"
 #include "../src/step_check.h"
 #include "../src/step_hints.h"
 #include "../src/step_skills.h"
@@ -210,6 +211,199 @@ static void TestReplayEarns(void)
                                                "    return 0;\n}\n"));
 }
 
+// A step from its parts; skill is the one it names at full weight (or SKILL_COUNT for none).
+static Step MakeStep(const char *starter, const char *solution, const char *expected, const char *input, Skill skill)
+{
+    Step step = { 0 };
+    step.starter = (char *)starter;
+    step.solution = (char *)solution;
+    step.expected = (char *)expected;
+    step.input = (char *)input;
+    if (skill < SKILL_COUNT) {
+        step.skills[0] = (SkillWeight){ skill, 1.0f };
+        step.skillCount = 1;
+    }
+    return step;
+}
+
+static void TestCheats(void)
+{
+    // The answer written in: a sum the solution computes, typed as a literal.
+    const char *sumStarter = "#include <stdio.h>\nint main() {\n    int n = 5;\n    int sum = 0;\n"
+                             "    printf(\"Sum: %d\\n\", sum);\n    return 0;\n}\n";
+    const char *sumSolution = "#include <stdio.h>\nint main() {\n    int n = 5;\n    int sum = 0;\n"
+                              "    for (int i = 1; i <= n; i++) {\n        sum += i;\n    }\n"
+                              "    printf(\"Sum: %d\\n\", sum);\n    return 0;\n}\n";
+    Step sum = MakeStep(sumStarter, sumSolution, "Sum: 15\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&sum, sumSolution).kind == CHEAT_NONE);
+    StepCheat cheat = StepCheatFind(&sum, "#include <stdio.h>\nint main() {\n    int n = 5;\n    int sum = 0;\n"
+                                          "    for (int i = 0; i < n; i++) { }\n    printf(\"Sum: 15\\n\");\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_ANSWER_WRITTEN && strcmp(cheat.note, "15") == 0);
+    cheat = StepCheatFind(&sum, "#include <stdio.h>\nint main() {\n    int n = 5;\n    int sum = 0;\n"
+                                "    for (int i = 0; i < n; i++) { sum = 15; }\n    printf(\"Sum: %d\\n\", sum);\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_ANSWER_WRITTEN);
+    // Another honest way, with literals of its own, is fine; so are a comment and a name with the number in.
+    assert(StepCheatFind(&sum, "#include <stdio.h>\nint main() {\n    int n = 5;\n    int sum = 0;\n    // 15?\n"
+                               "    int x15 = n * (n + 1) / 2;\n    sum = x15;\n    printf(\"Sum: %2d\\n\", sum);\n"
+                               "    return 0;\n}\n").kind == CHEAT_NONE);
+
+    // Several computed numbers: one that happens to be a loop bound proves nothing, most of them do.
+    const char *oddStarter = "#include <stdio.h>\nint main() {\n    for (int i = 1; i <= 10; i++) {\n"
+                             "        printf(\"%d \", i);\n    }\n    return 0;\n}\n";
+    const char *oddSolution = "#include <stdio.h>\nint main() {\n    for (int i = 1; i <= 10; i++) {\n"
+                              "        if (i % 2 == 0) continue;\n        printf(\"%d \", i);\n    }\n    return 0;\n}\n";
+    Step odd = MakeStep(oddStarter, oddSolution, "1 3 5 7 9\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&odd, "#include <stdio.h>\nint main() {\n    for (int i = 1; i <= 9; i += 2) {\n"
+                               "        printf(\"%d \", i);\n    }\n    return 0;\n}\n").kind == CHEAT_NONE);
+    cheat = StepCheatFind(&odd, "#include <stdio.h>\nint main() {\n    for (int i = 1; i <= 1; i++) {\n"
+                                "        printf(\"1 3 5 7 9\");\n    }\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_ANSWER_WRITTEN && strcmp(cheat.note, "3, 5, 7, 9") == 0);
+    // Numbers that come in as input were never computed.
+    Step echo = MakeStep("int main() { return 0; }", "int main() { int a; scanf(\"%d\", &a); printf(\"%d\\n\", a); return 0; }",
+                         "42\n", "42\n", SKILL_COUNT);
+    assert(StepCheatFind(&echo, "int main() { printf(\"42\\n\"); return 0; }").kind == CHEAT_NONE);
+
+    // A word the solution has to build (a name reversed) typed in as a string.
+    const char *nameStarter = "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n    printf(\"%s\\n\", name);\n"
+                              "    return 0;\n}\n";
+    const char *nameSolution = "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n"
+                               "    for (int i = 4; i >= 0; i--) printf(\"%c\", name[i]);\n    printf(\"\\n\");\n    return 0;\n}\n";
+    Step reversed = MakeStep(nameStarter, nameSolution, "ecilA\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&reversed, nameSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&reversed, "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n"
+                                     "    for (int i = 0; i < 1; i++) printf(\"ecilA\\n\");\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_ANSWER_WRITTEN && strcmp(cheat.note, "\"ecilA\"") == 0);
+    // Words the step's own strings hold ("Alice" here) are no evidence.
+    Step greeting = MakeStep(nameStarter, nameSolution, "Alice says ecilA\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&greeting, nameStarter).kind == CHEAT_NONE);
+
+    // A function left as it came: the stub is still a stub, and the work is in main.
+    const char *maxStarter = "#include <stdio.h>\nint maxOf(int arr[], int size) {\n    return 0;\n}\n"
+                             "int main() {\n    int values[] = {45, 12, 89};\n    printf(\"Max: %d\\n\", maxOf(values, 3));\n"
+                             "    return 0;\n}\n";
+    const char *maxSolution = "#include <stdio.h>\nint maxOf(int arr[], int size) {\n    int max = arr[0];\n"
+                              "    for (int i = 1; i < size; i++) {\n        if (arr[i] > max) max = arr[i];\n    }\n"
+                              "    return max;\n}\n"
+                              "int main() {\n    int values[] = {45, 12, 89};\n    printf(\"Max: %d\\n\", maxOf(values, 3));\n"
+                              "    return 0;\n}\n";
+    Step max = MakeStep(maxStarter, maxSolution, "Max: 89\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&max, maxSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&max, "#include <stdio.h>\nint maxOf(int arr[], int size)\n{\n    return 0;   // later\n}\n"
+                                "int main() {\n    int values[] = {45, 12, 89};\n    int m = values[0];\n"
+                                "    for (int i = 1; i < 3; i++) if (values[i] > m) m = values[i];\n"
+                                "    printf(\"Max: %d\\n\", m);\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_FUNCTION_UNTOUCHED && strcmp(cheat.note, "maxOf()") == 0);
+    // A function whose body the solution doesn't change (only its parameter) may stay as it is.
+    const char *refStarter = "void addOne(int x) {\n    x = x + 1;\n}\nint main() { int a = 5; addOne(a); return 0; }\n";
+    const char *refSolution = "void addOne(int& x) {\n    x = x + 1;\n}\nint main() { int a = 5; addOne(a); return 0; }\n";
+    Step reference = MakeStep(refStarter, refSolution, "a = 6\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&reference, refSolution).kind == CHEAT_NONE);
+    // Methods count, each by its own class's turn: the second print() is the one to write.
+    const char *classStarter = "class A { public: void print() { cout << 1; } };\n"
+                               "class B { public: void print() { } };\nint main() { B b; b.print(); }\n";
+    const char *classSolution = "class A { public: void print() { cout << 1; } };\n"
+                                "class B { public: void print() { cout << 22; } };\nint main() { B b; b.print(); }\n";
+    Step method = MakeStep(classStarter, classSolution, "22\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&method, classSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&method, "class A { public: void print() { cout << 1; } };\n"
+                                   "class B { public: void print() { } };\nint main() { B b; b.print(); cout << 2 << 2; }\n");
+    assert(cheat.kind == CHEAT_FUNCTION_UNTOUCHED && strcmp(cheat.note, "print()") == 0);
+
+    // A function the step is about must be used: called where the solution adds a call...
+    const char *greetStarter = "#include <stdio.h>\nvoid printGreeting() {\n    printf(\"Hello!\\n\");\n}\n"
+                               "int main() {\n    return 0;\n}\n";
+    const char *greetSolution = "#include <stdio.h>\nvoid printGreeting() {\n    printf(\"Hello!\\n\");\n}\n"
+                                "int main() {\n    printGreeting();\n    return 0;\n}\n";
+    Step greet = MakeStep(greetStarter, greetSolution, "Hello!\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&greet, greetSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&greet, "#include <stdio.h>\nvoid printGreeting() {\n    printf(\"Hello!\\n\");\n}\n"
+                                  "int main() {\n    printf(\"Hello!\\n\");\n    return 0;\n}\n");
+    assert(cheat.kind == CHEAT_FUNCTION_UNTOUCHED && strcmp(cheat.note, "printGreeting()") == 0);
+    // ...not stripped of the calls it came with (a method here)...
+    const char *setStarter = "class P { double x; public: void setX(double v) { x = v; } double getX() { return x; } };\n"
+                             "int main() { P p; p.setX(2); cout << p.getX(); }\n";
+    const char *setSolution = "class P { double x; public: void setX(double v) { x = v; } double getX() { return x; } };\n"
+                              "int main() { P p; p.setX(5); cout << p.getX(); }\n";
+    Step setter = MakeStep(setStarter, setSolution, "5\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&setter, setSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&setter, "class P { double x; public: void setX(double v) { x = v; } double getX() { return x; } };\n"
+                                   "int main() { P p; p.setX(5); cout << 5; }\n");
+    assert(cheat.kind == CHEAT_FUNCTION_UNTOUCHED && strcmp(cheat.note, "getX()") == 0);
+    // ...and written, when the starter already settles its name: a destructor.
+    const char *goneStarter = "class N { public: N() { cout << 1; } };\nint main() { { N n; } cout << 3; }\n";
+    const char *goneSolution = "class N { public: N() { cout << 1; } ~N() { cout << 2; } };\nint main() { { N n; } cout << 3; }\n";
+    Step gone = MakeStep(goneStarter, goneSolution, "123\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&gone, goneSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&gone, "class N { public: N() { cout << 1; } };\nint main() { { N n; } cout << 2; cout << 3; }\n");
+    assert(cheat.kind == CHEAT_FUNCTION_UNTOUCHED && strcmp(cheat.note, "~N()") == 0);
+    // A function written from scratch may have any name, and one loop may make the calls.
+    const char *freeStarter = "int main() { return 0; }\n";
+    const char *freeSolution = "int power(int b, int e) { return e ? b * power(b, e - 1) : 1; }\n"
+                               "int main() { printf(\"%d\", power(3, 4)); return 0; }\n";
+    Step fromScratch = MakeStep(freeStarter, freeSolution, "81\n", NULL, SKILL_COUNT);
+    assert(StepCheatFind(&fromScratch, "int raise(int b, int e) { int r = 1; while (e--) r *= b; return r; }\n"
+                                       "int main() { printf(\"%d\", raise(3, 4)); return 0; }\n").kind == CHEAT_NONE);
+
+    // Indexing in a step about pointer arithmetic.
+    const char *walkStarter = "#include <stdio.h>\nint sum(int* ptr, int numValues) {\n    return 0;\n}\n"
+                              "int main() {\n    int a[] = {4, 6, 7};\n    printf(\"%d\\n\", sum(a, 3));\n    return 0;\n}\n";
+    const char *walkSolution = "#include <stdio.h>\nint sum(int* ptr, int numValues) {\n    int total = 0;\n"
+                               "    for (int i = 0; i < numValues; i++) {\n        total += *(ptr + i);\n    }\n"
+                               "    return total;\n}\n"
+                               "int main() {\n    int a[] = {4, 6, 7};\n    printf(\"%d\\n\", sum(a, 3));\n    return 0;\n}\n";
+    const char *walkIndexed = "#include <stdio.h>\nint sum(int* ptr, int numValues) {\n    int total = 0;\n"
+                              "    for (int i = 0; i < numValues; i++) {\n        total += ptr[i];\n    }\n"
+                              "    return total;\n}\n"
+                              "int main() {\n    int a[] = {4, 6, 7};\n    printf(\"%d\\n\", sum(a, 3));\n    return 0;\n}\n";
+    Step walk = MakeStep(walkStarter, walkSolution, "17\n", NULL, SKILL_POINTER_ARITHMETIC);
+    assert(StepCheatFind(&walk, walkSolution).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&walk, walkIndexed);
+    assert(cheat.kind == CHEAT_INDEXED && strcmp(cheat.note, "ptr[i]") == 0);
+    // The same code in a step about something else is fine, and declaring an array always is.
+    Step plain = MakeStep(walkStarter, walkSolution, "17\n", NULL, SKILL_LOOPS);
+    assert(StepCheatFind(&plain, walkIndexed).kind == CHEAT_NONE);
+    assert(StepCheatFind(&walk, "#include <stdio.h>\nint sum(int* ptr, int numValues) {\n    int seen[8], total = 0;\n"
+                                "    char label[] = \"t\", other[4];\n"
+                                "    for (int* p = ptr; p < ptr + numValues; p++) total += *p;\n    return total;\n}\n"
+                                "int main() {\n    int a[] = {4, 6, 7};\n    printf(\"%d\\n\", sum(a, 3));\n    return 0;\n}\n")
+               .kind == CHEAT_NONE);
+}
+
+// The second run changes strings and words too.
+static void TestSecondRunStrings(void)
+{
+    const char *starter = "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n    char sep = 'x';\n"
+                          "    printf(\"Hi %s\\n\", name);\n    return 0;\n}\n";
+    const char *solution = "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n    char sep = 'x';\n"
+                           "    printf(\"Hi %s%c\\n\", name, sep);\n    return 0;\n}\n";
+    Step step = MakeStep(starter, solution, "Hi Alicex\n", "b 7 Zed 3x\n", SKILL_COUNT);
+    StepVariation variation;
+    assert(StepVariationMake(&step, &variation));
+    // Each given by its own amount: the string's letters move one place, the letter two.
+    assert(strstr(variation.solution, "char name[20] = \"Bmjdf\";") && strstr(variation.solution, "char sep = 'z';"));
+    assert(strstr(variation.solution, "printf(\"Hi %s%c\\n\", name, sep);"));  // a format string is never touched
+    assert(strcmp(variation.summary, "name = \"Bmjdf\", sep = 'z'") == 0);
+    // In the input, numbers grow and whole words of letters move along; mixed tokens stay.
+    assert(strcmp(variation.input, "c 9 Chg 3x\n") == 0);
+    StepVariationFree(&variation);
+
+    // The learner's code gets the same change; a learner who edited the string is caught.
+    int missing;
+    char note[STEP_CHECK_SUMMARY];
+    char *varied = StepVariationApply(&step, solution, &missing, note);
+    assert(missing == 0 && strstr(varied, "\"Bmjdf\""));
+    free(varied);
+    varied = StepVariationApply(&step, "int main() {\n    char name[20] = \"Alicex\";\n    char sep = 'x';\n}\n", &missing, note);
+    assert(missing == 1 && strcmp(note, "name = \"Alice\"") == 0);
+    free(varied);
+
+    // Escapes and conversions inside a string value stay as they are.
+    Step odd = MakeStep("int main() { char f[] = \"a\\n%d b\"; }", "int main() { char f[] = \"a\\n%d b\"; return 0; }", "", NULL,
+                        SKILL_COUNT);
+    assert(StepVariationMake(&odd, &variation) && strstr(variation.solution, "\"b\\n%d c\""));
+    StepVariationFree(&variation);
+}
+
 static void WriteText(const char *path, const char *text)
 {
     FILE *f = fopen(path, "wb");
@@ -315,13 +509,13 @@ static void TestSecondRun(void)
     assert(variation.changes == 7);
     StepVariationFree(&variation);
 
-    // Input numbers change too; words don't. A step with nothing to vary has no second run,
-    // and "@step fixed" switches it off.
+    // Input numbers change too, and words of letters move along the alphabet, each by its own
+    // amount. A step with nothing to vary has no second run, and "@step fixed" switches it off.
     Step reads = { 0 };
     reads.starter = reads.solution = "int main() { }";
     reads.input = "25 J\n1500.50 -3";
     assert(StepVariationMake(&reads, &variation));
-    assert(variation.changes == 3 && strcmp(variation.input, "26 J\n1502.50 -6") == 0);
+    assert(variation.changes == 4 && strcmp(variation.input, "26 L\n1503.50 -7") == 0);
     assert(strcmp(variation.solution, reads.solution) == 0);
     StepVariationFree(&variation);
     reads.input = NULL;
@@ -378,6 +572,8 @@ int main(void)
     TestReplayEarns();
     TestParser();
     TestSecondRun();
+    TestSecondRunStrings();
+    TestCheats();
     TestConstructs();
     TestDrafts();
     puts("Step tests passed.");

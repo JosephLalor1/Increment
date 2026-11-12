@@ -100,8 +100,9 @@ def normalize(text):
 def build_variant_tool(workdir):
     """Compiles tools/step_variant.c; returns its path, or None with a problem printed."""
     exe = os.path.join(workdir, 'step_variant.exe')
-    sources = [os.path.join(ROOT, 'tools', 'step_variant.c'), os.path.join(ROOT, 'src', 'step_check.c'),
-               os.path.join(ROOT, 'src', 'code_skills.c')]
+    sources = [os.path.join(ROOT, 'tools', 'step_variant.c')] + [
+        os.path.join(ROOT, 'src', name)
+        for name in ('step_check.c', 'step_cheats.c', 'code_skills.c', 'line_diff.c', 'skills.c')]
     r = subprocess.run([os.path.join(BIN, 'gcc.exe'), '-std=c99', '-Wall', *sources, '-o', exe],
                        capture_output=True, text=True)
     if r.returncode != 0:
@@ -113,15 +114,16 @@ def build_variant_tool(workdir):
 def check_variation(step, where, cpp, workdir, tag, tool):
     """Problems with the step's second run. Returns (problems, whether the step has one)."""
     paths = {}
-    for field in ('starter', 'solution', 'input'):
+    for field in ('starter', 'solution', 'input', 'expected'):
         if step[field] is None:
             continue
         paths[field] = os.path.join(workdir, f'{tag}_{field}.txt')
         with open(paths[field], 'w', encoding='utf-8', newline='') as f:
             f.write(step[field])
     prefix = os.path.join(workdir, tag + '_varied')
+    skills = [t for t in (step['skills'] or [])[1:] if ':' in t]
     r = subprocess.run([tool, 'cpp' if cpp else 'c', paths['starter'], paths['solution'], paths.get('input', '-'),
-                        prefix], capture_output=True, text=True)
+                        prefix, paths['expected'], *skills], capture_output=True, text=True)
     lines = r.stdout.strip().split('\n')
     problems = [f'{where}: the solution fails its own check ({line})' for line in lines[1:]]
     changes, _, summary = lines[0].partition(' ')
