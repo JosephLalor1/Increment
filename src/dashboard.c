@@ -510,6 +510,25 @@ static float RecoveryReminder(float x, float y, bool *openSettings)
     return y + 30;
 }
 
+// The journey's tabs and progress take this much room above its scrolling path.
+#define JOURNEY_HEADER_H 108
+
+// Behind the whole journey page under the home bar (the buttons along its top included):
+// the learner's background code and the mouse trail. The trail is drawn here only in the
+// strip above the path; over the path it is drawn after the stations (see JourneyView).
+static void JourneyBackdrop(float pathTop)
+{
+    Rectangle page = ScrollView();
+    AmbienceUpdate(page, GetFrameTime());
+    MouseTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(page));
+    BeginView(page);
+    AmbienceDraw();
+    EndView();
+    BeginView((Rectangle){ page.x, page.y, page.width, pathTop - page.y });
+    MouseTrailDraw();
+    EndView();
+}
+
 // The C / C++ tabs, the track's progress and its winding path. Returns a clicked lesson or -1,
 // and sets *clickedAt to the middle of its station.
 static int JourneyView(const LessonSet *set, float top, Vector2 *clickedAt)
@@ -537,18 +556,15 @@ static int JourneyView(const LessonSet *set, float top, Vector2 *clickedAt)
     }
 
     Rectangle view = ScrollView();
-    view.y = top + 108;
+    view.y = top + JOURNEY_HEADER_H;
     view.height = GetScreenHeight() - view.y;
     UpdateScroll(&page.journeyTarget[track], page.journeyHeight[track], view.height);
     float blend = GetFrameTime() * 16;  // ease towards the target, so "Find my place" glides
     if (blend > 1) blend = 1;
     page.journeyScroll[track] += (page.journeyTarget[track] - page.journeyScroll[track]) * blend;
-    // Faint code characters in the background, in the learner's chosen style, and a trail of
-    // them following the mouse (each set in Settings).
-    AmbienceUpdate(view, GetFrameTime());
-    MouseTrailUpdate(GetMousePosition(), GetFrameTime(), UiMouseOver(view));
+    // The background code was drawn behind the whole page (JourneyBackdrop); the mouse trail
+    // goes over the stations.
     BeginView(view);
-    AmbienceDraw();
     int clicked = JourneyViewDraw(set, track, x, view.y + 8 - page.journeyScroll[track], w, &page.journeyHeight[track],
                                   clickedAt);
     page.journeyHeight[track] += 8;
@@ -587,6 +603,8 @@ HomeAction DashboardScreen(const LessonSet *set)
     // challenge and the rankings on the right.
     float top = TOPBAR_H + 14;
     float right = ContentX() + ContentWidth();
+    // The journey's background code and mouse trail fill the page, round its buttons too.
+    if (page.view == HOME_VIEW_JOURNEY) JourneyBackdrop(top + 42 + 14 + JOURNEY_HEADER_H);
     if (BarButton((Rectangle){ right - 276, top, 132, 42 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
     if (BarButton((Rectangle){ right - 132, top, 132, 42 }, ICON_TROPHY, "Rankings")) action.kind = HOME_RANKINGS;
     bool openSettings = false;
