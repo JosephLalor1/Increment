@@ -61,6 +61,11 @@ static struct {
     bool ran;          // a run has finished since the step opened
     bool passed;       // the last run printed the target output
     bool rewarded;     // this opening of the step has already earned its XP
+    // A step passed before earns XP again only for new work (StepReplayEarns): measured from
+    // the code it opened with, or from the starter once Reset is pressed and not undone.
+    char *openedCode;  // the code the step opened with (usually its draft)
+    int resetDepth;    // the editor's undo depth just after the latest Reset; 0 for none
+    double unearnedAt; // when a pass earned nothing: Reset beckons for a while
     double passedAt, failedAt;
 
     CheckState check;
@@ -117,8 +122,21 @@ static void StartRun(bool byLearner)
     RunnerStart(&ls.runner, ls.code.text, Cpp(), CurrentStep()->input);
 }
 
+// Whether this pass earns XP. A first pass always does. A step passed before earns again
+// only for new work since the code it started from: the starter if Reset was pressed (and
+// not undone since: undoing it takes the undo depth below where it left it), otherwise the
+// code it opened with.
+static bool EarnsXp(bool passedBefore)
+{
+    if (!passedBefore) return true;
+    bool resetStands = ls.resetDepth > 0 && ls.code.undoCount >= ls.resetDepth;
+    const char *before = resetStands ? CurrentStep()->starter : ls.openedCode ? ls.openedCode : "";
+    return StepReplayEarns(CurrentStep(), before, ls.code.text);
+}
+
 // The learner's first pass of this opening of the step: progress, XP in the skills their code
 // used (less for hints) with the reward animation, and the celebration if the level is done.
+// Replaying a passed step earns XP only for new work (see EarnsXp).
 static void RecordPass(void)
 {
     if (ls.demo) return;  // a shot records nothing
@@ -126,7 +144,9 @@ static void RecordPass(void)
     bool passedBefore = ProgressStepDone(ls.lesson->id, ls.step);
     bool levelBefore = RoadmapLevelComplete(ls.lesson);
     ProgressRecordStep(ls.lesson->id, ls.step);
-    if (!ls.rewarded) {
+    if (!ls.rewarded && !EarnsXp(passedBefore)) {
+        ls.unearnedAt = GetTime();  // no XP for running an old answer: Reset shows the way
+    } else if (!ls.rewarded) {
         SkillWeight skills[MAX_QUESTION_SKILLS];
         int count = StepSkills(step, ls.code.text, Cpp(), skills);
         for (int i = 0; i < count; i++) skills[i].weight *= hintXpShare[ls.hintsShown];
@@ -281,6 +301,11 @@ static void OpenStep(int index, bool leavingStep)
     char *draft = DraftLoad(ls.draftFolder, key, Cpp());
     EditorSetText(&ls.code, draft ? draft : step->starter);
     free(draft);
+    free(ls.openedCode);
+    ls.openedCode = malloc((size_t)ls.code.len + 1);
+    if (ls.openedCode) memcpy(ls.openedCode, ls.code.text, (size_t)ls.code.len + 1);
+    ls.resetDepth = 0;
+    ls.unearnedAt = -10;
     ls.code.fontSize = 19 * UiTextScale();
     ls.ran = ls.passed = ls.rewarded = false;
     ls.passedAt = ls.failedAt = -10;
@@ -329,7 +354,8 @@ void LevelScreenShutdown(void)
     StepVariationFree(&ls.variation);
     free(ls.variedExpected);
     free(ls.variedCode);
-    ls.variedExpected = ls.variedCode = NULL;
+    free(ls.openedCode);
+    ls.variedExpected = ls.variedCode = ls.openedCode = NULL;
     EditorFree(&ls.code);
     ls.ready = false;
 }
@@ -759,9 +785,20 @@ LevelAction LevelScreen(void)
         if (UiButtonIconEx(runButton, ICON_PLAY, "Run", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, true)) run = true;
     }
     x += 142;
-    if (UiButtonIconEx((Rectangle){ x, barY, 120, barH }, ICON_RETRY, "Reset", 19, COL_PANEL, COL_SECONDARY_HOVER,
-                       COL_TEXT, !busy)) {
+    Rectangle resetButton = { x, barY, 120, barH };
+    // A pass that earned nothing (an old answer run again): Reset beckons in gold, since
+    // starting the step afresh is how to earn its XP again.
+    float sinceUnearned = (float)(GetTime() - ls.unearnedAt);
+    if (sinceUnearned < 6) {
+        float pulse = (sinf((float)GetTime() * 4) + 1) / 2, fade = sinceUnearned > 5 ? 6 - sinceUnearned : 1;
+        Rectangle halo = { resetButton.x - 3 - pulse * 2, resetButton.y - 3 - pulse * 2, resetButton.width + 6 + pulse * 4,
+                           resetButton.height + 6 + pulse * 4 };
+        DrawRectangleRoundedLinesEx(halo, 0.3f, 8, 2, Fade(COL_GOLD, (0.3f + 0.5f * pulse) * fade));
+    }
+    if (UiButtonIconEx(resetButton, ICON_RETRY, "Reset", 19, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, !busy)) {
         EditorReplaceAll(&ls.code, CurrentStep()->starter, GetTime());  // Ctrl+Z brings the old code back
+        ls.resetDepth = ls.code.undoCount;  // a fresh start: work from here earns XP again
+        ls.unearnedAt = -10;
         ls.typedVersion = ls.code.version;  // a reset isn't typing
         LevelFxRewind((Vector2){ x + 28, barY + barH / 2 });
     }

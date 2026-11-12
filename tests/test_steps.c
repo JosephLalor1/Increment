@@ -169,6 +169,47 @@ static void TestStepSkills(void)
     assert(Has(skills, n, SKILL_OUTPUT, STEP_WRITTEN_WEIGHT));
 }
 
+static void TestReplayEarns(void)
+{
+    // A step that asks for two lines to be changed.
+    const char *starter = "#include <stdio.h>\n\nint main() {\n    int a = 1;\n    int b = 2;\n"
+                          "    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n";
+    const char *solution = "#include <stdio.h>\n\nint main() {\n    int a = 1;\n    int b = 2;\n    int t = a;\n"
+                           "    a = b;\n    b = t;\n    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n";
+    Step step = { 0 };
+    step.starter = (char *)starter;
+    step.solution = (char *)solution;
+
+    // Running the answer that was already there earns nothing, nor does re-spacing it.
+    assert(!StepReplayEarns(&step, solution, solution));
+    const char *respaced = "#include <stdio.h>\nint main() {\nint a = 1;\nint b = 2;\n\n  int t = a;\na = b;\n"
+                           "b = t;\nprintf(\"%d %d\\n\", a, b);\nreturn 0;\n}";
+    assert(!StepReplayEarns(&step, solution, respaced));
+    // Nor does touching one line of a step that asks for three.
+    const char *tweaked = "#include <stdio.h>\n\nint main() {\n    int a = 1;\n    int b = 2;\n    int tmp = a;\n"
+                          "    a = b;\n    b = tmp;\n    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n";
+    assert(!StepReplayEarns(&step, solution, tweaked));  // two lines rewritten, three asked for
+    // Rewriting it all differently does.
+    const char *rewritten = "#include <stdio.h>\n\nint main() {\n    int a = 1;\n    int b = 2;\n    a = a + b;\n"
+                            "    b = a - b;\n    a = a - b;\n    printf(\"%d %d\\n\", a, b);\n    return 0;\n}\n";
+    assert(StepReplayEarns(&step, solution, rewritten));
+
+    // From the starter (a reset, or a step never edited), the pass is the work: even the
+    // same answer, or a shorter one, earns.
+    assert(StepReplayEarns(&step, starter, solution));
+    const char *respacedStarter = "#include <stdio.h>\nint main() {\n  int a = 1;\n  int b = 2;\n"
+                                  "  printf(\"%d %d\\n\", a, b);\n  return 0;\n}\n";
+    assert(StepReplayEarns(&step, respacedStarter, solution));
+
+    // A step asking for one line needs one rewritten line.
+    Step one = { 0 };
+    one.starter = (char *)hello;
+    one.solution = "#include <stdio.h>\n\nint main() {\n    printf(\"Bye\\n\");\n    return 0;\n}\n";
+    assert(!StepReplayEarns(&one, one.solution, one.solution));
+    assert(StepReplayEarns(&one, one.solution, "#include <stdio.h>\n\nint main() {\n    puts(\"Bye\");\n"
+                                               "    return 0;\n}\n"));
+}
+
 static void WriteText(const char *path, const char *text)
 {
     FILE *f = fopen(path, "wb");
@@ -334,6 +375,7 @@ int main(void)
     TestShapes();
     TestHints();
     TestStepSkills();
+    TestReplayEarns();
     TestParser();
     TestSecondRun();
     TestConstructs();

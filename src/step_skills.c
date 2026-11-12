@@ -29,6 +29,23 @@ static char *WrittenLines(const char *starter, const char *code, int *lineCount)
     return written;
 }
 
+// How many lines of `after` aren't in `before` (re-spaced lines are the same line).
+static int LinesAdded(const char *before, const char *after)
+{
+    static DiffOp ops[LINE_DIFF_MAX_LINES * 2];
+    int count = LineDiff(before, after, ops, LINE_DIFF_MAX_LINES * 2), added = 0;
+    for (int i = 0; i < count; i++) added += ops[i].kind == DIFF_ADDED;
+    return added;
+}
+
+bool StepReplayEarns(const Step *step, const char *before, const char *code)
+{
+    bool fromStarter = LinesAdded(step->starter, before) == 0 && LinesAdded(before, step->starter) == 0;
+    if (fromStarter) return true;
+    int asked = LinesAdded(step->starter, step->solution);
+    return LinesAdded(before, code) >= (asked > 1 ? asked : 1);
+}
+
 int StepSkills(const Step *step, const char *code, bool cpp, SkillWeight *out)
 {
     float weight[SKILL_COUNT] = { 0 };
