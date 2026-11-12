@@ -1,6 +1,6 @@
 // End-to-end tests for src/runner.c: compiles and runs real programs with the bundled gcc.
 // Run via test.bat. Takes about 10 seconds (one test waits for the 5-second time limit).
-#include "../src/runner.h"
+#include "code/runner.h"
 #include "raylib.h"
 
 #include <stdio.h>

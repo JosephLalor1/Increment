@@ -8,8 +8,8 @@
 // input, <out prefix>.in. Prints one line: the number of changes, then the changed values.
 // Also checks the solution against its own step: prints "missing ..." or "cheat ..." lines
 // if it is refused (the cheat checks need the step's expected output and "~" skills).
-#include "../src/step_cheats.h"
-#include "../src/step_check.h"
+#include "level/step_cheats.h"
+#include "level/step_check.h"
 
 #include <stdio.h>
 #include <stdlib.h>

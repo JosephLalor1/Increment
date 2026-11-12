@@ -1,7 +1,7 @@
 @echo off
 rem Builds build\increment.exe with the raylib 6.0 install at C:\raylib.
 rem Usage: build.bat [release]   (release = optimised, no console window)
-rem        build.bat icons       (regenerate assets\icon from the logo in src\brand.c)
+rem        build.bat icons       (regenerate assets\icon from the logo in src\ui\brand.c)
 setlocal
 cd /d "%~dp0"
 
@@ -15,13 +15,13 @@ if not exist "%CC%" (
     exit /b 1
 )
 
-set CFLAGS=-std=c99 -Wall -Wextra -Wno-missing-field-initializers -I"%RL_SRC%"
+set CFLAGS=-std=c99 -Wall -Wextra -Wno-missing-field-initializers -I"%RL_SRC%" -Isrc
 set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt -lwinhttp -lcomdlg32
 
 if not exist build mkdir build
 
 if /i "%1"=="icons" (
-    "%CC%" %CFLAGS% tools\make_icons.c src\brand.c -o build\make_icons.exe %LIBS%
+    "%CC%" %CFLAGS% tools\make_icons.c src\ui\brand.c -o build\make_icons.exe %LIBS%
     if errorlevel 1 exit /b 1
     build\make_icons.exe assets/icon
     exit /b %errorlevel%
@@ -35,9 +35,11 @@ if /i "%1"=="release" (
 )
 
 rem Embed the app icon and version info in the .exe
-"%WINDRES%" src\increment.rc -O coff -o build\increment_res.o
+"%WINDRES%" src\app\increment.rc -O coff -o build\increment_res.o
 if errorlevel 1 exit /b 1
 
-"%CC%" %CFLAGS% src\*.c build\increment_res.o -o build\increment.exe %LIBS%
+rem Every folder of src\ (see CLAUDE.md for what each holds). Includes name the folder: "ui/ui.h".
+set SOURCES=src\app\*.c src\core\*.c src\ui\*.c src\code\*.c src\account\*.c src\learning\*.c src\home\*.c src\level\*.c src\speed\*.c src\sandbox\*.c src\rankings\*.c
+"%CC%" %CFLAGS% %SOURCES% build\increment_res.o -o build\increment.exe %LIBS%
 if errorlevel 1 exit /b 1
 echo Built build\increment.exe

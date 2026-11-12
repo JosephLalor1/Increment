@@ -1,7 +1,5 @@
-#include "../src/mascot_state.h"
-#include "../src/mascot_events.h"
-#include "../src/progress.h"
-#include "raylib.h"
+// The fox's reactions over time (mascot_state.c).
+#include "ui/mascot_state.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,13 +23,6 @@ static void Reactions(void)
     assert(FoxStateUpdate(&state, FOX_THINKING, 11) == FOX_DETERMINED);
     assert(strstr(FoxStateMessage(&state, "fallback"), "Keep trying"));
     assert(FoxStateUpdate(&state, FOX_THINKING, 14) == FOX_THINKING);
-    FoxStateReact(&state, FOX_LESSON_COMPLETE, 20);
-    assert(FoxStateUpdate(&state, FOX_CODING, 21) == FOX_TROPHY);
-    assert(FoxStateUpdate(&state, FOX_CODING, 27) == FOX_CODING);
-    FoxStateReact(&state, FOX_STATION_COMPLETE, 28);
-    assert(FoxStateUpdate(&state, FOX_CODING, 29) == FOX_CELEBRATING);
-    FoxStateReact(&state, FOX_COURSE_COMPLETE, 30);
-    assert(FoxStateUpdate(&state, FOX_HAPPY, 31) == FOX_GRADUATION);
     FoxStateReact(&state, FOX_TIP, 40);
     assert(FoxStateUpdate(&state, FOX_HAPPY, 41) == FOX_IDEA);
     FoxStateReact(&state, FOX_BREAK, 50);
@@ -41,58 +32,9 @@ static void Reactions(void)
     assert(!state.reacting && state.current == FOX_HAPPY);
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
-    assert(argc == 2);
     Reactions();
-    char path[1024];
-    snprintf(path, sizeof path, "%s/mascot_progress.txt", argv[1]);
-    ProgressLoad(path);
-    LessonSet set = { calloc(4, sizeof(Lesson)), 4 };
-    assert(set.items);
-    const char *ids[] = { "c_first", "cpp_first", "c_last", "cpp_last" };
-    for (int i = 0; i < 4; i++) {
-        snprintf(set.items[i].id, sizeof set.items[i].id, "%s", ids[i]);
-        set.items[i].track = i % 2 ? TRACK_CPP : TRACK_C;
-        set.items[i].stepCount = i == 2 ? 2 : 1;
-    }
-    FoxProgressSnapshot before = FoxProgressCapture(&set, 2);
-    ProgressRecordStep("c_last", 0);
-    assert(FoxProgressCompleted(&set, 2, before) == FOX_MILESTONE_NONE);  // one step of two
-    ProgressRecordStep("c_last", 1);
-    assert(FoxProgressCompleted(&set, 2, before) == FOX_MILESTONE_LESSON);
-    before = FoxProgressCapture(&set, 0);
-    ProgressRecordStep("c_first", 0); // final outstanding level, not the last file
-    assert(FoxProgressCompleted(&set, 0, before) == FOX_MILESTONE_COURSE);
-    assert(!FoxProgressCapture(&set, 1).courseComplete); // C cannot graduate C++
-    before = FoxProgressCapture(&set, 0);
-    for (int i = 0; i < 5; i++) // reopening pages has no new transition
-        assert(FoxProgressCompleted(&set, 0, before) == FOX_MILESTONE_NONE);
-    char *saved = LoadFileText(path);
-    assert(saved);
-    for (int i = 0; i < 4; i++) FoxProgressCapture(&set, i);
-    char *after = LoadFileText(path);
-    assert(after && strcmp(saved, after) == 0); // read-only lookups do not save
-    UnloadFileText(saved);
-    UnloadFileText(after);
-    ProgressRecordStep("c_first", 0); // replaying a step does not re-celebrate
-    assert(ProgressStepDone("c_first", 0));
-    assert(FoxProgressCompleted(&set, 0, before) == FOX_MILESTONE_NONE);
-    before = FoxProgressCapture(&set, 1);
-    ProgressRecordStep("cpp_first", 0);
-    assert(FoxProgressCompleted(&set, 1, before) == FOX_MILESTONE_LESSON);
-    before = FoxProgressCapture(&set, 3);
-    ProgressRecordStep("cpp_last", 0);
-    assert(FoxProgressCompleted(&set, 3, before) == FOX_MILESTONE_COURSE);
-    before = FoxProgressCapture(&set, 3);
-    ProgressLoad(path); // restarts do not replay a graduation
-    assert(FoxProgressCompleted(&set, 3, before) == FOX_MILESTONE_NONE);
-    ProgressLoad("");
-    assert(!FoxProgressCapture(&set, 0).lessonPassed);
-    LessonSet empty = { 0 };
-    assert(!FoxProgressCapture(&empty, 0).courseComplete);
-    free(set.items);
-    remove(path);
-    puts("All mascot event tests passed");
+    puts("All mascot tests passed");
     return 0;
 }

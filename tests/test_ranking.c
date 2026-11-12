@@ -1,8 +1,8 @@
 // Local ranking rules, defensive reads, public roster and signed-in state isolation.
-#include "../src/ranking.h"
-#include "../src/ranking_skills.h"
-#include "../src/code_library.h"
-#include "../src/progress.h"
+#include "rankings/ranking.h"
+#include "rankings/ranking_skills.h"
+#include "sandbox/code_library.h"
+#include "learning/progress.h"
 #include "raylib.h"
 #include <assert.h>
 #include <stdio.h>

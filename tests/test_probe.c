@@ -2,7 +2,7 @@
 // says, and what an instrumented run reports. The run tests compile real programs.
 //
 // usage: test_probe <compiler bin folder> <empty folder>
-#include "../src/memory_probe.h"
+#include "level/memory_probe.h"
 
 #include <assert.h>
 #include <stdio.h>

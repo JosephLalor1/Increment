@@ -1,27 +1,19 @@
 # Increment
 
-Learn C and C++, one step at a time. Increment is a desktop app with short lessons, syntax-highlighted examples, quizzes and hands-on coding exercises, built in C with [raylib](https://www.raylib.com/).
+Learn C and C++ by writing code. Increment is a desktop app where every level is a sequence of small coding steps: change the program until its output matches the target. It is built in C with [raylib](https://www.raylib.com/).
 
 ## Features
 
-- **Two learning tracks.** A C track (from your first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists).
-- **Learning journeys.** Each track is a winding path of lessons. Completed lessons are ticked off, the next one is highlighted, and **Find my place** jumps straight to it. Any lesson can be opened at any time.
-- **Quizzes.** Each lesson ends with a quiz; 70% passes. Every quiz finishes with a coding question: fix a bug, add a missing line or reach a small goal in the built-in editor, and it counts as correct as soon as your program prints the expected output. Afterwards, **Review Answers** shows each question with your answer, the correct one and an explanation. Your best score is kept.
-- **Speed rounds for gold mastery.** Almost every lesson, from variables and conditions to pointers, classes and linked lists, offers an optional speed round: ten generated "what is x?" snippets, ten seconds each, one straight after another. Falling code, a slow zoom and camera shake build up as the clock runs out and calm the moment you answer. One miss ends the run and shows every variable's value line by line; ten in a row earns a gold star on that lesson. The Statistics view tracks your gold medals and can start any lesson's round directly.
-- **Learns what you know.** Every answer is remembered, question by question, and scheduled like flashcards (the SM-2 algorithm behind Anki): questions you miss come back soon, ones you know wait longer. A **Short challenge** (on Home and Statistics) runs your 10 most necessary questions as a speed round, and Statistics lists your weakest questions with right/wrong counts, accuracy and when each is next due. Speed rounds give every question at least 10 seconds, and more for long, new or troublesome ones. Each lesson has a bank of questions, so every quiz is a fresh draw of five plus its coding question.
-- **Skills and XP.** Every question exercises weighted skills (28 of them, from loops and strings to pointers, memory safety, classes, code tracing and debugging) and has a difficulty. Right answers earn XP in those skills (more for hard questions, ones you used to miss and answers in speed rounds), wrong ones lose some. Statistics shows each skill's level, progress and recent accuracy, marks the ones that need work, and short challenges lean towards your weakest skills.
-- **Living backgrounds.** The journey sits on faint, fizzling code characters in your accent colour: drifting particles by default, or a swirl, a downpour, a turning mandala woven into a web, Conway's Game of Life, rolling waves or the fox's face, picked in Settings (or off).
-- **Remember me.** Tick "Remember me on this computer" when signing in and Increment opens straight to your journey next time. It keeps a random sign-in token, never your password, and logging out forgets it.
-- **Custom practice quizzes.** Pick lessons from one track, choose a question count, and revise a random mix without changing lesson scores. Each question and review card identifies its source lesson.
-- **Courses.** A traditional sequential lesson browser, separate from the winding learning journey.
-- **Pointer diagrams.** The pointer, pass-by-pointer, pointer arithmetic, malloc/free, new/delete and linked list lessons step through their examples visually: click a line of code to run up to it and watch arrows glide to what each pointer points at, or click any box to have it explained. Dangling pointers, freed memory and leaks show up in red.
-- **A built-in code editor.** Run any example from a lesson with **Try it**, solve exercises that check your program's output, or write your own code. Programs are compiled with gcc/g++, compiler errors are marked on their lines, and crashes are explained in plain English.
-- **Search.** Search every lesson's title and text, filtered by C, C++ or both.
-- **Notes.** Every lesson has a notes panel for explanations and reminders in your own words. Notes save as you type and are private to your account.
-- **Saved lessons.** Bookmark lessons you found useful or difficult and find them again under **Saved** on the home screen.
-- **Statistics.** Completion, exercises, quiz scores, milestones and suggestions for what to revise.
-- **Increment Fox.** The mascot guides you along the journey, reacts to your quiz answers and celebrates finished lessons and tracks.
-- **Accounts.** Each person on the computer gets their own progress, notes, bookmarks and settings: light or dark theme, accent colour and text size.
+- **Two journeys.** A C track (a first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists): 30 levels, 236 steps. Each track is a winding path of levels; **Find my place** jumps to the next one. Any level can be opened at any time.
+- **Levels are coding steps.** Early steps tweak a working program, later ones fill a gap, fix a bug, and finally write the program from an empty `main`. The editor sits beside the target output and your program's output, compared line by line. Programs are compiled with gcc/g++; compiler errors are marked on their lines.
+- **Hints are code.** A hint highlights the line to work on, then shows its shape, then the line itself. Each one costs some of the step's XP.
+- **Honest solutions only.** Printing the answer doesn't pass: the code must use what the step teaches, and a second run with different values must match too.
+- **A picture of memory.** Code with a pointer in it gets a diagram under the editor: a box per variable and an arrow per pointer, redrawn from real addresses after each run. Freed blocks, null and wild pointers show up in red.
+- **Skills and XP.** The skills in the code you write are detected (28 of them, from loops and strings to pointers, classes and debugging) and earn XP. Statistics shows each skill's level and which ones need work.
+- **Speed rounds.** Most levels offer an optional round of ten generated "what is x?" snippets against the clock; ten in a row earns gold on that level. Answers are scheduled like flashcards (SM-2), and a **Challenge** practises the skills that most need it.
+- **A free code editor.** Write and run your own C or C++, with input, name suggestions and saved programs.
+- **Rankings.** Compares the accounts on this computer by progress, or by the concepts in their saved programs.
+- **Accounts.** Each person gets their own progress, code and settings (light or dark theme, accent colour, text size, the journey's animated background). Progress can be exported to a backup file and restored.
 
 ## Building (Windows)
 
@@ -34,6 +26,26 @@ build\increment.exe
 ```
 
 Run `test.bat` to build and run the tests. Keep the `assets` folder next to the executable, or one level above it, when distributing the app.
+
+## Source layout
+
+The code is in `src/`, one folder per concern:
+
+| Folder | What it holds |
+|---|---|
+| `app` | Start-up, navigation between screens, the window, the splash and the transitions |
+| `core` | The Windows layer and small helpers with no dependencies |
+| `ui` | Themes, widgets, page layout, icons, the logo and the fox mascot |
+| `code` | Everything about source code: the editor, name suggestions, running programs, drafts |
+| `account` | Local accounts, email verification, backup, and the sign-in and settings screens |
+| `learning` | The levels and the learner's record: progress, skills, XP, answer history |
+| `home` | The home screen: the journeys, the statistics and their backgrounds |
+| `level` | Playing a level: the checks, hints, effects and the picture of memory |
+| `speed` | Speed rounds and challenges |
+| `sandbox` | The free code editor and its saved programs |
+| `rankings` | The rankings screen |
+
+[CLAUDE.md](CLAUDE.md) describes each module and the level file format.
 
 ## Accounts and email
 
@@ -50,93 +62,14 @@ from Increment <onboarding@resend.dev>
 
 Never commit this file. Without it, the app works the same, just without the email step. For local development, `run-dev.bat` writes the emails to files in `build\email-test-outbox` instead of sending them, using separate test accounts.
 
-## Saved sandbox programs and detected skills
-
-In **Code editor**, choose C or C++, then **Save / My programs** (or Ctrl+S). Give your program a name and choose Save copy. The library holds multiple named programs for each account; existing names in the same language require an explicit Replace existing confirmation. Choose Open on a saved program, then confirm Open program to return to the sandbox in its original language. Save current changes before opening another program. Loading a program also clears the old stdin/output; Reset restores the loaded source. Existing autosaved sandbox drafts continue to work independently.
-
-Programs are plain `.c`/`.cpp` files in `users/<name>_code/saved/`. Only source is saved; stdin and program output are not included. Names accept up to 48 letters, digits, spaces, underscores and hyphens; paths, extensions and Windows device names are rejected. Source is limited to 256 KiB of ASCII text, consistent with the editor. Saves use a temporary file and atomic replacement so a failed replacement preserves the previous copy. Saved programs remain after restart and are removed when the account is deleted.
-
-The library automatically shows **Detected concepts** for current and saved code using the existing skill catalogue. Local token patterns identify supported constructs such as types, loops, conditions, arrays/subscripts, function definitions, pointer declarations, function pointers, input/output, string functions, dynamic memory, C++ references/classes and access modifiers. Comments, quoted strings and preprocessor lines are ignored. Tags are recomputed from source when opening the library; there is no separate skill metadata file or external service.
-
-Detection is heuristic, not a C/C++ compiler or correctness check. Macros, aliases, advanced templates and indirect use of concepts may be missed. It does not infer mastery, memory safety or problem-solving ability and does not award XP, quiz completion or ranking points. Use Run to compile/test the actual code.
-
-Manual checks: save two different programs, restart and reopen them; save the same name to check replacement confirmation; switch languages and accounts to check isolation. Verify failed saves keep the previous copy, and invalid names cannot escape the library folder. Try loops, arrays and pointers in real code and only inside comments/strings to compare tags. Check both themes at 900x640 and existing lesson exercise/quiz editor modes. Programs are read only when browsing; opening one requires confirmation before replacing the editor buffer.
-
-## User rankings
-
-Open **Home > Rankings** to compare accounts saved on this computer. Switch between **Progress Ranking** and **Skills Ranking** without leaving the screen. Overall, C, and C++ filters work in both modes; switching modes keeps the selected track. Your account is highlighted and your rank is shown above the scrollable list. Refresh or reopen the screen to reread the roster and current saved data, including overwritten/deleted sandbox programs.
-
-Progress Ranking sorts by completed lessons first (the existing 70% pass mark), then the sum of each available lesson's best quiz score. An unattempted quiz contributes zero; reading-only lessons count for completion but do not add quiz points. For example, three completed lessons outrank two regardless of quiz points. Identical completion counts and quiz totals share a competition rank (1, 1, 3); alphabetical order only makes tied rows predictable. The displayed maximum quiz points is 100 times the number of quizzes in that view.
-
-Skills Ranking uses the existing saved-program library and detector: first the number of distinct supported concepts, then the number of saved programs containing at least one recognised concept. Identical numeric results share a rank, with usernames in alphabetical order for stable display. A concept counts once per account in each filtered view, regardless of how often it appears. Overall counts the union across both languages, without counting a concept twice. C/C++ views use the library's existing language flag, derived from its `.c`/`.cpp` persistence format; there is no conflicting language metadata or new database. Empty, unsupported and unreadable files contribute no evidence; read/analysis failures display a warning.
-
-Click a learner's Skills Ranking row to expand the actual concept names from the existing skill catalogue. Only summaries are displayed; other users' source, program names and private paths are never shown. Overwrites and deletions are reflected on refresh/reopen because concepts are read from current saved source. Saved files have no persistent duplicate identity, so separately named files count separately toward the secondary program total; repeated concepts still never increase the primary skill count. Detection is a local syntax heuristic and does not verify correctness, award XP, or change lesson/quiz progress.
-
-For Progress Ranking, only progress for loaded lessons counts. Coding exercise passes, tracing completion, practice sessions, speed-round gold and skill XP are excluded. A new account without a progress file starts at zero. Malformed or unreadable records show an incomplete-ranking warning. Viewing rankings never signs into another account or changes progress. This is an offline local leaderboard, with no global/server ranking or tamper protection for local save files.
-
-Manual checks: create two local accounts, earn different lesson results, then open Rankings and check order, the highlighted account and each track filter. Check ties, a new account, account deletion, Refresh, both themes and small windows. Verify existing quizzes and saved progress still work. Developer preview: `build\increment.exe --shot build/rankings.png rankings` (uses the configured data folder; use an isolated folder for experiments).
-
-Skills checks: save programs with overlapping and different concepts in both languages, switch modes and filters, and expand each learner's row. Overwrite a program and delete a saved file from the isolated test folder, then Refresh and verify removed concepts disappear. Confirm empty accounts have zero skills/programs and show the empty-state guidance. Developer preview: `--shot build/skills-ranking.png rankings-skills <lessonIndex>` selects that lesson's track.
-
-## Code tracing exercises
-
-Open **Variables and Data Types**, **Decisions** (conditions), or **Loops** in the C track and scroll to **Code tracing**. Choose **Start tracing**, read the snippet, and predict the requested variable values or output. Enter multiple values in order separated by spaces. Checking is local and case-sensitive; leading/trailing whitespace and repeated whitespace are ignored. Line breaks in output are represented by spaces, so these tasks assess values and execution order rather than exact output formatting.
-
-Check prediction shows feedback and an explanation. Wrong predictions can be edited and submitted again, or use Try again. Correct submissions save tracing completion in the existing per-account progress file, separately from quiz scores and coding exercises. A completed task can be reopened; answers are reset on open and sign-out. If saving fails, the task shows an error and allows resubmission.
-
-Authors can add up to eight tasks per lesson, before `@quiz` (or between exercise sections):
-
-````text
-@trace variable_updates Following variable updates
-```
-int x = 2;
-x += 3;
-// Checkpoint: after the assignment above
-```
-@predict What is x at the checkpoint?
-@answer 5
-@explain x starts at 2; adding 3 gives 5.
-````
-
-Each task needs code, a prompt, an answer and an explanation. Use a unique stable ID (1–31 ASCII letters, digits, underscores or hyphens); keep it unchanged when moving or renaming a task. Keep answers under 512 printable ASCII characters. Incomplete tasks are disabled; the lesson checker rejects malformed or duplicate IDs and checks runnable output predictions against their authored answers. Future array and pointer tasks use the same format. Tracing compares authored answers; it does not interpret arbitrary C/C++ code at runtime.
-
-Manual checks: submit a wrong answer and retry correctly; reopen to see completion; restart or switch accounts to confirm persistence and isolation. Confirm quiz scores and coding-exercise completion stay unchanged. Check light/dark themes and small windows, scrolling to feedback when needed. Developer preview: `build\increment.exe --shot build/tracing.png tracing 1 1` (lesson index, then 1-based tracing task).
-
-## Custom practice quizzes
-
-Click **Practice Quiz** beside the home search box. Choose C or C++, select any lessons with questions (or use **Select All**), and use **-**, **+**, or **All** to set the session size. The count is clamped to the current pool; clearing the selection disables Start. Lessons with no quiz questions are labelled and cannot be selected. Track changes clear the previous lesson selection.
-
-**Start Practice** shuffles eligible question references with Fisher-Yates, taking the requested number without replacement. Identical prompt/code/answer content is deduplicated, including copies with reordered choices; merely similar questions remain distinct. Original lesson data is never reordered. Each question shows the source track and lesson title. Answers use the same checking and immediate feedback rules as normal lesson quizzes. The fixed Next/Submit button is enabled after selecting an answer; Back exits practice without saving a result.
-
-Practice results show question totals, correct/incorrect answers, percentage, and encouragement. **Review Answers** reuses the normal review layout and explanation data, adding source lesson labels. **Practice Again** returns to setup with the previous choices preserved; the next session is reshuffled and avoids the identical consecutive selection/order when the pool has more than one question. With a one-question pool, repeating that question is unavoidable. **Return to Lessons** opens the sequential **Courses** screen for the selected track, never the gamified journey. Courses is also accessible beside Practice Quiz on Home; Back from a course lesson returns to its list.
-
-Practice has no calls to progress saving, lesson completion, or milestone celebrations. Scores and answers exist only in memory; there is no practice history. Signing out clears the session and selections. The fox's practice expressions are isolated from normal quizzes and never trigger lesson trophies or graduation. The loaded lesson set remains valid throughout a session; renamed/reordered content is picked up on the next application load.
-
-Manual checks: select several lessons in each track, change the count and selection, complete a session, review right/wrong answers and their source labels, then use Practice Again. Exit halfway through and restart setup. Confirm Return to Lessons opens the simple course list, normal quizzes still update progress, and practice does not. Check both themes and 900x640, including long question/code/explanation scrolling and the fixed footer buttons.
-
-Developer screenshots: `--shot build/practice.png practice`, `practice-question`, `practice-results`, `practice-review`, and `courses`. A C++ lesson index chooses the C++ track. Preview sessions use synthetic answers without saving any progress.
-
-## Gradual exercise hints
-
-Exercises with optional clues show **Show hint** in the task panel's fixed header. Each click reveals exactly one numbered hint, then the button changes to **Show next hint**. Earlier clues remain in the panel; scroll over the instructions/hints to reread them. The panel brings each new clue into view. After the last hint, the button is disabled and reads **All hints revealed**. Exercises without hints keep their existing layout and have no hint button.
-
-Hints do not edit your program, reveal the separate solution, run code, or change scores/completion. They stay revealed while editing, running, checking output, or resetting code in the current exercise. Opening another exercise (or reopening an exercise after leaving it) starts with no clues revealed. Hint usage is not saved between sessions. When mascot art is available, revealing a clue briefly changes the editor fox to its idea expression; hints also work without the mascot.
-
-Lesson authors can add up to eight `@hint Your clue here` lines inside an `@exercise`, outside code fences. Their file order is their reveal order. Each hint occupies one source line and wraps automatically in the UI. Existing exercise files need no changes. Empty and excess hint lines are ignored with parser warnings; the lesson checker reports them as content problems.
-
-Initial hints cover **Count down to liftoff**, **Find the smallest value**, **swap_chars**, **count_vowels**, **concat_strings**, **InsertAtBeginning**, and **Lab Part 2: DoublyLinkedList**. Each has three clues progressing from a general concept to a more specific approach without supplying a complete implementation.
-
-Manual checks: reveal one clue per click in a C and C++ exercise; reread earlier clues by scrolling, and reach the disabled final button. Edit, run, and reset code to check that revealed clues remain. Switch exercises and confirm the old hint state is cleared. Open an exercise without hints and confirm no hint button appears. Check light/dark themes and 900x640 with large text. Developer exercise screenshots can set `INCREMENT_SHOT_HINTS=1` (or another count) to preview revealed clues without changing progress.
-
 ## Controls
 
 - Mouse to click, wheel or arrow keys / Page Up / Page Down to scroll
-- `1`-`6` pick a quiz answer, `Enter` continues
 - `Esc` or `Backspace` goes back
-- `Ctrl+F` searches the lessons
+- `F5` or `Ctrl+Enter` runs the program in a level or the code editor; the usual editing shortcuts work (undo, redo, copy, paste, `Tab` to indent)
+- `Ctrl+S` in the code editor opens its saved programs
 - `F11` switches full screen on and off. The app opens as a window filling the screen; choose maximised, full screen or a normal window under **Settings > Window**, and it's remembered next time
-- In the code editor, `F5` or `Ctrl+Enter` runs the program, and the usual editing shortcuts work (undo, redo, copy, paste, `Tab` to indent)
 
-## Adding lessons
+## Adding levels
 
-Lessons are plain text files in `assets/lessons/`. See the lesson format in [CLAUDE.md](CLAUDE.md).
+Levels are plain text files in `assets/lessons/`. See the level format in [CLAUDE.md](CLAUDE.md), and run `python -I tools/check_lessons.py` after any change.

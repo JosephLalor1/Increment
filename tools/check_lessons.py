@@ -14,7 +14,7 @@ is nothing to read: any other line outside a code block is a problem.
   and blank lines ignored). "@step broken" marks a step whose starter deliberately doesn't
   compile (a bug to fix); then it must fail to compile.
 - The second run: the app refuses solutions that only print the answer by running them again
-  with the step's given values changed (src/step_check.h). tools/step_variant.c builds that
+  with the step's given values changed (src/level/step_check.h). tools/step_variant.c builds that
   run here with the app's own code, and the changed solution must compile without warnings,
   finish normally and print the same thing twice. If it can't (a size that must match an
   initialiser list, say), mark the step "@step fixed" to switch its second run off.
@@ -33,13 +33,13 @@ BIN = os.path.join(os.environ.get('RAYLIB_DIR', r'C:\raylib'), 'w64devkit', 'bin
 MAX_CODE_COLS = 66  # Consolas at the "Large" text size fits about this many columns
 MAX_STEPS = 16
 GAP_MARKER = '// ?'
-# The skills a step's "~" line may name, and how many (src/skills.c).
+# The skills a step's "~" line may name, and how many (src/learning/skills.c).
 SKILLS = ('program_structure', 'output', 'input', 'types', 'operators', 'conditions', 'loops', 'arrays', 'strings',
           'functions', 'scope', 'pointers', 'indirection', 'parameter_passing', 'pointer_arithmetic', 'dynamic_memory',
           'memory_safety', 'function_pointers', 'cpp_basics', 'references', 'classes', 'constructors', 'encapsulation',
           'copying', 'data_structures', 'tracing', 'debugging', 'problem_solving')
 MAX_STEP_SKILLS = 4
-# The skill names an "@speed" line may use (src/speed_round.c generates their questions).
+# The skill names an "@speed" line may use (src/speed/speed_questions.c generates their questions).
 SPEED_SKILLS = ('variables', 'arithmetic', 'conditions', 'loops', 'arrays', 'strings', 'functions',
                 'pointers', 'pointer_to_pointer', 'pass_by_pointer', 'pointer_arithmetic', 'malloc',
                 'function_pointers', 'references', 'new_delete', 'objects', 'linked_list')
@@ -102,8 +102,10 @@ def build_variant_tool(workdir):
     exe = os.path.join(workdir, 'step_variant.exe')
     sources = [os.path.join(ROOT, 'tools', 'step_variant.c')] + [
         os.path.join(ROOT, 'src', name)
-        for name in ('step_check.c', 'step_cheats.c', 'code_skills.c', 'line_diff.c', 'skills.c')]
-    r = subprocess.run([os.path.join(BIN, 'gcc.exe'), '-std=c99', '-Wall', *sources, '-o', exe],
+        for name in ('level/step_check.c', 'level/step_cheats.c', 'level/line_diff.c', 'code/code_skills.c',
+                     'code/code_text.c', 'learning/skills.c')]
+    r = subprocess.run([os.path.join(BIN, 'gcc.exe'), '-std=c99', '-Wall', '-I', os.path.join(ROOT, 'src'),
+                        *sources, '-o', exe],
                        capture_output=True, text=True)
     if r.returncode != 0:
         print('could not build tools/step_variant.c:\n' + r.stderr)

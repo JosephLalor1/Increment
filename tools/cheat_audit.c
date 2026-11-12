@@ -1,9 +1,9 @@
 // Audit: for every step of every level, builds the plainest cheat (the starter, with main
 // reduced to its declarations and a printf of each target line) and says which check, if
 // any, refuses it. Static checks only: a step with a second run is counted as caught by it.
-#include "../src/lesson.h"
-#include "../src/step_cheats.h"
-#include "../src/step_check.h"
+#include "learning/lesson.h"
+#include "level/step_cheats.h"
+#include "level/step_check.h"
 
 #include <ctype.h>
 #include <stdio.h>

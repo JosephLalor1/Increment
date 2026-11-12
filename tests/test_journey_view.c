@@ -1,10 +1,10 @@
 // Integration check: rendering either journey must be read-only, including with missing
 // mascot art, scrolling, completed tracks, and the minimum supported window size.
-#include "../src/journey_view.h"
-#include "../src/mascot.h"
-#include "../src/progress.h"
-#include "../src/roadmap.h"
-#include "../src/ui.h"
+#include "home/journey_view.h"
+#include "ui/mascot.h"
+#include "learning/progress.h"
+#include "learning/roadmap.h"
+#include "ui/ui.h"
 
 #include <assert.h>
 #include <math.h>

@@ -1,5 +1,5 @@
 // Tests for src/account.c. Run via test.bat; uses a throwaway data directory.
-#include "../src/account.h"
+#include "account/account.h"
 #include "raylib.h"
 
 #include <ctype.h>

@@ -1,7 +1,7 @@
 // The window mode setting: default, saving and reloading, bad files, and F11's toggle.
 // WindowModeEnable is never called, so no window is opened or moved.
 // Usage: test_window_mode <empty temp dir>
-#include "../src/window_mode.h"
+#include "app/window_mode.h"
 #include "raylib.h"  // SetTraceLogLevel
 #include <assert.h>
 #include <stdio.h>

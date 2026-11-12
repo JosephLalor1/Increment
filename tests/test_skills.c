@@ -2,8 +2,8 @@
 // levels, recording and saving progress, and weakness.
 //
 // usage: test_skills <throwaway folder>
-#include "../src/skills.h"
-#include "../src/skill_progress.h"
+#include "learning/skills.h"
+#include "learning/skill_progress.h"
 
 #include <assert.h>
 #include <stdio.h>

@@ -4,7 +4,7 @@
 // Writes icon_<size>.png for each icon size, logo_512.png, and increment.ico
 // (a multi-size icon with PNG entries, used for the .exe and window icon).
 #include "raylib.h"
-#include "../src/brand.h"
+#include "ui/brand.h"
 
 #include <stdio.h>
 #include <string.h>

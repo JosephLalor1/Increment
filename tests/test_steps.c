@@ -2,13 +2,13 @@
 // practised, the checks against printed-in answers, the lesson parser and drafts.
 //
 // usage: test_steps (run from the repository folder)
-#include "../src/drafts.h"
-#include "../src/lesson.h"
-#include "../src/line_diff.h"
-#include "../src/step_cheats.h"
-#include "../src/step_check.h"
-#include "../src/step_hints.h"
-#include "../src/step_skills.h"
+#include "code/drafts.h"
+#include "learning/lesson.h"
+#include "level/line_diff.h"
+#include "level/step_cheats.h"
+#include "level/step_check.h"
+#include "level/step_hints.h"
+#include "level/step_skills.h"
 #include "raylib.h"
 
 #include <assert.h>

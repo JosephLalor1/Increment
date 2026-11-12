@@ -2,10 +2,10 @@
 // levels, a throwaway progress file and a throwaway review history.
 //
 // usage: test_speed_plan <throwaway folder>
-#include "../src/speed_plan.h"
-#include "../src/progress.h"
-#include "../src/review.h"
-#include "../src/skill_progress.h"
+#include "speed/speed_plan.h"
+#include "learning/progress.h"
+#include "learning/review.h"
+#include "learning/skill_progress.h"
 #include "raylib.h"
 
 #include <assert.h>

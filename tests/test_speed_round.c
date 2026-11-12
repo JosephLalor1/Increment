@@ -3,7 +3,7 @@
 // g++ and run, and each program's value must equal the question's answer.
 //
 // usage: test_speed_round <folder with gcc.exe and g++.exe>
-#include "../src/speed_round.h"
+#include "speed/speed_round.h"
 
 #include <assert.h>
 #include <stdio.h>

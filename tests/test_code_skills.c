@@ -1,5 +1,5 @@
 // Supported syntax hints and false-positive guards; no account/XP dependency.
-#include "../src/code_skills.h"
+#include "code/code_skills.h"
 #include <assert.h>
 #include <stdio.h>
 int main(void) {

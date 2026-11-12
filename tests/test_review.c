@@ -2,7 +2,7 @@
 // need, weakness and familiarity measures used to choose and time practice.
 //
 // usage: test_review <throwaway folder>
-#include "../src/review.h"
+#include "learning/review.h"
 
 #include <assert.h>
 #include <stdio.h>

@@ -1,5 +1,5 @@
-#include "../src/dashboard_stats.h"
-#include "../src/progress.h"
+#include "home/dashboard_stats.h"
+#include "learning/progress.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

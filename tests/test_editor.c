@@ -1,5 +1,5 @@
 // Tests for the editing operations in src/editor.c. Run via test.bat.
-#include "../src/editor.h"
+#include "code/editor.h"
 
 #include <stdio.h>
 #include <stdlib.h>

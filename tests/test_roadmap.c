@@ -1,5 +1,5 @@
-#include "../src/roadmap.h"
-#include "../src/progress.h"
+#include "learning/roadmap.h"
+#include "learning/progress.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

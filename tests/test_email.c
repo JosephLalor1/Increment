@@ -1,8 +1,8 @@
 // Tests for src/email.c. Run via test.bat.
 // Set RESEND_LIVE_TEST=1 to also send one real email through Resend (to its simulated
 // delivered@resend.dev inbox) using build/email_config.txt.
-#include "../src/email.h"
-#include "../src/email_address.h"
+#include "account/email.h"
+#include "account/email_address.h"
 #include "raylib.h"
 
 #include <stdio.h>

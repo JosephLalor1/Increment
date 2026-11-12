@@ -1,5 +1,5 @@
 // Tests for name completion (src/completion.c). Run via test.bat.
-#include "../src/completion.h"
+#include "code/completion.h"
 
 #include <stdio.h>
 #include <string.h>

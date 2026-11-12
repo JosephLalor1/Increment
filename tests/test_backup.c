@@ -1,6 +1,6 @@
 // Tests for exporting and restoring a learner's work (src/backup.c). Run via test.bat with
 // a throwaway folder as the argument.
-#include "../src/backup.h"
+#include "account/backup.h"
 
 #include "raylib.h"
 
