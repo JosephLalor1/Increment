@@ -1,12 +1,14 @@
-// The settings screen (appearance, window, email, password, recovery code, delete account)
+// The settings screen (appearance, window, email, password, recovery code, backup, delete account)
 // and applying the user's appearance settings to the UI.
 #include "account_screens.h"
 #include "account_screens_shared.h"
 #include "account.h"
 #include "ambience.h"
+#include "backup.h"
 #include "mouse_trail.h"
 #include "email.h"
 #include "layout.h"
+#include "platform.h"
 #include "ui.h"
 #include "window_mode.h"
 
@@ -26,6 +28,9 @@ static struct {
     const char *recoveryMessage;                // why a new recovery code failed, or NULL
     const char *deleteMessage;                  // why deleting failed, or NULL
     const char *windowMessage;                  // why the window setting couldn't be saved, or NULL
+    char backupToRestore[1024];                 // a backup file chosen to restore, waiting for "Replace"
+    const char *backupMessage;                  // result of the last export or restore, or NULL
+    bool backupWorked;                          // ... and whether it worked (green) or not (red)
     float scroll;
     float contentH;                             // measured last frame, for clamping the scroll
 } settings;
@@ -56,6 +61,8 @@ void SettingsOpen(void)
     WIPE(settings.deletePassword);
     settings.confirmingDelete = false;
     settings.passwordMessage = settings.recoveryMessage = settings.deleteMessage = settings.windowMessage = NULL;
+    settings.backupMessage = NULL;
+    settings.backupToRestore[0] = '\0';
     settings.scroll = settings.contentH = 0;
     UiFocus(NULL);
 }
@@ -255,6 +262,69 @@ static float RecoverySection(float x, float y, float w, float fieldW, AccountAct
     return y;
 }
 
+// The signed-in user's files, as a backup sees them.
+static BackupFiles AccountFiles(void)
+{
+    return (BackupFiles){ AccountProgressPath(), AccountSkillsPath(), AccountReviewPath(), AccountSettingsPath(),
+                          AccountCodeDir() };
+}
+
+// Export the user's work to a file, or restore it from one (two steps: choose the file,
+// then "Replace"). Sets *action when a backup has been restored.
+static float BackupSection(float x, float y, float w, AccountAction *action)
+{
+    Heading(ICON_COPY, "Backup", x, &y);
+    y += UiWrappedText(gFonts.text,
+                       "Save your progress, skills and code to a file, to keep it safe or to move it to another "
+                       "computer. Your password and email stay out of it.",
+                       (Vector2){ x, y }, w, 20, COL_DIM, true) + 14;
+
+    if (!settings.backupToRestore[0]) {
+        Message(settings.backupMessage, settings.backupWorked, x, &y);
+        if (UiButtonIcon((Rectangle){ x, y, 220, 48 }, ICON_COPY, "Export backup", true)) {
+            char path[1024];
+            if (PlatformSaveFileDialog("Increment backup", "increment", TextFormat("Increment-%s", AccountCurrent()),
+                                       path, sizeof path)) {
+                BackupFiles files = AccountFiles();
+                const char *err = NULL;
+                settings.backupWorked = BackupExport(path, AccountCurrent(), &files, &err);
+                settings.backupMessage = settings.backupWorked ? "Backup saved." : err;
+            }
+        }
+        if (UiButtonIconEx((Rectangle){ x + 236, y, 220, 48 }, ICON_RETRY, "Restore backup", 20, COL_PANEL_HI,
+                           COL_SECONDARY_HOVER, COL_TEXT, true)) {
+            settings.backupMessage = NULL;
+            if (!PlatformOpenFileDialog("Increment backup", "increment", settings.backupToRestore,
+                                        sizeof settings.backupToRestore)) {
+                settings.backupToRestore[0] = '\0';
+            }
+        }
+        return y + 48;
+    }
+
+    y += UiWrappedText(gFonts.text,
+                       TextFormat("Replace %s's progress, skills and settings with this backup? This can't be undone.",
+                                  AccountCurrent()),
+                       (Vector2){ x, y }, w, 22, COL_BAD, true) + 8;
+    UiText(gFonts.text, GetFileName(settings.backupToRestore), x, y, 18, COL_DIM);
+    y += 34;
+    if (UiButtonEx((Rectangle){ x, y, 160, 48 }, "Cancel", 20, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true)) {
+        settings.backupToRestore[0] = '\0';
+    } else if (UiButtonIcon((Rectangle){ x + 176, y, 220, 48 }, ICON_RETRY, "Replace", true)) {
+        BackupFiles files = AccountFiles();
+        const char *err = NULL;
+        settings.backupWorked = BackupImport(settings.backupToRestore, &files, &err);
+        settings.backupMessage = settings.backupWorked ? "Backup restored." : err;
+        settings.backupToRestore[0] = '\0';
+        if (settings.backupWorked) {
+            AccountReloadSettings();  // the restored look applies at once; main.c reloads the rest
+            ApplyUserAppearance();
+            *action = ACCOUNT_DATA_RESTORED;
+        }
+    }
+    return y + 48;
+}
+
 // Two steps: the password, then "Delete forever?". Sets *action when the account is gone.
 static float DeleteSection(float x, float y, float w, float fieldW, AccountAction *action)
 {
@@ -338,6 +408,7 @@ AccountAction SettingsScreen(void)
     if (EmailConfigured()) y = EmailSection(x, y + 48, &action);
     y = PasswordSection(x, y + 48, fieldW);
     y = RecoverySection(x, y + 48, w, fieldW, &action);
+    if (action == ACCOUNT_STAY) y = BackupSection(x, y + 48, w, &action);
     if (action == ACCOUNT_STAY) y = DeleteSection(x, y + 48, w, fieldW, &action);
 
     settings.contentH = y - top + 64;
@@ -352,6 +423,11 @@ void SettingsDemo(const char *what)
     if (strcmp(what, "delete") == 0) {  // the "Delete forever?" step, scrolled to the bottom
         snprintf(settings.deletePassword, sizeof settings.deletePassword, "x");
         settings.confirmingDelete = true;
+        settings.scroll = 100000;
+        settings.contentH = 100000;
+    }
+    if (strcmp(what, "backup") == 0) {  // the Backup section, asking before a restore
+        snprintf(settings.backupToRestore, sizeof settings.backupToRestore, "Increment-demo.increment");
         settings.scroll = 100000;
         settings.contentH = 100000;
     }

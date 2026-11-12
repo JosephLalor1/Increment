@@ -111,6 +111,10 @@ bool UiHasFocus(const void *id);
 // True if id had focus at the start of this frame, so it may handle keys now (see UiTextBox).
 bool UiTakesInput(const void *id);
 bool UiAnyFocus(void);
+// A focused widget that has its own use for Esc (closing a popup) claims it while it draws;
+// during the next frame UiEscapeClaimed is true, and pages leave Esc alone.
+void UiClaimEscape(void);
+bool UiEscapeClaimed(void);
 
 // Word-wrapped text. Returns the height used. Pass draw=false to only measure.
 float UiWrappedText(Font f, const char *text, Vector2 pos, float width, float size, Color c, bool draw);

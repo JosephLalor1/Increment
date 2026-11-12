@@ -28,6 +28,13 @@ bool PlatformTempDir(char *out, size_t size);
 // Looks for an executable on PATH, e.g. "gcc.exe". Writes its full path to out.
 bool PlatformFindOnPath(const char *exe, char *out, size_t size);
 
+// The system's "Save as" and "Open" file dialogs, for one kind of file: kind is its name in
+// the dialog ("Increment backup") and extension its ending without the dot. They block
+// until the user chooses or cancels; true with the chosen path in out, false if cancelled.
+// suggestedName is the file name the save dialog starts with.
+bool PlatformSaveFileDialog(const char *kind, const char *extension, const char *suggestedName, char *out, size_t size);
+bool PlatformOpenFileDialog(const char *kind, const char *extension, char *out, size_t size);
+
 // ---------------------------------------------------------------------------
 // HTTPS POST on a background thread (WinHTTP), so the UI never waits on the network.
 

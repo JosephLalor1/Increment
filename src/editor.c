@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -232,6 +233,54 @@ void EditorInsertText(Editor *e, const char *s, double now)
         InsertAtCursor(e, clean, n);
     }
     free(clean);
+}
+
+// ---------------------------------------------------------------------------
+// Name suggestions (code mode)
+
+void EditorDismissSuggestions(Editor *e)
+{
+    e->suggestions.count = 0;
+    e->suggestionBox = (Rectangle){ 0 };
+}
+
+void EditorSuggest(Editor *e)
+{
+    EditorDismissSuggestions(e);
+    if (!e->code || e->readOnly || EditorHasSelection(e)) return;
+    CompletionFind(e->text, e->len, e->cursor, &e->suggestions);
+    e->suggestedVersion = e->version;
+    e->suggestedCursor = e->cursor;
+    e->suggestionChosen = 0;
+    e->suggestionPicked = false;
+}
+
+bool EditorSuggesting(const Editor *e)
+{
+    return e->suggestions.count > 0 && e->suggestedVersion == e->version && e->suggestedCursor == e->cursor
+        && !EditorHasSelection(e);
+}
+
+void EditorChooseSuggestion(Editor *e, int step)
+{
+    if (!EditorSuggesting(e)) return;
+    int count = e->suggestions.count;
+    e->suggestionChosen = ((e->suggestionChosen + step) % count + count) % count;
+    e->suggestionPicked = true;
+}
+
+bool EditorAcceptSuggestion(Editor *e, int index, double now)
+{
+    if (!EditorSuggesting(e) || index < 0 || index >= e->suggestions.count) return false;
+    Completion chosen = e->suggestions.items[index];
+    int typed = e->suggestions.typed;
+    BeginEdit(e, EDIT_OTHER, now);
+    InsertAtCursor(e, chosen.name + typed, (int)strlen(chosen.name) - typed);
+    InsertAtCursor(e, chosen.after, (int)strlen(chosen.after));
+    e->cursor -= chosen.caretBack;  // inside the shape's brackets or quotes
+    e->anchor = e->cursor;
+    EditorDismissSuggestions(e);
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -695,15 +744,44 @@ static void HandleKeys(Editor *e)
     bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
     bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
 
+    // While names are suggested, the list takes Up, Down, Tab and Esc, and Enter once the
+    // learner has chosen one (before that, Enter is still a new line: nobody should get a
+    // name they didn't ask for at the end of a line).
+    bool listTookKey = false;
+    if (EditorSuggesting(e)) {
+        bool enter = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER);
+        if (PRESSED(KEY_DOWN) || PRESSED(KEY_UP)) {
+            EditorChooseSuggestion(e, PRESSED(KEY_DOWN) ? 1 : -1);
+            listTookKey = true;
+        } else if (!ctrl && (IsKeyPressed(KEY_TAB) || (enter && e->suggestionPicked))) {
+            EditorAcceptSuggestion(e, e->suggestionChosen, now);
+            listTookKey = true;
+        } else if (IsKeyPressed(KEY_ESCAPE)) {
+            EditorDismissSuggestions(e);
+            listTookKey = true;
+        }
+    }
+    if (listTookKey) {
+        while (GetCharPressed() != 0) {}  // nothing else happens on this frame's keys
+        return;
+    }
+
+    // Typing or deleting part of a word brings suggestions for it; anything else that
+    // changes the text or moves the caret leaves them out of date (see EditorSuggesting).
+    bool wordEdited = false;
     int ch;
     while ((ch = GetCharPressed()) != 0) {
-        if (!ctrl && ch >= 32 && ch < 127) EditorTypeChar(e, (char)ch, now);
+        if (!ctrl && ch >= 32 && ch < 127) {
+            EditorTypeChar(e, (char)ch, now);
+            wordEdited = true;
+        }
     }
 
     if (!ctrl && (PRESSED(KEY_ENTER) || PRESSED(KEY_KP_ENTER))) EditorNewline(e, now);
     if (PRESSED(KEY_BACKSPACE)) {
         if (ctrl && !EditorHasSelection(e)) EditorMoveCursor(e, MOVE_WORD_LEFT, true);
         EditorBackspace(e, now);
+        wordEdited = !ctrl;
     }
     if (PRESSED(KEY_DELETE)) {
         if (ctrl && !EditorHasSelection(e)) EditorMoveCursor(e, MOVE_WORD_RIGHT, true);
@@ -737,6 +815,47 @@ static void HandleKeys(Editor *e)
         if (PRESSED(KEY_Z)) { if (shift) EditorRedo(e); else EditorUndo(e); }
         if (PRESSED(KEY_Y)) EditorRedo(e);
     }
+    if (wordEdited) EditorSuggest(e);
+}
+
+// The list of suggested names under the word being typed (above it when there is no room
+// below), kept inside the editor. Remembers where it is for clicks.
+static void DrawSuggestions(Editor *e, Rectangle r, const Layout *L)
+{
+    const CompletionList *list = &e->suggestions;
+    int longest = 0;
+    for (int i = 0; i < list->count; i++)
+        longest = Max(longest, (int)(strlen(list->items[i].name) + strlen(list->items[i].after)));
+    float rowH = L->lineH + 4;
+    Rectangle box = { 0, 0, longest * L->charW + 28, list->count * rowH + 8 };
+    float wordX = L->text.x - e->scrollX + (EditorColOf(e, e->cursor) - list->typed) * L->charW;
+    float lineY = L->text.y + EditorLineOf(e, e->cursor) * L->lineH - e->scrollY;
+    box.x = fmaxf(r.x + 4, fminf(wordX - 14, r.x + r.width - box.width - 4));
+    box.y = lineY + L->lineH + 4;
+    if (box.y + box.height > r.y + r.height - 4) box.y = lineY - box.height - 4;
+    e->suggestionBox = box;
+
+    DrawRectangleRounded((Rectangle){ box.x + 2, box.y + 4, box.width, box.height }, 0.12f, 8, Fade(BLACK, 0.25f));
+    UiRoundRect(box, 8, COL_PANEL);
+    DrawRectangleRoundedLinesEx(box, 8 * 2 / fminf(box.width, box.height), 8, 1.5f, Fade(COL_ACCENT, 0.6f));
+    float sp = UiSpacing(gFonts.mono, e->fontSize);
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < list->count; i++) {
+        const Completion *item = &list->items[i];
+        Rectangle row = { box.x + 4, box.y + 4 + i * rowH, box.width - 8, rowH };
+        bool hovered = CheckCollisionPointRec(mouse, row);
+        if (hovered) UiWantHand();
+        if (i == e->suggestionChosen) UiRoundRect(row, 6, Fade(COL_ACCENT, 0.28f));
+        else if (hovered) UiRoundRect(row, 6, COL_PANEL_HI);
+        // The letters already typed in the accent colour, the rest of the name plain, and
+        // the shape that comes with it dim.
+        float x = row.x + 10, y = row.y + 4;
+        char part[COMPLETION_NAME];
+        snprintf(part, sizeof part, "%.*s", list->typed, item->name);
+        DrawTextEx(gFonts.mono, part, (Vector2){ x, y }, e->fontSize, sp, COL_ACCENT);
+        DrawTextEx(gFonts.mono, item->name + list->typed, (Vector2){ x + list->typed * L->charW, y }, e->fontSize, sp, COL_TEXT);
+        DrawTextEx(gFonts.mono, item->after, (Vector2){ x + strlen(item->name) * L->charW, y }, e->fontSize, sp, COL_DIM);
+    }
 }
 
 void EditorWidget(Editor *e, Rectangle r)
@@ -752,7 +871,12 @@ void EditorWidget(Editor *e, Rectangle r)
     Vector2 m = GetMousePosition();
     ScrollBars bars = MakeScrollBars(e, r, &L);
     bool onBar = (bars.showVertical && UiMouseOver(bars.vertical)) || (bars.showHorizontal && UiMouseOver(bars.horizontal));
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !onBar) {
+    // A click on a suggested name (where the list was drawn last frame) picks it.
+    bool onSuggestions = EditorSuggesting(e) && e->suggestionBox.width > 0 && CheckCollisionPointRec(m, e->suggestionBox);
+    if (onSuggestions && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        float rowH = (e->suggestionBox.height - 8) / e->suggestions.count;
+        EditorAcceptSuggestion(e, (int)((m.y - e->suggestionBox.y - 4) / rowH), GetTime());
+    } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !onBar) {
         if (over) {
             UiFocus(e);
             int pos = PosFromPoint(e, &L, m);
@@ -892,4 +1016,11 @@ void EditorWidget(Editor *e, Rectangle r)
     bars = MakeScrollBars(e, r, &L);  // the text may have changed since the click handling
     if (bars.showVertical) UiScrollBar(bars.vertical, &e->scrollY, bars.contentH, L.text.height);
     if (bars.showHorizontal) UiScrollBar(bars.horizontal, &e->scrollX, bars.contentW, L.text.width);
+
+    if (focused && EditorSuggesting(e)) {
+        DrawSuggestions(e, r, &L);
+        UiClaimEscape();  // Esc closes the list instead of leaving the editor
+    } else {
+        e->suggestionBox = (Rectangle){ 0 };
+    }
 }

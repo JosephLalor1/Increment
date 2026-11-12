@@ -65,7 +65,7 @@ bool TopBar(const char *title)
     UiText(gFonts.text, title, 132, 17, 26, COL_TEXT);
 
     if (UiAnyFocus()) {
-        if (IsKeyPressed(KEY_ESCAPE)) UiFocus(NULL);
+        if (IsKeyPressed(KEY_ESCAPE) && !UiEscapeClaimed()) UiFocus(NULL);
         return back;
     }
     return back || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE);

@@ -900,6 +900,14 @@ const char *AccountSkillsPath(void)
     return path;
 }
 
+const char *AccountSettingsPath(void)
+{
+    static char path[1100];
+    if (current < 0) return "";
+    snprintf(path, sizeof path, "%s", UserFile(accounts[current].name, ".settings.txt"));
+    return path;
+}
+
 const char *AccountCodeDir(void)
 {
     if (current < 0) return NULL;
@@ -911,6 +919,11 @@ const char *AccountCodeDir(void)
 const char *AccountLastUser(void) { return lastUser; }
 
 AccountSettings AccountGetSettings(void) { return settings; }
+
+void AccountReloadSettings(void)
+{
+    if (current >= 0) settings = LoadSettings(accounts[current].name);
+}
 
 void AccountSetSettings(AccountSettings s)
 {

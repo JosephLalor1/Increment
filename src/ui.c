@@ -153,8 +153,16 @@ void UiUnloadFonts(void)
 static int wantedCursor = MOUSE_CURSOR_DEFAULT;
 static int currentCursor = MOUSE_CURSOR_DEFAULT;
 
+// Esc belongs to a widget this frame if it asked for it during the last one.
+static bool escapeClaimed, escapeClaimedNext;
+
+void UiClaimEscape(void) { escapeClaimedNext = true; }
+bool UiEscapeClaimed(void) { return escapeClaimed; }
+
 void UiBeginFrame(void)
 {
+    escapeClaimed = escapeClaimedNext;
+    escapeClaimedNext = false;
     wantedCursor = MOUSE_CURSOR_DEFAULT;
     clipOn = false;
     frameFocus = focused;

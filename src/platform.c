@@ -7,6 +7,7 @@
 #include <string.h>
 #include <windows.h>
 #include <bcrypt.h>
+#include <commdlg.h>
 #include <winhttp.h>
 
 bool PlatformRandom(unsigned char *buf, size_t len)
@@ -25,6 +26,43 @@ bool PlatformHashPassword(const char *password, const unsigned char *salt, size_
                                             (ULONG)saltLen, iterations, out, PASSWORD_HASH_LEN, 0);
     BCryptCloseAlgorithmProvider(alg, 0);
     return BCRYPT_SUCCESS(status);
+}
+
+// One dialog for both: saving asks before overwriting, opening needs an existing file.
+static bool FileDialog(bool saving, const char *kind, const char *extension, const char *suggestedName, char *out,
+                       size_t size)
+{
+    // The filter is two strings and an empty one, back to back: "Kind (*.ext)", "*.ext".
+    char filter[200] = { 0 };
+    int shown = snprintf(filter, sizeof filter - 2, "%s (*.%s)", kind, extension);
+    snprintf(filter + shown + 1, sizeof filter - (size_t)shown - 3, "*.%s", extension);
+
+    char path[MAX_PATH] = "";
+    if (suggestedName) snprintf(path, sizeof path, "%s", suggestedName);
+    OPENFILENAMEA dialog = { 0 };
+    dialog.lStructSize = sizeof dialog;
+    dialog.hwndOwner = GetActiveWindow();
+    dialog.lpstrFilter = filter;
+    dialog.lpstrFile = path;
+    dialog.nMaxFile = sizeof path;
+    dialog.lpstrDefExt = extension;
+    // NOCHANGEDIR: the app finds its files relative to where it started.
+    dialog.Flags = OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY
+                 | (saving ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+    BOOL chosen = saving ? GetSaveFileNameA(&dialog) : GetOpenFileNameA(&dialog);
+    if (!chosen || strlen(path) >= size) return false;
+    snprintf(out, size, "%s", path);
+    return true;
+}
+
+bool PlatformSaveFileDialog(const char *kind, const char *extension, const char *suggestedName, char *out, size_t size)
+{
+    return FileDialog(true, kind, extension, suggestedName, out, size);
+}
+
+bool PlatformOpenFileDialog(const char *kind, const char *extension, char *out, size_t size)
+{
+    return FileDialog(false, kind, extension, NULL, out, size);
 }
 
 bool PlatformReplaceFile(const char *src, const char *dst)

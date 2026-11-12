@@ -224,6 +224,56 @@ static void TestPairs(void)
     EditorFree(&e);
 }
 
+static void TestSuggestions(void)
+{
+    Editor e;
+    EditorInit(&e, "int price = 3;\nint main() {\n    \n}", true);
+    EditorSetCursor(&e, EditorPosOf(&e, 2, 4), false);
+
+    // Typing part of a name suggests it; accepting completes the word as one undoable edit.
+    Type(&e, "pr", 0);
+    EditorSuggest(&e);
+    CHECK(EditorSuggesting(&e));
+    CHECK(e.suggestions.count == 2);
+    CHECK(strcmp(e.suggestions.items[0].name, "price") == 0);   // the code's own name first
+    CHECK(strcmp(e.suggestions.items[1].name, "printf") == 0);
+    CHECK(EditorAcceptSuggestion(&e, 0, 5));
+    CHECK_TEXT(&e, "int price = 3;\nint main() {\n    price\n}");
+    CHECK(!EditorSuggesting(&e));
+    EditorUndo(&e);
+    CHECK_TEXT(&e, "int price = 3;\nint main() {\n    pr\n}");
+
+    // A function comes with its shape, the caret left inside.
+    EditorSuggest(&e);
+    EditorChooseSuggestion(&e, 1);
+    CHECK(e.suggestionChosen == 1 && e.suggestionPicked);
+    EditorChooseSuggestion(&e, 1);
+    CHECK(e.suggestionChosen == 0);  // wraps round
+    EditorChooseSuggestion(&e, -1);
+    CHECK(EditorAcceptSuggestion(&e, e.suggestionChosen, 10));
+    CHECK_TEXT(&e, "int price = 3;\nint main() {\n    printf(\"\")\n}");
+    CHECK(e.text[e.cursor] == '"' && e.text[e.cursor - 1] == '"');
+
+    // Suggestions go out of date when the caret moves or the text changes.
+    EditorSetText(&e, "int total;\nto");
+    EditorMoveCursor(&e, MOVE_DOC_END, false);
+    EditorSuggest(&e);
+    CHECK(EditorSuggesting(&e));
+    EditorMoveCursor(&e, MOVE_LEFT, false);
+    CHECK(!EditorSuggesting(&e));
+    CHECK(!EditorAcceptSuggestion(&e, 0, 0));
+    CHECK_TEXT(&e, "int total;\nto");
+
+    // Plain text boxes suggest nothing.
+    Editor plain;
+    EditorInit(&plain, "total to", false);
+    EditorMoveCursor(&plain, MOVE_DOC_END, false);
+    EditorSuggest(&plain);
+    CHECK(!EditorSuggesting(&plain));
+    EditorFree(&plain);
+    EditorFree(&e);
+}
+
 static void TestUndoRedo(void)
 {
     Editor e;
@@ -319,6 +369,7 @@ int main(void)
     TestTypingAndCursor();
     TestAutoIndent();
     TestPairs();
+    TestSuggestions();
     TestBackspaceAndDelete();
     TestIndentSelection();
     TestUndoRedo();

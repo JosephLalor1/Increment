@@ -1,11 +1,15 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include "completion.h"
+
 #include "raylib.h"
 #include <stdbool.h>
 
 // A multi-line text editor. In code mode it shows line numbers, highlights C/C++ syntax
-// and auto-indents. The text is plain ASCII with '\n' line endings; tabs are stored as
+// and auto-indents, pairs brackets and suggests names as they are typed (a list under the
+// caret: Up/Down choose, Tab accepts, Enter accepts once one was chosen, Esc closes it, and a
+// click picks one). The text is plain ASCII with '\n' line endings; tabs are stored as
 // 4 spaces.
 //
 // The editing functions below are independent of input and drawing, so they can be
@@ -59,6 +63,15 @@ typedef struct {
     int hintLine;      // 1-based line a hint points at, 0 for none (see EditorSetHint)
     bool hintBefore;   // the hint is a gap before hintLine, where a line belongs
 
+    // Name suggestions for the word at the caret (see EditorSuggest). They are for one
+    // moment of the text: any other edit or caret move makes them out of date.
+    CompletionList suggestions;
+    unsigned suggestedVersion;  // the text version and caret they were found for
+    int suggestedCursor;
+    int suggestionChosen;       // the highlighted one
+    bool suggestionPicked;      // the learner moved the highlight, so Enter accepts it too
+    Rectangle suggestionBox;    // where the list was drawn, for clicks (width 0: not shown)
+
     bool dragging;
     double lastClickTime;
     int clickCount;
@@ -85,6 +98,15 @@ void EditorSetCursor(Editor *e, int pos, bool select);
 void EditorSelectAll(Editor *e);
 bool EditorHasSelection(const Editor *e);
 char *EditorCopySelection(const Editor *e);  // malloc'd, caller frees; NULL if nothing selected
+
+// Name suggestions (code mode). Suggest finds them for the word at the caret, after typing;
+// they count as showing until the text or the caret changes again. Accept completes the
+// word with one of them, shape and all (`printf("")` with the caret inside), as one edit.
+void EditorSuggest(Editor *e);
+bool EditorSuggesting(const Editor *e);
+void EditorChooseSuggestion(Editor *e, int step);  // moves the highlight down (1) or up (-1), wrapping
+bool EditorAcceptSuggestion(Editor *e, int index, double now);  // false if there is no such suggestion
+void EditorDismissSuggestions(Editor *e);
 
 void EditorUndo(Editor *e);
 void EditorRedo(Editor *e);

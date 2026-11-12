@@ -82,7 +82,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
     }
     if (Is(name, "recovery")) return SCREEN_RECOVERY;
     if (Is(name, "verify") || Is(name, "addemail")) return AccountCurrent() ? SCREEN_VERIFY : SCREEN_LOGIN;
-    if (Is(name, "settings") || Is(name, "delete")) {
+    if (Is(name, "settings") || Is(name, "delete") || Is(name, "backup")) {
         SettingsOpen();
         return SCREEN_SETTINGS;
     }
@@ -144,6 +144,9 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         // INCREMENT_SHOT_RUN=1: run the step's draft as the learner would, to show its checks.
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (Is(name, "level") && runFirst && runFirst[0] == '1') LevelScreenDemoRun();
+        // INCREMENT_SHOT_TYPE=<text>: type that into the code, to show the names suggested.
+        const char *typed = getenv("INCREMENT_SHOT_TYPE");
+        if (Is(name, "level") && typed && typed[0]) LevelScreenDemoType(typed);
         return SCREEN_LEVEL;
     }
     return Home();  // a name we don't know

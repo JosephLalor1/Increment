@@ -10,7 +10,7 @@ if "%RAYLIB_DIR%"=="" set RAYLIB_DIR=C:\raylib
 set CC=%RAYLIB_DIR%\w64devkit\bin\gcc.exe
 set RL_SRC=%RAYLIB_DIR%\raylib\src
 set CFLAGS=-std=c99 -Wall -Wextra -Wno-missing-field-initializers -g -I"%RL_SRC%"
-set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt -lwinhttp
+set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt -lwinhttp -lcomdlg32
 set FAILED=0
 
 if not exist build mkdir build
@@ -35,8 +35,12 @@ if errorlevel 1 set FAILED=1
 
 "%CC%" %CFLAGS% tests\test_account.c src\account.c src\email_address.c src\platform.c -o build\test_account.exe %LIBS%
 if errorlevel 1 exit /b 1
-"%CC%" %CFLAGS% tests\test_editor.c src\editor.c src\ui.c src\icons.c src\icon_pen.c -o build\test_editor.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_editor.c src\editor.c src\completion.c src\ui.c src\icons.c src\icon_pen.c -o build\test_editor.exe %LIBS%
 if errorlevel 1 exit /b 1
+"%CC%" %CFLAGS% tests\test_completion.c src\completion.c -o build\test_completion.exe
+if errorlevel 1 exit /b 1
+build\test_completion.exe
+if errorlevel 1 set FAILED=1
 "%CC%" %CFLAGS% tests\test_runner.c src\runner.c src\platform.c -o build\test_runner.exe %LIBS%
 if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_email.c src\email.c src\email_address.c src\platform.c -o build\test_email.exe %LIBS%
@@ -64,6 +68,8 @@ rem Compiles a few hundred generated speed round questions with gcc and g++ to c
 if errorlevel 1 exit /b 1
 build\test_speed_round.exe "%RAYLIB_DIR%\w64devkit\bin"
 if errorlevel 1 set FAILED=1
+"%CC%" %CFLAGS% tests\test_backup.c src\backup.c -o build\test_backup.exe %LIBS%
+if errorlevel 1 exit /b 1
 "%CC%" %CFLAGS% tests\test_window_mode.c src\window_mode.c -o build\test_window_mode.exe %LIBS%
 if errorlevel 1 exit /b 1
 
@@ -79,6 +85,8 @@ if errorlevel 1 set FAILED=1
 build\test_speed_plan.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_window_mode.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+build\test_backup.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 build\test_mascot.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

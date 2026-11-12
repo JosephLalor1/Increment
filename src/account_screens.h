@@ -14,6 +14,7 @@ typedef enum {
     ACCOUNT_SHOW_CODE,     // a new recovery code is waiting to be shown
     ACCOUNT_VERIFIED,      // the email address was just verified
     ACCOUNT_CHANGE_EMAIL,  // settings: open the verify screen to change the address
+    ACCOUNT_DATA_RESTORED, // settings: a backup replaced the user's files; load them again
     ACCOUNT_BACK,          // leave this screen
     ACCOUNT_QUIT,
 } AccountAction;
@@ -42,7 +43,7 @@ AccountAction SettingsScreen(void);
 void ApplyUserAppearance(void);
 
 // Dev aid for --shot: "register", "reset", "recovery", "delete", "verify", "addemail",
-// "resetemail" or "resetcode" pre-fills demo state on the matching screen.
+// "resetemail", "resetcode" or "backup" (the settings' Backup section, asking before a restore) pre-fills demo state on the matching screen.
 void AccountScreensDemo(const char *what);
 
 #endif

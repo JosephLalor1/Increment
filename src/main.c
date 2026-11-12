@@ -162,6 +162,11 @@ static void RunSettings(void)
     } else if (action == ACCOUNT_SHOW_CODE) {
         app.afterRecovery = SCREEN_SETTINGS;
         app.screen = SCREEN_RECOVERY;
+    } else if (action == ACCOUNT_DATA_RESTORED) {  // a backup replaced the user's files: read them again
+        ProgressLoad(AccountProgressPath());
+        ReviewLoad(AccountReviewPath());
+        SkillsLoad(AccountSkillsPath());
+        DashboardOpen();  // and home starts afresh on the restored progress
     } else if (action == ACCOUNT_CHANGE_EMAIL) {
         SettingsOpen();
         VerifyOpen(true);

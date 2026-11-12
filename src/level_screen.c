@@ -860,6 +860,23 @@ void LevelScreenDemo(int stepIndex, int hints, bool solved)
 
 void LevelScreenDemoBack(void) { ls.demoBack = true; }
 
+void LevelScreenDemoType(const char *typed)
+{
+    if (!ls.open) return;
+    // Over the step's "// ?" line if it has one, otherwise at the end of the code.
+    const char *gap = strstr(ls.code.text, "// ?");
+    if (gap) {
+        EditorSetCursor(&ls.code, (int)(gap - ls.code.text), false);
+        EditorSetCursor(&ls.code, (int)(gap - ls.code.text) + 4, true);
+        EditorDeleteSelection(&ls.code, 0);
+    } else {
+        EditorMoveCursor(&ls.code, MOVE_DOC_END, false);
+    }
+    for (; *typed; typed++) EditorTypeChar(&ls.code, *typed, 0);
+    EditorSuggest(&ls.code);
+    UiFocus(&ls.code);
+}
+
 void LevelScreenDemoCelebration(void)
 {
     ls.celebrating = true;

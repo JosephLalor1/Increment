@@ -85,6 +85,7 @@ bool AccountHasRecovery(void);          // whether the logged-in user has a reco
 const char *AccountProgressPath(void);  // progress file for the current user
 const char *AccountReviewPath(void);    // answer history / review schedule file (review.h), "" when logged out
 const char *AccountSkillsPath(void);    // skill XP file (skills.h), "" when logged out
+const char *AccountSettingsPath(void);  // settings file, "" when logged out
 const char *AccountCodeDir(void);       // folder for the current user's code editor drafts (created), or NULL
 const char *AccountLastUser(void);      // last user to log in, "" if none
 
@@ -92,5 +93,6 @@ const char *AccountLastUser(void);      // last user to log in, "" if none
 // keeps their theme) or defaults. Set saves immediately when someone is logged in.
 AccountSettings AccountGetSettings(void);
 void AccountSetSettings(AccountSettings s);
+void AccountReloadSettings(void);  // reads the signed-in user's settings file again (after a backup is restored)
 
 #endif

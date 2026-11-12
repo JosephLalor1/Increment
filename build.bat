@@ -16,7 +16,7 @@ if not exist "%CC%" (
 )
 
 set CFLAGS=-std=c99 -Wall -Wextra -Wno-missing-field-initializers -I"%RL_SRC%"
-set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt -lwinhttp
+set LIBS=-L"%RL_SRC%" -lraylib -lopengl32 -lgdi32 -lwinmm -lbcrypt -lwinhttp -lcomdlg32
 
 if not exist build mkdir build
 
