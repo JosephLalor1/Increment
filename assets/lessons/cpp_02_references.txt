@@ -2,3 +2,323 @@
 @track C++
 @speed references
 @title Pass by Reference
+
+@step
+~ 1 references:1 parameter_passing:0.8
+```
+#include <iostream>
+using namespace std;
+
+void addOne(int x) {
+    x = x + 1;
+}
+
+int main() {
+    int a = 5;
+    addOne(a);
+    cout << "a = " << a << endl;
+    return 0;
+}
+```
+@expect
+```
+a = 6
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+void addOne(int& x) {
+    x = x + 1;
+}
+
+int main() {
+    int a = 5;
+    addOne(a);
+    cout << "a = " << a << endl;
+    return 0;
+}
+```
+
+@step
+~ 1 references:1
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 5;
+    int& ref = a;
+    // ?
+    cout << "a = " << a << endl;
+    return 0;
+}
+```
+@expect
+```
+a = 10
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 5;
+    int& ref = a;
+    ref = 10;
+    cout << "a = " << a << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 references:1 parameter_passing:0.8
+```
+#include <iostream>
+using namespace std;
+
+void swap(int& a, int& b) {
+    int temp = a;
+    // ?
+    b = temp;
+}
+
+int main() {
+    int a = 45, b = 35;
+    swap(a, b);
+    cout << "a=" << a << " b=" << b << endl;
+    return 0;
+}
+```
+@expect
+```
+a=35 b=45
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+void swap(int& a, int& b) {
+    int temp = a;
+    a = b;
+    b = temp;
+}
+
+int main() {
+    int a = 45, b = 35;
+    swap(a, b);
+    cout << "a=" << a << " b=" << b << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 references:1 parameter_passing:0.8 debugging:0.8 tracing:0.6
+```
+#include <iostream>
+using namespace std;
+
+void addOneByValue(int x) {
+    x = x + 1;
+    cout << "Inside addOneByValue: x = " << x << endl;
+}
+
+void addOneByReference(int x) {
+    x = x + 1;
+    cout << "Inside addOneByReference: x = " << x << endl;
+}
+
+int main() {
+    int a = 5;
+    addOneByValue(a);
+    cout << "After addOneByValue: a = " << a << endl;
+    addOneByReference(a);
+    cout << "After addOneByReference: a = " << a << endl;
+    return 0;
+}
+```
+@expect
+```
+Inside addOneByValue: x = 6
+After addOneByValue: a = 5
+Inside addOneByReference: x = 6
+After addOneByReference: a = 6
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+void addOneByValue(int x) {
+    x = x + 1;
+    cout << "Inside addOneByValue: x = " << x << endl;
+}
+
+void addOneByReference(int& x) {
+    x = x + 1;
+    cout << "Inside addOneByReference: x = " << x << endl;
+}
+
+int main() {
+    int a = 5;
+    addOneByValue(a);
+    cout << "After addOneByValue: a = " << a << endl;
+    addOneByReference(a);
+    cout << "After addOneByReference: a = " << a << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 references:1 arrays:0.6 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+void minMax(int arr[], int size, int& min, int& max) {
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67};
+    int min = 0, max = 0;
+    minMax(values, 5, min, max);
+    cout << "min = " << min << ", max = " << max << endl;
+    return 0;
+}
+```
+@expect
+```
+min = 12, max = 89
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+void minMax(int arr[], int size, int& min, int& max) {
+    min = arr[0];
+    max = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] < min) min = arr[i];
+        if (arr[i] > max) max = arr[i];
+    }
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67};
+    int min = 0, max = 0;
+    minMax(values, 5, min, max);
+    cout << "min = " << min << ", max = " << max << endl;
+    return 0;
+}
+```
+
+@step fixed
+~ 3 references:1 arrays:0.8 loops:0.8 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+bool insertElement(int& size, int& count, int arr[], int element,
+                   int index) {
+    return false;
+}
+
+int main() {
+    int arr[6] = {1, 2, 4, 5};
+    int size = 6, count = 4;
+    insertElement(size, count, arr, 3, 2);
+    for (int i = 0; i < count; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl << "count = " << count << endl;
+    return 0;
+}
+```
+@expect
+```
+1 2 3 4 5
+count = 5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+bool insertElement(int& size, int& count, int arr[], int element,
+                   int index) {
+    if (count >= size || index < 0 || index > count) return false;
+    for (int i = count; i > index; i--) {
+        arr[i] = arr[i - 1];
+    }
+    arr[index] = element;
+    count++;
+    return true;
+}
+
+int main() {
+    int arr[6] = {1, 2, 4, 5};
+    int size = 6, count = 4;
+    insertElement(size, count, arr, 3, 2);
+    for (int i = 0; i < count; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl << "count = " << count << endl;
+    return 0;
+}
+```
+
+@step fixed
+~ 3 references:1 arrays:0.8 loops:0.8 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+bool deleteElement(int& size, int& count, int arr[], int index) {
+    return false;
+}
+
+int main() {
+    int arr[6] = {1, 2, 3, 4, 5};
+    int size = 6, count = 5;
+    deleteElement(size, count, arr, 1);
+    for (int i = 0; i < count; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl << "count = " << count << endl;
+    return 0;
+}
+```
+@expect
+```
+1 3 4 5
+count = 4
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+bool deleteElement(int& size, int& count, int arr[], int index) {
+    if (count > size || index < 0 || index >= count) return false;
+    for (int i = index; i < count - 1; i++) {
+        arr[i] = arr[i + 1];
+    }
+    count--;
+    return true;
+}
+
+int main() {
+    int arr[6] = {1, 2, 3, 4, 5};
+    int size = 6, count = 5;
+    deleteElement(size, count, arr, 1);
+    for (int i = 0; i < count; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl << "count = " << count << endl;
+    return 0;
+}
+```

@@ -2,3 +2,220 @@
 @track C++
 @speed new_delete
 @title Memory Management: new and delete
+
+@step
+~ 1 dynamic_memory:1 pointers:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* ptr = new int;
+    *ptr = 42;
+    // ?
+    delete ptr;
+    return 0;
+}
+```
+@expect
+```
+42
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* ptr = new int;
+    *ptr = 42;
+    cout << *ptr << endl;
+    delete ptr;
+    return 0;
+}
+```
+
+@step
+~ 1 dynamic_memory:1
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* x = new int;
+    cout << "made" << endl;
+    delete x;
+    return 0;
+}
+```
+@expect
+```
+made
+5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* x = new int(5);
+    cout << "made" << endl;
+    cout << *x << endl;
+    delete x;
+    return 0;
+}
+```
+
+@step
+~ 2 dynamic_memory:1 memory_safety:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+int* getPtrToFive() {
+    int x = 5;
+    return &x;
+}
+
+int main() {
+    int* p = getPtrToFive();
+    cout << *p << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    return x;
+}
+
+int main() {
+    int* p = getPtrToFive();
+    cout << *p << endl;
+    delete p;
+    return 0;
+}
+```
+
+@step
+~ 2 dynamic_memory:1 functions:0.6
+```
+#include <iostream>
+using namespace std;
+
+int* makeInt(int value) {
+    // ?
+}
+
+int main() {
+    int* a = makeInt(7);
+    int* b = makeInt(35);
+    cout << *a + *b << endl;
+    delete a;
+    delete b;
+    return 0;
+}
+```
+@expect
+```
+42
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int* makeInt(int value) {
+    return new int(value);
+}
+
+int main() {
+    int* a = makeInt(7);
+    int* b = makeInt(35);
+    cout << *a + *b << endl;
+    delete a;
+    delete b;
+    return 0;
+}
+```
+
+@step
+~ 2 dynamic_memory:1 pointers:0.8 tracing:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* a = new int(1);
+    int* b = new int(2);
+    // ?
+    // ?
+    *b = 9;
+    cout << *a << endl;
+    delete a;
+    return 0;
+}
+```
+@expect
+```
+9
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* a = new int(1);
+    int* b = new int(2);
+    delete b;
+    b = a;
+    *b = 9;
+    cout << *a << endl;
+    delete a;
+    return 0;
+}
+```
+
+@step
+~ 3 dynamic_memory:1 input:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+21
+```
+@expect
+```
+42
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int* number = new int;
+    cin >> *number;
+    *number = *number * 2;
+    cout << *number << endl;
+    delete number;
+    return 0;
+}
+```

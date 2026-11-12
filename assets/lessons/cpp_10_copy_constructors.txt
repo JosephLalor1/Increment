@@ -2,3 +2,309 @@
 @track C++
 @speed objects
 @title Copy Constructors
+
+@step
+~ 1 copying:1 constructors:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+        cout << "2-parameter constructor" << endl;
+    }
+    Point(Point& o) {
+        x = o.x;
+        y = o.y;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r = q;
+    cout << r.x << " " << r.y << endl;
+    return 0;
+}
+```
+@expect
+```
+2-parameter constructor
+custom copy constructor
+1 2
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+        cout << "2-parameter constructor" << endl;
+    }
+    Point(Point& o) {
+        x = o.x;
+        y = o.y;
+        cout << "custom copy constructor" << endl;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r = q;
+    cout << r.x << " " << r.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 copying:1 constructors:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0, y = 0;
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    Point(Point& o) {
+        // ?
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r = q;
+    cout << r.x << " " << r.y << endl;
+    return 0;
+}
+```
+@expect
+```
+1 2
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0, y = 0;
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    Point(Point& o) {
+        x = o.x; y = o.y;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r = q;
+    cout << r.x << " " << r.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 copying:1 references:0.8 tracing:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {}
+    Point(const Point& o) : x(o.x), y(o.y) {
+        cout << "copy" << endl;
+    }
+};
+
+void printPoint(Point p) {
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+}
+
+int main() {
+    Point q(1.0, 2.0);
+    printPoint(q);
+    return 0;
+}
+```
+@expect
+```
+(1,2)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {}
+    Point(const Point& o) : x(o.x), y(o.y) {
+        cout << "copy" << endl;
+    }
+};
+
+void printPoint(const Point& p) {
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+}
+
+int main() {
+    Point q(1.0, 2.0);
+    printPoint(q);
+    return 0;
+}
+```
+
+@step
+~ 3 copying:1 dynamic_memory:0.8 strings:0.6 debugging:0.8
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char* name;
+    MITStudent() {
+        studentID = 0;
+        name = NULL;
+    }
+};
+
+int main() {
+    MITStudent student1;
+    student1.studentID = 98;
+    char n[] = "foo";
+    student1.name = n;
+    MITStudent student2 = student1;
+    student2.name[0] = 'b';
+    cout << student1.name << " " << student2.name << endl;
+    return 0;
+}
+```
+@expect
+```
+foo boo
+```
+@solution
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+class MITStudent {
+public:
+    int studentID;
+    char* name;
+    MITStudent() {
+        studentID = 0;
+        name = NULL;
+    }
+    MITStudent(MITStudent& o) {
+        studentID = o.studentID;
+        name = new char[strlen(o.name) + 1];
+        strcpy(name, o.name);
+    }
+};
+
+int main() {
+    MITStudent student1;
+    student1.studentID = 98;
+    char n[] = "foo";
+    student1.name = n;
+    MITStudent student2 = student1;
+    student2.name[0] = 'b';
+    cout << student1.name << " " << student2.name << endl;
+    delete[] student2.name;
+    return 0;
+}
+```
+
+@step fixed
+~ 3 copying:1 dynamic_memory:0.8 constructors:0.6 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+class IntArray {
+public:
+    int size;
+    int* data;
+    IntArray(int n) : size(n), data(new int[n]) {
+        for (int i = 0; i < n; i++) data[i] = i + 1;
+    }
+    ~IntArray() {
+        delete[] data;
+    }
+    void print() {
+        for (int i = 0; i < size; i++) cout << data[i] << " ";
+        cout << endl;
+    }
+};
+
+int main() {
+    IntArray original(3);
+    IntArray copy = original;
+    copy.data[0] = 9;
+    original.print();
+    copy.print();
+    return 0;
+}
+```
+@expect
+```
+1 2 3
+9 2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class IntArray {
+public:
+    int size;
+    int* data;
+    IntArray(int n) : size(n), data(new int[n]) {
+        for (int i = 0; i < n; i++) data[i] = i + 1;
+    }
+    IntArray(const IntArray& o) : size(o.size) {
+        data = new int[size];
+        for (int i = 0; i < size; i++) data[i] = o.data[i];
+    }
+    ~IntArray() {
+        delete[] data;
+    }
+    void print() {
+        for (int i = 0; i < size; i++) cout << data[i] << " ";
+        cout << endl;
+    }
+};
+
+int main() {
+    IntArray original(3);
+    IntArray copy = original;
+    copy.data[0] = 9;
+    original.print();
+    copy.print();
+    return 0;
+}
+```

@@ -2,3 +2,500 @@
 @track C++
 @speed linked_list pointer_to_pointer
 @title Linked Lists
+
+@step
+~ 1 data_structures:1 pointers:0.6
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+int main() {
+    Node a, b, c;
+    a.data = 10;
+    b.data = 20;
+    c.data = 30;
+    a.nextPtr = &b;
+    // ?
+    c.nextPtr = nullptr;
+    for (Node* cur = &a; cur != nullptr; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+    return 0;
+}
+```
+@expect
+```
+10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+int main() {
+    Node a, b, c;
+    a.data = 10;
+    b.data = 20;
+    c.data = 30;
+    a.nextPtr = &b;
+    b.nextPtr = &c;
+    c.nextPtr = nullptr;
+    for (Node* cur = &a; cur != nullptr; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void PrintList(Node* headPtr) {
+    Node* curNodePtr = headPtr;
+    while (curNodePtr != nullptr) {
+        // ?
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    cout << endl;
+}
+
+int main() {
+    Node c = {30, nullptr};
+    Node b = {20, &c};
+    Node a = {10, &b};
+    PrintList(&a);
+    return 0;
+}
+```
+@expect
+```
+10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void PrintList(Node* headPtr) {
+    Node* curNodePtr = headPtr;
+    while (curNodePtr != nullptr) {
+        cout << curNodePtr->data << " ";
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    cout << endl;
+}
+
+int main() {
+    Node c = {30, nullptr};
+    Node b = {20, &c};
+    Node a = {10, &b};
+    PrintList(&a);
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 indirection:0.8 dynamic_memory:0.6
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtEnd(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = nullptr;
+    if (*ptrToHeadPtr == nullptr) {
+        // ?
+        return;
+    }
+    Node* curNodePtr = *ptrToHeadPtr;
+    while (curNodePtr->nextPtr != nullptr) {
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    curNodePtr->nextPtr = newNode;
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtEnd(&headPtr, 10);
+    InsertAtEnd(&headPtr, 20);
+    InsertAtEnd(&headPtr, 30);
+    cout << "Linked List: ";
+    PrintList(headPtr);
+    return 0;
+}
+```
+@expect
+```
+Linked List: 10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtEnd(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = nullptr;
+    if (*ptrToHeadPtr == nullptr) {
+        *ptrToHeadPtr = newNode;
+        return;
+    }
+    Node* curNodePtr = *ptrToHeadPtr;
+    while (curNodePtr->nextPtr != nullptr) {
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    curNodePtr->nextPtr = newNode;
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtEnd(&headPtr, 10);
+    InsertAtEnd(&headPtr, 20);
+    InsertAtEnd(&headPtr, 30);
+    cout << "Linked List: ";
+    PrintList(headPtr);
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 indirection:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtBeginning(Node* headPtr, int newData) {
+    Node* newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = headPtr;
+    headPtr = newNode;
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtBeginning(headPtr, 30);
+    InsertAtBeginning(headPtr, 20);
+    InsertAtBeginning(headPtr, 10);
+    cout << "Linked List: ";
+    PrintList(headPtr);
+    return 0;
+}
+```
+@expect
+```
+Linked List: 10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtBeginning(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node();
+    newNode->data = newData;
+    newNode->nextPtr = *ptrToHeadPtr;
+    *ptrToHeadPtr = newNode;
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtBeginning(&headPtr, 30);
+    InsertAtBeginning(&headPtr, 20);
+    InsertAtBeginning(&headPtr, 10);
+    cout << "Linked List: ";
+    PrintList(headPtr);
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 loops:0.6 functions:0.6
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+int Length(Node* headPtr) {
+    return 0;
+}
+
+int main() {
+    Node d = {40, nullptr};
+    Node c = {30, &d};
+    Node b = {20, &c};
+    Node a = {10, &b};
+    cout << "Length: " << Length(&a) << endl;
+    cout << "Length: " << Length(&c) << endl;
+    return 0;
+}
+```
+@expect
+```
+Length: 4
+Length: 2
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+int Length(Node* headPtr) {
+    int count = 0;
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        count++;
+    }
+    return count;
+}
+
+int main() {
+    Node d = {40, nullptr};
+    Node c = {30, &d};
+    Node b = {20, &c};
+    Node a = {10, &b};
+    cout << "Length: " << Length(&a) << endl;
+    cout << "Length: " << Length(&c) << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 data_structures:1 indirection:0.8 dynamic_memory:0.6 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtEnd(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node{newData, nullptr};
+    Node** link = ptrToHeadPtr;
+    while (*link != nullptr) link = &(*link)->nextPtr;
+    *link = newNode;
+}
+
+void DeleteWithValue(Node** ptrToHeadPtr, int value) {
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtEnd(&headPtr, 10);
+    InsertAtEnd(&headPtr, 20);
+    InsertAtEnd(&headPtr, 30);
+    DeleteWithValue(&headPtr, 20);
+    PrintList(headPtr);
+    DeleteWithValue(&headPtr, 10);
+    PrintList(headPtr);
+    return 0;
+}
+```
+@expect
+```
+10 30
+30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtEnd(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node{newData, nullptr};
+    Node** link = ptrToHeadPtr;
+    while (*link != nullptr) link = &(*link)->nextPtr;
+    *link = newNode;
+}
+
+void DeleteWithValue(Node** ptrToHeadPtr, int value) {
+    Node* curNodePtr = *ptrToHeadPtr;
+    if (curNodePtr != nullptr && curNodePtr->data == value) {
+        *ptrToHeadPtr = curNodePtr->nextPtr;
+        delete curNodePtr;
+        return;
+    }
+    Node* prev = nullptr;
+    while (curNodePtr != nullptr && curNodePtr->data != value) {
+        prev = curNodePtr;
+        curNodePtr = curNodePtr->nextPtr;
+    }
+    if (curNodePtr == nullptr) return;
+    prev->nextPtr = curNodePtr->nextPtr;
+    delete curNodePtr;
+}
+
+void PrintList(Node* headPtr) {
+    for (Node* cur = headPtr; cur; cur = cur->nextPtr) {
+        cout << cur->data << " ";
+    }
+    cout << endl;
+}
+
+int main() {
+    Node* headPtr = nullptr;
+    InsertAtEnd(&headPtr, 10);
+    InsertAtEnd(&headPtr, 20);
+    InsertAtEnd(&headPtr, 30);
+    DeleteWithValue(&headPtr, 20);
+    PrintList(headPtr);
+    DeleteWithValue(&headPtr, 10);
+    PrintList(headPtr);
+    return 0;
+}
+```
+
+@step
+~ 3 data_structures:1 indirection:0.8 input:0.6 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+4
+5 8 2 7
+```
+@expect
+```
+7 2 8 5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int data;
+    Node* nextPtr;
+};
+
+void InsertAtBeginning(Node** ptrToHeadPtr, int newData) {
+    Node* newNode = new Node{newData, *ptrToHeadPtr};
+    *ptrToHeadPtr = newNode;
+}
+
+int main() {
+    int count;
+    cin >> count;
+    Node* headPtr = nullptr;
+    for (int i = 0; i < count; i++) {
+        int value;
+        cin >> value;
+        InsertAtBeginning(&headPtr, value);
+    }
+    while (headPtr != nullptr) {
+        cout << headPtr->data << " ";
+        Node* next = headPtr->nextPtr;
+        delete headPtr;
+        headPtr = next;
+    }
+    cout << endl;
+    return 0;
+}
+```

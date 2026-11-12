@@ -2,3 +2,713 @@
 @track C++
 @speed linked_list objects
 @title A LinkedList Class
+
+@step
+~ 1 data_structures:1 classes:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtBeginning(30);
+    list.insertAtBeginning(20);
+    // ?
+    list.printList();
+    return 0;
+}
+```
+@expect
+```
+10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtBeginning(30);
+    list.insertAtBeginning(20);
+    list.insertAtBeginning(10);
+    list.printList();
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 classes:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    int getSize() {
+        return 0;
+    }
+    bool contains(int value) {
+        return false;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtBeginning(30);
+    list.insertAtBeginning(20);
+    list.insertAtBeginning(10);
+    cout << "List size: " << list.getSize() << endl;
+    cout << "List contains 10: " << list.contains(10) << endl;
+    cout << "List contains 25: " << list.contains(25) << endl;
+    return 0;
+}
+```
+@expect
+```
+List size: 3
+List contains 10: 1
+List contains 25: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    int getSize() {
+        int count = 0;
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            count++;
+        }
+        return count;
+    }
+    bool contains(int value) {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            if (cur->data == value) return true;
+        }
+        return false;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtBeginning(30);
+    list.insertAtBeginning(20);
+    list.insertAtBeginning(10);
+    cout << "List size: " << list.getSize() << endl;
+    cout << "List contains 10: " << list.contains(10) << endl;
+    cout << "List contains 25: " << list.contains(25) << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 classes:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        head = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    cout << "Linked List after inserting 10, 20, 30: ";
+    list.printList();
+    return 0;
+}
+```
+@expect
+```
+Linked List after inserting 10, 20, 30: 10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        if (head == nullptr) {
+            head = newNode;
+            return;
+        }
+        Node* current = head;
+        while (current->next != nullptr) {
+            current = current->next;
+        }
+        current->next = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    cout << "Linked List after inserting 10, 20, 30: ";
+    list.printList();
+    return 0;
+}
+```
+
+@step
+~ 2 data_structures:1 constructors:0.8 memory_safety:0.8
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) { live++; }
+    ~Node() { live--; }
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    ~LinkedList() {
+        clear();
+    }
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    void clear() {
+    }
+};
+
+int main() {
+    {
+        LinkedList list;
+        list.insertAtBeginning(30);
+        list.insertAtBeginning(20);
+        list.insertAtBeginning(10);
+        cout << "live: " << live << endl;
+    }
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+live: 3
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) { live++; }
+    ~Node() { live--; }
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    ~LinkedList() {
+        clear();
+    }
+    void insertAtBeginning(int newData) {
+        Node* newNode = new Node(newData);
+        newNode->next = head;
+        head = newNode;
+    }
+    void clear() {
+        Node* current = head;
+        while (current != nullptr) {
+            Node* temp = current;
+            current = current->next;
+            delete temp;
+        }
+        head = nullptr;
+    }
+};
+
+int main() {
+    {
+        LinkedList list;
+        list.insertAtBeginning(30);
+        list.insertAtBeginning(20);
+        list.insertAtBeginning(10);
+        cout << "live: " << live << endl;
+    }
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 data_structures:1 classes:0.8 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        Node** link = &head;
+        while (*link != nullptr) link = &(*link)->next;
+        *link = newNode;
+    }
+    void deleteWithValue(int value) {
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(5);
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    list.deleteWithValue(20);
+    cout << "After deleting 20: ";
+    list.printList();
+    list.deleteWithValue(5);
+    cout << "After deleting 5: ";
+    list.printList();
+    return 0;
+}
+```
+@expect
+```
+After deleting 20: 5 10 30
+After deleting 5: 10 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        Node** link = &head;
+        while (*link != nullptr) link = &(*link)->next;
+        *link = newNode;
+    }
+    void deleteWithValue(int value) {
+        if (head == nullptr) return;
+        if (head->data == value) {
+            Node* temp = head;
+            head = head->next;
+            delete temp;
+            return;
+        }
+        Node* current = head;
+        Node* prev = nullptr;
+        while (current != nullptr && current->data != value) {
+            prev = current;
+            current = current->next;
+        }
+        if (current == nullptr) return;
+        prev->next = current->next;
+        delete current;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(5);
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    list.insertAtEnd(30);
+    list.deleteWithValue(20);
+    cout << "After deleting 20: ";
+    list.printList();
+    list.deleteWithValue(5);
+    cout << "After deleting 5: ";
+    list.printList();
+    return 0;
+}
+```
+
+@step
+~ 3 data_structures:1 copying:1 constructors:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        Node** link = &head;
+        while (*link != nullptr) link = &(*link)->next;
+        *link = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    LinkedList list2 = list;
+    list2.insertAtEnd(30);
+    cout << "Original: ";
+    list.printList();
+    cout << "Copied list: ";
+    list2.printList();
+    return 0;
+}
+```
+@expect
+```
+Original: 10 20
+Copied list: 10 20 30
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Node {
+public:
+    int data;
+    Node* next;
+    Node(int value) : data(value), next(nullptr) {}
+};
+
+class LinkedList {
+private:
+    Node* head;
+public:
+    LinkedList() : head(nullptr) {}
+    LinkedList(const LinkedList& other) {
+        head = nullptr;
+        Node* current = other.head;
+        while (current != nullptr) {
+            insertAtEnd(current->data);
+            current = current->next;
+        }
+    }
+    void insertAtEnd(int newData) {
+        Node* newNode = new Node(newData);
+        Node** link = &head;
+        while (*link != nullptr) link = &(*link)->next;
+        *link = newNode;
+    }
+    void printList() {
+        for (Node* cur = head; cur != nullptr; cur = cur->next) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    LinkedList list;
+    list.insertAtEnd(10);
+    list.insertAtEnd(20);
+    LinkedList list2 = list;
+    list2.insertAtEnd(30);
+    cout << "Original: ";
+    list.printList();
+    cout << "Copied list: ";
+    list2.printList();
+    return 0;
+}
+```
+
+@step
+~ 3 data_structures:1 classes:0.8 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+class DoublyLinkedNode {
+public:
+    int data;
+    DoublyLinkedNode* prevPointer;
+    DoublyLinkedNode* nextPointer;
+    DoublyLinkedNode(int value)
+        : data(value), prevPointer(nullptr),
+          nextPointer(nullptr) {}
+};
+
+class DoublyLinkedList {
+private:
+    DoublyLinkedNode* head;
+    DoublyLinkedNode* tail;
+public:
+    DoublyLinkedList() : head(nullptr), tail(nullptr) {}
+    void InsertAtEnd(int newData) {
+    }
+    void printForward() {
+        for (DoublyLinkedNode* cur = head; cur;
+             cur = cur->nextPointer) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+    void printBackward() {
+        for (DoublyLinkedNode* cur = tail; cur;
+             cur = cur->prevPointer) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    DoublyLinkedList list;
+    list.InsertAtEnd(10);
+    list.InsertAtEnd(20);
+    list.InsertAtEnd(30);
+    list.printForward();
+    list.printBackward();
+    return 0;
+}
+```
+@expect
+```
+10 20 30
+30 20 10
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class DoublyLinkedNode {
+public:
+    int data;
+    DoublyLinkedNode* prevPointer;
+    DoublyLinkedNode* nextPointer;
+    DoublyLinkedNode(int value)
+        : data(value), prevPointer(nullptr),
+          nextPointer(nullptr) {}
+};
+
+class DoublyLinkedList {
+private:
+    DoublyLinkedNode* head;
+    DoublyLinkedNode* tail;
+public:
+    DoublyLinkedList() : head(nullptr), tail(nullptr) {}
+    void InsertAtEnd(int newData) {
+        DoublyLinkedNode* newNode = new DoublyLinkedNode(newData);
+        if (tail == nullptr) {
+            head = tail = newNode;
+            return;
+        }
+        newNode->prevPointer = tail;
+        tail->nextPointer = newNode;
+        tail = newNode;
+    }
+    void printForward() {
+        for (DoublyLinkedNode* cur = head; cur;
+             cur = cur->nextPointer) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+    void printBackward() {
+        for (DoublyLinkedNode* cur = tail; cur;
+             cur = cur->prevPointer) {
+            cout << cur->data << " ";
+        }
+        cout << endl;
+    }
+};
+
+int main() {
+    DoublyLinkedList list;
+    list.InsertAtEnd(10);
+    list.InsertAtEnd(20);
+    list.InsertAtEnd(30);
+    list.printForward();
+    list.printBackward();
+    return 0;
+}
+```

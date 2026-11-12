@@ -2,3 +2,297 @@
 @track C
 @speed pointer_to_pointer pointers
 @title Pointers to Pointers
+
+@step
+~ 1 indirection:1 pointers:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = &ptr;
+    printf("i = %d\n", i);
+    // ?
+    return 0;
+}
+```
+@expect
+```
+i = 5
+**pptr = 5
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = &ptr;
+    printf("i = %d\n", i);
+    printf("**pptr = %d\n", **pptr);
+    return 0;
+}
+```
+
+@step
+~ 1 indirection:1 pointers:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = &ptr;
+    // ?
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+@expect
+```
+i = 7
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = &ptr;
+    **pptr = 7;
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+
+@step
+~ 2 indirection:1 tracing:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int i = 2, j = 8;
+    int* ptr;
+    int** pptr;
+    ptr = &i;
+    pptr = &ptr;
+    *ptr = 7;
+    **pptr = 12;
+    ptr = &j;
+    **pptr = 34;
+    // ?
+    *ptr = -25;
+    printf("i = %d, j = %d\n", i, j);
+    return 0;
+}
+```
+@expect
+```
+i = -25, j = 34
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 2, j = 8;
+    int* ptr;
+    int** pptr;
+    ptr = &i;
+    pptr = &ptr;
+    *ptr = 7;
+    **pptr = 12;
+    ptr = &j;
+    **pptr = 34;
+    *pptr = &i;
+    *ptr = -25;
+    printf("i = %d, j = %d\n", i, j);
+    return 0;
+}
+```
+
+@step broken
+~ 2 indirection:1 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = ptr;
+    printf("%d %d %d\n", i, *ptr, **pptr);
+    return 0;
+}
+```
+@expect
+```
+5 5 5
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr = &i;
+    int** pptr = &ptr;
+    printf("%d %d %d\n", i, *ptr, **pptr);
+    return 0;
+}
+```
+
+@step
+~ 2 indirection:1 parameter_passing:0.8
+```
+#include <stdio.h>
+
+void pointAt(int** pp, int* target) {
+    // ?
+}
+
+int main() {
+    int a = 1, b = 2;
+    int* p = &a;
+    pointAt(&p, &b);
+    printf("*p = %d\n", *p);
+    return 0;
+}
+```
+@expect
+```
+*p = 2
+```
+@solution
+```
+#include <stdio.h>
+
+void pointAt(int** pp, int* target) {
+    *pp = target;
+}
+
+int main() {
+    int a = 1, b = 2;
+    int* p = &a;
+    pointAt(&p, &b);
+    printf("*p = %d\n", *p);
+    return 0;
+}
+```
+
+@step
+~ 2 indirection:1 parameter_passing:0.8 debugging:0.8
+```
+#include <stdio.h>
+
+void pointAt(int* p, int* target) {
+    p = target;
+    printf("inside: %d\n", *p);
+}
+
+int main() {
+    int a = 1, b = 2;
+    int* p = &a;
+    pointAt(p, &b);
+    printf("*p = %d\n", *p);
+    return 0;
+}
+```
+@expect
+```
+inside: 2
+*p = 2
+```
+@solution
+```
+#include <stdio.h>
+
+void pointAt(int** p, int* target) {
+    *p = target;
+    printf("inside: %d\n", **p);
+}
+
+int main() {
+    int a = 1, b = 2;
+    int* p = &a;
+    pointAt(&p, &b);
+    printf("*p = %d\n", *p);
+    return 0;
+}
+```
+
+@step
+~ 3 indirection:1 conditions:0.6 parameter_passing:0.6
+```
+#include <stdio.h>
+
+void pickLarger(int** result, int* a, int* b) {
+}
+
+int main() {
+    int x = 4, y = 9;
+    int* best = &x;
+    pickLarger(&best, &x, &y);
+    *best = 0;
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+@expect
+```
+x = 4, y = 0
+```
+@solution
+```
+#include <stdio.h>
+
+void pickLarger(int** result, int* a, int* b) {
+    if (*a > *b) *result = a;
+    else *result = b;
+}
+
+int main() {
+    int x = 4, y = 9;
+    int* best = &x;
+    pickLarger(&best, &x, &y);
+    *best = 0;
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+
+@step
+~ 3 indirection:1 pointers:0.8 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+3 8
+```
+@expect
+```
+6 9
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i, j;
+    scanf("%d %d", &i, &j);
+    int* ptr = &i;
+    int** pptr = &ptr;
+    **pptr = **pptr * 2;
+    *pptr = &j;
+    **pptr = **pptr + 1;
+    printf("%d %d\n", i, j);
+    return 0;
+}
+```

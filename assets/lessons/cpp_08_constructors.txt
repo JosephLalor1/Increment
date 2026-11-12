@@ -2,3 +2,360 @@
 @track C++
 @speed objects
 @title Constructors, Pointers to Objects and this
+
+@step
+~ 1 constructors:1 classes:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+    }
+};
+
+int main() {
+    Point p;
+    cout << p.x << " " << p.y << endl;
+    return 0;
+}
+```
+@expect
+```
+Point instance created
+0 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+        cout << "Point instance created" << endl;
+    }
+};
+
+int main() {
+    Point p;
+    cout << p.x << " " << p.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 1 constructors:1 classes:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+        cout << "default constructor" << endl;
+    }
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+        cout << "2-parameter constructor" << endl;
+    }
+};
+
+int main() {
+    Point q;
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+@expect
+```
+2-parameter constructor
+2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+        cout << "default constructor" << endl;
+    }
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+        cout << "2-parameter constructor" << endl;
+    }
+};
+
+int main() {
+    Point q(2.0, 3.0);
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 2 constructors:1 classes:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() : x(0), y(0) {
+    }
+    // ?
+};
+
+int main() {
+    Point p;
+    Point q(2.0, 3.0);
+    cout << p.x << " " << p.y << endl;
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+@expect
+```
+0 0
+2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() : x(0), y(0) {
+    }
+    Point(double nx, double ny) : x(nx), y(ny) {}
+};
+
+int main() {
+    Point p;
+    Point q(2.0, 3.0);
+    cout << p.x << " " << p.y << endl;
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1 pointers:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() : x(0), y(0) {}
+};
+
+int main() {
+    Point* pPtr;
+    Point p;
+    pPtr = &p;
+    // ?
+    p.y = 20;
+    cout << p.x << " " << p.y << endl;
+    cout << pPtr->x << " " << pPtr->y << endl;
+    return 0;
+}
+```
+@expect
+```
+10 20
+10 20
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() : x(0), y(0) {}
+};
+
+int main() {
+    Point* pPtr;
+    Point p;
+    pPtr = &p;
+    pPtr->x = 10;
+    p.y = 20;
+    cout << p.x << " " << p.y << endl;
+    cout << pPtr->x << " " << pPtr->y << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 2 classes:1 dynamic_memory:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+        cout << "Point instance created" << endl;
+    }
+};
+
+int main() {
+    Point* p;
+    p = new Point();
+    p.x = 10;
+    cout << p.x << " " << p.y << endl;
+    delete p;
+    return 0;
+}
+```
+@expect
+```
+Point instance created
+10 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point() {
+        x = 0.0;
+        y = 0.0;
+        cout << "Point instance created" << endl;
+    }
+};
+
+int main() {
+    Point* p;
+    p = new Point();
+    p->x = 10;
+    cout << p->x << " " << p->y << endl;
+    delete p;
+    return 0;
+}
+```
+
+@step
+~ 2 constructors:1 classes:0.6 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0, y = 0;
+    Point(double x, double y) {
+        x = x;
+        y = y;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+@expect
+```
+1 2
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x = 0, y = 0;
+    Point(double x, double y) {
+        this->x = x;
+        this->y = y;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    cout << q.x << " " << q.y << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 3 constructors:1 classes:0.8 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    BankAccount account(100);
+    account.deposit(50);
+    account.withdraw(30);
+    account.withdraw(500);
+    cout << "Balance: " << account.getBalance() << endl;
+    return 0;
+}
+```
+@expect
+```
+Balance: 120
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class BankAccount {
+public:
+    int balance;
+    BankAccount(int start) : balance(start) {}
+    void deposit(int amount) {
+        balance += amount;
+    }
+    void withdraw(int amount) {
+        if (amount <= balance) balance -= amount;
+    }
+    int getBalance() {
+        return balance;
+    }
+};
+
+int main() {
+    BankAccount account(100);
+    account.deposit(50);
+    account.withdraw(30);
+    account.withdraw(500);
+    cout << "Balance: " << account.getBalance() << endl;
+    return 0;
+}
+```

@@ -2,3 +2,373 @@
 @track C++
 @speed objects new_delete
 @title Arrays of Objects and Destructors
+
+@step
+~ 1 classes:1 arrays:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point points[5];
+    for (int i = 0; i < 5; i++) {
+        points[i].x = i;
+    }
+    for (int i = 0; i < 5; i++) {
+        points[i].Print();
+    }
+    cout << endl;
+    return 0;
+}
+```
+@expect
+```
+0 2 4 6 8
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point points[5];
+    for (int i = 0; i < 5; i++) {
+        points[i].x = i * 2;
+    }
+    for (int i = 0; i < 5; i++) {
+        points[i].Print();
+    }
+    cout << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1 dynamic_memory:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point* pointPointers[4];
+    for (int i = 0; i < 4; i++) {
+        // ?
+    }
+    for (int i = 0; i < 4; i++) {
+        pointPointers[i]->Print();
+    }
+    cout << endl;
+    for (int i = 0; i < 4; i++) {
+        delete pointPointers[i];
+    }
+    return 0;
+}
+```
+@expect
+```
+0 1 2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point* pointPointers[4];
+    for (int i = 0; i < 4; i++) {
+        pointPointers[i] = new Point(i);
+    }
+    for (int i = 0; i < 4; i++) {
+        pointPointers[i]->Print();
+    }
+    cout << endl;
+    for (int i = 0; i < 4; i++) {
+        delete pointPointers[i];
+    }
+    return 0;
+}
+```
+
+@step broken
+~ 2 classes:1 dynamic_memory:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point* points = new Point[3];
+    for (int i = 0; i < 3; i++) {
+        points[i].x = i + 1;
+    }
+    for (int i = 0; i < 3; i++) {
+        points[i]->Print();
+    }
+    cout << endl;
+    delete[] points;
+    return 0;
+}
+```
+@expect
+```
+1 2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point() : x(0) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    Point* points = new Point[3];
+    for (int i = 0; i < 3; i++) {
+        points[i].x = i + 1;
+    }
+    for (int i = 0; i < 3; i++) {
+        points[i].Print();
+    }
+    cout << endl;
+    delete[] points;
+    return 0;
+}
+```
+
+@step
+~ 2 constructors:1 scope:0.8 tracing:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Noisy {
+public:
+    Noisy() {
+        cout << "made" << endl;
+    }
+};
+
+int main() {
+    {
+        Noisy n;
+        cout << "inside" << endl;
+    }
+    cout << "after" << endl;
+    return 0;
+}
+```
+@expect
+```
+made
+inside
+gone
+after
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Noisy {
+public:
+    Noisy() {
+        cout << "made" << endl;
+    }
+    ~Noisy() {
+        cout << "gone" << endl;
+    }
+};
+
+int main() {
+    {
+        Noisy n;
+        cout << "inside" << endl;
+    }
+    cout << "after" << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 constructors:1 dynamic_memory:0.8 memory_safety:0.8
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+class Point {
+public:
+    int x, y;
+};
+
+class ManyPoints {
+public:
+    Point* points;
+    ManyPoints() {
+        points = new Point[2000];
+        live++;
+    }
+};
+
+int main() {
+    {
+        ManyPoints many[10];
+    }
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+class Point {
+public:
+    int x, y;
+};
+
+class ManyPoints {
+public:
+    Point* points;
+    ManyPoints() {
+        points = new Point[2000];
+        live++;
+    }
+    ~ManyPoints() {
+        delete[] points;
+        live--;
+    }
+};
+
+int main() {
+    {
+        ManyPoints many[10];
+    }
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 classes:1 dynamic_memory:0.8 indirection:0.8 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    int count;
+    cin >> count;
+    return 0;
+}
+```
+@input
+```
+5
+```
+@expect
+```
+0 10 20 30 40
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    int x;
+    Point(int val) : x(val) {}
+    void Print() {
+        cout << x << " ";
+    }
+};
+
+int main() {
+    int count;
+    cin >> count;
+    Point** pointPointers = new Point*[count];
+    for (int i = 0; i < count; i++) {
+        pointPointers[i] = new Point(i * 10);
+    }
+    for (int i = 0; i < count; i++) {
+        pointPointers[i]->Print();
+    }
+    cout << endl;
+    for (int i = 0; i < count; i++) {
+        delete pointPointers[i];
+    }
+    delete[] pointPointers;
+    return 0;
+}
+```

@@ -2,3 +2,281 @@
 @track C
 @speed arrays
 @title Arrays
+
+@step
+~ 1 arrays:1
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    printf("First element: %d\n", numbers[0]);
+    return 0;
+}
+```
+@expect
+```
+Third element: 30
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    printf("Third element: %d\n", numbers[2]);
+    return 0;
+}
+```
+
+@step
+~ 1 arrays:1
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    // ?
+    printf("Modified second element: %d\n", numbers[1]);
+    return 0;
+}
+```
+@expect
+```
+Modified second element: 25
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    numbers[1] = 25;
+    printf("Modified second element: %d\n", numbers[1]);
+    return 0;
+}
+```
+
+@step
+~ 1 arrays:1 loops:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int scores[10] = {85, 92, 78};
+    for (int i = 0; i < 3; i++) {
+        printf("scores[%d] = %d\n", i, scores[i]);
+    }
+    return 0;
+}
+```
+@expect
+```
+scores[0] = 85
+scores[1] = 92
+scores[2] = 78
+scores[3] = 0
+scores[4] = 0
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int scores[10] = {85, 92, 78};
+    for (int i = 0; i < 5; i++) {
+        printf("scores[%d] = %d\n", i, scores[i]);
+    }
+    return 0;
+}
+```
+
+@step
+~ 2 arrays:1 loops:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    int sum = 0;
+    for (int i = 0; i < 5; i++) {
+        // ?
+    }
+    printf("Sum: %d\n", sum);
+    return 0;
+}
+```
+@expect
+```
+Sum: 150
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5] = {10, 20, 30, 40, 50};
+    int sum = 0;
+    for (int i = 0; i < 5; i++) {
+        sum += numbers[i];
+    }
+    printf("Sum: %d\n", sum);
+    return 0;
+}
+```
+
+@step
+~ 2 arrays:1 loops:0.6 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {-45, -12, -89, -34, -67, -23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int max = 0;
+    for (int i = 0; i < size; i++) {
+        if (values[i] > max) {
+            max = values[i];
+        }
+    }
+    printf("Maximum value: %d\n", max);
+    return 0;
+}
+```
+@expect
+```
+Maximum value: -12
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {-45, -12, -89, -34, -67, -23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int max = values[0];
+    for (int i = 1; i < size; i++) {
+        if (values[i] > max) {
+            max = values[i];
+        }
+    }
+    printf("Maximum value: %d\n", max);
+    return 0;
+}
+```
+
+@step
+~ 2 arrays:1 loops:0.6 conditions:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int limit = 40;
+    int count = 0;
+    printf("Above %d: %d\n", limit, count);
+    return 0;
+}
+```
+@expect
+```
+Above 40: 3
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    int limit = 40;
+    int count = 0;
+    for (int i = 0; i < size; i++) {
+        if (values[i] > limit) {
+            count++;
+        }
+    }
+    printf("Above %d: %d\n", limit, count);
+    return 0;
+}
+```
+
+@step
+~ 3 arrays:1 loops:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int matrix[3][4] = {
+        {1, 2, 3, 4},
+        {5, 6, 7, 8},
+        {9, 10, 11, 12}
+    };
+    for (int col = 0; col < 4; col++) {
+        printf("%3d ", matrix[0][col]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+Row 0: 10
+Row 1: 26
+Row 2: 42
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int matrix[3][4] = {
+        {1, 2, 3, 4},
+        {5, 6, 7, 8},
+        {9, 10, 11, 12}
+    };
+    for (int row = 0; row < 3; row++) {
+        int total = 0;
+        for (int col = 0; col < 4; col++) {
+            total += matrix[row][col];
+        }
+        printf("Row %d: %d\n", row, total);
+    }
+    return 0;
+}
+```
+
+@step
+~ 3 arrays:1 loops:0.8 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+3 8 1 9 4
+```
+@expect
+```
+4 9 1 8 3
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int numbers[5];
+    for (int i = 0; i < 5; i++) {
+        scanf("%d", &numbers[i]);
+    }
+    for (int i = 4; i >= 0; i--) {
+        printf("%d ", numbers[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```

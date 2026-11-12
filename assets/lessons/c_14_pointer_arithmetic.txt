@@ -2,3 +2,302 @@
 @track C
 @speed pointer_arithmetic arrays
 @title Pointer Arithmetic and Arrays
+
+@step
+~ 1 pointer_arithmetic:1 arrays:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {10, 20, 30};
+    int* p = arr;
+    printf("%d\n", *p);
+    return 0;
+}
+```
+@expect
+```
+20
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {10, 20, 30};
+    int* p = arr;
+    printf("%d\n", *(p + 1));
+    return 0;
+}
+```
+
+@step
+~ 1 pointer_arithmetic:1 loops:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {4, 6, 7, 8, 9};
+    int* ptr = arr;
+    int len = sizeof(arr) / sizeof(arr[0]);
+    for (int i = 0; i < len; i++) {
+        // ?
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+4 6 7 8 9
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {4, 6, 7, 8, 9};
+    int* ptr = arr;
+    int len = sizeof(arr) / sizeof(arr[0]);
+    for (int i = 0; i < len; i++) {
+        printf("%d ", *(ptr + i));
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 2 pointer_arithmetic:1 tracing:0.8
+```
+#include <stdio.h>
+
+int main() {
+    float a[4] = {0};
+    float* ptr;
+    ptr = &(a[2]);
+    *ptr = 3.14;
+    ptr++;
+    *ptr = 9.0;
+    ptr = ptr - 3;
+    *ptr = 6.0;
+    // ?
+    *ptr = 7.0;
+    for (int i = 0; i < 4; i++) {
+        printf("%.2f ", a[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+6.00 0.00 7.00 9.00
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    float a[4] = {0};
+    float* ptr;
+    ptr = &(a[2]);
+    *ptr = 3.14;
+    ptr++;
+    *ptr = 9.0;
+    ptr = ptr - 3;
+    *ptr = 6.0;
+    ptr += 2;
+    *ptr = 7.0;
+    for (int i = 0; i < 4; i++) {
+        printf("%.2f ", a[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 2 pointer_arithmetic:1 functions:0.6 loops:0.6
+```
+#include <stdio.h>
+
+int sum(int* ptr, int numValues) {
+    return 0;
+}
+
+int main() {
+    int a[] = {4, 6, 7, 8, 9};
+    printf("%d\n", sum(a, 5));
+    return 0;
+}
+```
+@expect
+```
+34
+```
+@solution
+```
+#include <stdio.h>
+
+int sum(int* ptr, int numValues) {
+    int total = 0;
+    for (int i = 0; i < numValues; i++) {
+        total += *(ptr + i);
+    }
+    return total;
+}
+
+int main() {
+    int a[] = {4, 6, 7, 8, 9};
+    printf("%d\n", sum(a, 5));
+    return 0;
+}
+```
+
+@step fixed
+~ 2 pointer_arithmetic:1 loops:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int a[] = {4, 6, 7, 8, 9, 0};
+    int sum = 0;
+    for (int* ptr = a; ptr < a + 3; ptr++) {
+        sum += *ptr;
+    }
+    printf("%d\n", sum);
+    return 0;
+}
+```
+@expect
+```
+34
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int a[] = {4, 6, 7, 8, 9, 0};
+    int sum = 0;
+    for (int* ptr = a; *ptr != 0; ptr++) {
+        sum += *ptr;
+    }
+    printf("%d\n", sum);
+    return 0;
+}
+```
+
+@step
+~ 2 pointer_arithmetic:1 loops:0.6 conditions:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {5, 3, 8, -1, 4};
+    int* p = arr;
+    // ?
+    printf("first negative at %d\n", (int)(p - arr));
+    return 0;
+}
+```
+@expect
+```
+first negative at 3
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int arr[] = {5, 3, 8, -1, 4};
+    int* p = arr;
+    while (*p >= 0) p++;
+    printf("first negative at %d\n", (int)(p - arr));
+    return 0;
+}
+```
+
+@step
+~ 3 pointer_arithmetic:1 functions:0.6 loops:0.6 problem_solving:0.6
+```
+#include <stdio.h>
+
+void reverse_array(int* arr, int size) {
+}
+
+int main() {
+    int arr[5] = {1, 2, 3, 4, 5};
+    reverse_array(arr, 5);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", *(arr + i));
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+5 4 3 2 1
+```
+@solution
+```
+#include <stdio.h>
+
+void reverse_array(int* arr, int size) {
+    int* left = arr;
+    int* right = arr + size - 1;
+    while (left < right) {
+        int temp = *left;
+        *left = *right;
+        *right = temp;
+        left++;
+        right--;
+    }
+}
+
+int main() {
+    int arr[5] = {1, 2, 3, 4, 5};
+    reverse_array(arr, 5);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", *(arr + i));
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 3 pointer_arithmetic:1 loops:0.8 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+3 1 4 1 5
+```
+@expect
+```
+5 1 4 1 3
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int values[5];
+    for (int* p = values; p < values + 5; p++) {
+        scanf("%d", p);
+    }
+    for (int* p = values + 4; p >= values; p--) {
+        printf("%d ", *p);
+    }
+    printf("\n");
+    return 0;
+}
+```

@@ -2,3 +2,328 @@
 @track C++
 @speed new_delete
 @title Dynamic Arrays
+
+@step
+~ 1 dynamic_memory:1 arrays:0.6 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems = 5;
+    int* arr = new int[numItems];
+    for (int i = 0; i < numItems; ++i) {
+        arr[i] = i * 10;
+    }
+    for (int i = 0; i < numItems; ++i) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+    delete[] arr;
+    return 0;
+}
+```
+@expect
+```
+0 1 4 9 16
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems = 5;
+    int* arr = new int[numItems];
+    for (int i = 0; i < numItems; ++i) {
+        arr[i] = i * i;
+    }
+    for (int i = 0; i < numItems; ++i) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+    delete[] arr;
+    return 0;
+}
+```
+
+@step broken
+~ 1 dynamic_memory:1 arrays:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems = 3;
+    // ?
+    for (int i = 0; i < numItems; ++i) {
+        arr[i] = i + 1;
+    }
+    cout << arr[0] + arr[1] + arr[2] << endl;
+    delete[] arr;
+    return 0;
+}
+```
+@expect
+```
+6
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems = 3;
+    int* arr = new int[numItems];
+    for (int i = 0; i < numItems; ++i) {
+        arr[i] = i + 1;
+    }
+    cout << arr[0] + arr[1] + arr[2] << endl;
+    delete[] arr;
+    return 0;
+}
+```
+
+@step fixed
+~ 2 dynamic_memory:1 input:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems;
+    cin >> numItems;
+    int* arr = new int[numItems];
+    for (int i = 0; i < numItems; ++i) {
+        cin >> arr[i];
+    }
+    delete[] arr;
+    return 0;
+}
+```
+@input
+```
+3
+7 4 9
+```
+@expect
+```
+7
+4
+9
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems;
+    cin >> numItems;
+    int* arr = new int[numItems];
+    for (int i = 0; i < numItems; ++i) {
+        cin >> arr[i];
+    }
+    for (int i = 0; i < numItems; ++i) {
+        cout << arr[i] << endl;
+    }
+    delete[] arr;
+    return 0;
+}
+```
+
+@step
+~ 2 dynamic_memory:1 functions:0.6 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+int* makeRange(int n) {
+    return nullptr;
+}
+
+int main() {
+    int n = 5;
+    int* range = makeRange(n);
+    for (int i = 0; i < n; ++i) {
+        cout << range[i] << " ";
+    }
+    cout << endl;
+    delete[] range;
+    return 0;
+}
+```
+@expect
+```
+1 2 3 4 5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int* makeRange(int n) {
+    int* range = new int[n];
+    for (int i = 0; i < n; ++i) {
+        range[i] = i + 1;
+    }
+    return range;
+}
+
+int main() {
+    int n = 5;
+    int* range = makeRange(n);
+    for (int i = 0; i < n; ++i) {
+        cout << range[i] << " ";
+    }
+    cout << endl;
+    delete[] range;
+    return 0;
+}
+```
+
+@step
+~ 3 dynamic_memory:1 arrays:0.8 loops:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int size = 3;
+    int* arr = new int[size];
+    for (int i = 0; i < size; ++i) {
+        arr[i] = (i + 1) * 10;
+    }
+    int newSize = 5;
+    for (int i = 0; i < size; ++i) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+    delete[] arr;
+    return 0;
+}
+```
+@expect
+```
+10 20 30 0 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int size = 3;
+    int* arr = new int[size];
+    for (int i = 0; i < size; ++i) {
+        arr[i] = (i + 1) * 10;
+    }
+    int newSize = 5;
+    int* bigger = new int[newSize];
+    for (int i = 0; i < newSize; ++i) {
+        bigger[i] = i < size ? arr[i] : 0;
+    }
+    delete[] arr;
+    arr = bigger;
+    size = newSize;
+    for (int i = 0; i < size; ++i) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
+    delete[] arr;
+    return 0;
+}
+```
+
+@step
+~ 3 dynamic_memory:1 indirection:0.8 loops:0.8 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int rows = 3;
+    int cols = 4;
+    int** arr2D = new int*[rows];
+    int counter = 1;
+    delete[] arr2D;
+    return 0;
+}
+```
+@expect
+```
+1 2 3 4
+5 6 7 8
+9 10 11 12
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int rows = 3;
+    int cols = 4;
+    int** arr2D = new int*[rows];
+    for (int row = 0; row < rows; row++) {
+        arr2D[row] = new int[cols];
+    }
+    int counter = 1;
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            arr2D[row][col] = counter++;
+        }
+    }
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            cout << arr2D[row][col] << " ";
+        }
+        cout << endl;
+    }
+    for (int row = 0; row < rows; row++) {
+        delete[] arr2D[row];
+    }
+    delete[] arr2D;
+    return 0;
+}
+```
+
+@step
+~ 3 dynamic_memory:1 input:0.6 loops:0.6 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+4
+3 5 7 9
+```
+@expect
+```
+Average: 6
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int numItems;
+    cin >> numItems;
+    int* arr = new int[numItems];
+    int total = 0;
+    for (int i = 0; i < numItems; ++i) {
+        cin >> arr[i];
+        total += arr[i];
+    }
+    cout << "Average: " << (double)total / numItems << endl;
+    delete[] arr;
+    return 0;
+}
+```

@@ -2,3 +2,252 @@
 @track C
 @speed strings
 @title Strings and the Null Terminator
+
+@step
+~ 1 strings:1 output:0.5
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    printf("Hello, %s\n", name);
+    return 0;
+}
+```
+@expect
+```
+Hello, Bob
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Bob";
+    printf("Hello, %s\n", name);
+    return 0;
+}
+```
+
+@step
+~ 1 strings:1 arrays:0.6
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    printf("Hello, %s\n", name);
+    // ?
+    // ?
+    return 0;
+}
+```
+@expect
+```
+Hello, Alice
+First letter: A
+Last letter: e
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    printf("Hello, %s\n", name);
+    printf("First letter: %c\n", name[0]);
+    printf("Last letter: %c\n", name[4]);
+    return 0;
+}
+```
+
+@step
+~ 2 strings:1 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    char city[30] = {'N','e','w','\0','Y','o','r','k','\0'};
+    printf("%s\n", city);
+    return 0;
+}
+```
+@expect
+```
+New York
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char city[30] = {'N','e','w',' ','Y','o','r','k','\0'};
+    printf("%s\n", city);
+    return 0;
+}
+```
+
+@step
+~ 2 strings:1 loops:0.6
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    int len = 0;
+    // ?
+    printf("Length: %d\n", len);
+    return 0;
+}
+```
+@expect
+```
+Length: 5
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    int len = 0;
+    while (name[len] != '\0') len++;
+    printf("Length: %d\n", len);
+    return 0;
+}
+```
+
+@step
+~ 2 strings:1 loops:0.6 conditions:0.6
+```
+#include <stdio.h>
+
+int main() {
+    char word[] = "banana";
+    char target = 'a';
+    int count = 0;
+    printf("%c: %d\n", target, count);
+    return 0;
+}
+```
+@expect
+```
+a: 3
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char word[] = "banana";
+    char target = 'a';
+    int count = 0;
+    for (int i = 0; word[i] != '\0'; i++) {
+        if (word[i] == target) {
+            count++;
+        }
+    }
+    printf("%c: %d\n", target, count);
+    return 0;
+}
+```
+
+@step
+~ 2 strings:1 loops:0.6 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    char word[] = "hello";
+    for (int i = 0; word[i] != '\0'; i++) {
+        if (word[i] >= 'a' && word[i] <= 'z') {
+            word[i] = word[i] + 32;
+        }
+    }
+    printf("%s\n", word);
+    return 0;
+}
+```
+@expect
+```
+HELLO
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char word[] = "hello";
+    for (int i = 0; word[i] != '\0'; i++) {
+        if (word[i] >= 'a' && word[i] <= 'z') {
+            word[i] = word[i] - 32;
+        }
+    }
+    printf("%s\n", word);
+    return 0;
+}
+```
+
+@step
+~ 3 strings:1 loops:0.8 problem_solving:0.6
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    printf("%s\n", name);
+    return 0;
+}
+```
+@expect
+```
+ecilA
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char name[20] = "Alice";
+    int len = 0;
+    while (name[len] != '\0') len++;
+    for (int i = len - 1; i >= 0; i--) {
+        printf("%c", name[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 3 strings:1 input:0.6 loops:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+programming
+```
+@expect
+```
+programming has 11 letters
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    char word[50];
+    scanf("%49s", word);
+    int len = 0;
+    while (word[len] != '\0') {
+        len++;
+    }
+    printf("%s has %d letters\n", word, len);
+    return 0;
+}
+```

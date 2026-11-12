@@ -2,3 +2,350 @@
 @track C
 @speed functions
 @title Functions
+
+@step
+~ 1 functions:1
+```
+#include <stdio.h>
+
+int add(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    int sum = add(5, 3);
+    printf("5 + 3 = %d\n", sum);
+    return 0;
+}
+```
+@expect
+```
+5 + 3 = 8
+10 + 20 = 30
+```
+@solution
+```
+#include <stdio.h>
+
+int add(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    int sum = add(5, 3);
+    printf("5 + 3 = %d\n", sum);
+    printf("10 + 20 = %d\n", add(10, 20));
+    return 0;
+}
+```
+
+@step
+~ 1 functions:1
+```
+#include <stdio.h>
+
+void printGreeting() {
+    printf("Hello! Welcome to C programming.\n");
+}
+
+int main() {
+    // ?
+    return 0;
+}
+```
+@expect
+```
+Hello! Welcome to C programming.
+```
+@solution
+```
+#include <stdio.h>
+
+void printGreeting() {
+    printf("Hello! Welcome to C programming.\n");
+}
+
+int main() {
+    printGreeting();
+    return 0;
+}
+```
+
+@step broken
+~ 1 functions:1 debugging:0.8
+```
+#include <stdio.h>
+
+int square(int x) {
+    return x * x
+}
+
+int main() {
+    printf("%d\n", square(7));
+    return 0;
+}
+```
+@expect
+```
+49
+```
+@solution
+```
+#include <stdio.h>
+
+int square(int x) {
+    return x * x;
+}
+
+int main() {
+    printf("%d\n", square(7));
+    return 0;
+}
+```
+
+@step
+~ 2 functions:1
+```
+#include <stdio.h>
+
+int multiply(int a, int b) {
+    // ?
+}
+
+int main() {
+    printf("6 * 7 = %d\n", multiply(6, 7));
+    return 0;
+}
+```
+@expect
+```
+6 * 7 = 42
+```
+@solution
+```
+#include <stdio.h>
+
+int multiply(int a, int b) {
+    return a * b;
+}
+
+int main() {
+    printf("6 * 7 = %d\n", multiply(6, 7));
+    return 0;
+}
+```
+
+@step
+~ 2 functions:1 arrays:0.6 types:0.6 debugging:0.8
+```
+#include <stdio.h>
+
+double calculateAverage(int arr[], int size) {
+    int sum = 0;
+    for (int i = 0; i < size; i++) {
+        sum += arr[i];
+    }
+    return sum / size;
+}
+
+int main() {
+    int scores[] = {85, 90, 78, 92, 88};
+    int size = sizeof(scores) / sizeof(scores[0]);
+    double average = calculateAverage(scores, size);
+    printf("Average score: %.2f\n", average);
+    return 0;
+}
+```
+@expect
+```
+Average score: 86.60
+```
+@solution
+```
+#include <stdio.h>
+
+double calculateAverage(int arr[], int size) {
+    int sum = 0;
+    for (int i = 0; i < size; i++) {
+        sum += arr[i];
+    }
+    return (double)sum / size;
+}
+
+int main() {
+    int scores[] = {85, 90, 78, 92, 88};
+    int size = sizeof(scores) / sizeof(scores[0]);
+    double average = calculateAverage(scores, size);
+    printf("Average score: %.2f\n", average);
+    return 0;
+}
+```
+
+@step
+~ 2 functions:1 parameter_passing:0.8 tracing:0.5
+```
+#include <stdio.h>
+
+void tryToChange(int x) {
+    x = 999;
+}
+
+int main() {
+    int value = 5;
+    printf("Before call: value = %d\n", value);
+    tryToChange(value);
+    printf("After call:  value = %d\n", value);
+    return 0;
+}
+```
+@expect
+```
+Before call: value = 5
+After call:  value = 999
+```
+@solution
+```
+#include <stdio.h>
+
+int tryToChange(int x) {
+    x = 999;
+    return x;
+}
+
+int main() {
+    int value = 5;
+    printf("Before call: value = %d\n", value);
+    value = tryToChange(value);
+    printf("After call:  value = %d\n", value);
+    return 0;
+}
+```
+
+@step
+~ 2 functions:1 arrays:0.8
+```
+#include <stdio.h>
+
+void doubleAll(int arr[], int size) {
+    for (int i = 0; i < size; i++) {
+        arr[i] = arr[i] * 2;
+    }
+}
+
+int main() {
+    int numbers[] = {1, 2, 3, 4, 5};
+    int size = sizeof(numbers) / sizeof(numbers[0]);
+    // ?
+    printf("After: ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", numbers[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+After: 2 4 6 8 10
+```
+@solution
+```
+#include <stdio.h>
+
+void doubleAll(int arr[], int size) {
+    for (int i = 0; i < size; i++) {
+        arr[i] = arr[i] * 2;
+    }
+}
+
+int main() {
+    int numbers[] = {1, 2, 3, 4, 5};
+    int size = sizeof(numbers) / sizeof(numbers[0]);
+    doubleAll(numbers, size);
+    printf("After: ");
+    for (int i = 0; i < size; i++) {
+        printf("%d ", numbers[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 3 functions:1 arrays:0.8 loops:0.6
+```
+#include <stdio.h>
+
+int maxOf(int arr[], int size) {
+    return 0;
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    printf("Max: %d\n", maxOf(values, size));
+    return 0;
+}
+```
+@expect
+```
+Max: 89
+```
+@solution
+```
+#include <stdio.h>
+
+int maxOf(int arr[], int size) {
+    int max = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] > max) {
+            max = arr[i];
+        }
+    }
+    return max;
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67, 23};
+    int size = sizeof(values) / sizeof(values[0]);
+    printf("Max: %d\n", maxOf(values, size));
+    return 0;
+}
+```
+
+@step
+~ 3 functions:1 loops:0.6 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+3 4
+```
+@expect
+```
+3^4 = 81
+```
+@solution
+```
+#include <stdio.h>
+
+int power(int base, int exponent) {
+    int result = 1;
+    for (int i = 0; i < exponent; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+int main() {
+    int base, exponent;
+    scanf("%d %d", &base, &exponent);
+    printf("%d^%d = %d\n", base, exponent, power(base, exponent));
+    return 0;
+}
+```

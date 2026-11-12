@@ -2,3 +2,319 @@
 @track C
 @speed pass_by_pointer pointers
 @title Pass by Pointer
+
+@step
+~ 1 parameter_passing:1 pointers:0.8
+```
+#include <stdio.h>
+
+void change(int* p) {
+    *p = 50;
+}
+
+int main() {
+    int x = 10;
+    // ?
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+@expect
+```
+x = 50
+```
+@solution
+```
+#include <stdio.h>
+
+void change(int* p) {
+    *p = 50;
+}
+
+int main() {
+    int x = 10;
+    change(&x);
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+
+@step
+~ 1 parameter_passing:1 pointers:0.8
+```
+#include <stdio.h>
+
+void f(int j) {
+    j = 5;
+}
+
+int main() {
+    int i = 3;
+    f(i);
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+@expect
+```
+i = 5
+```
+@solution
+```
+#include <stdio.h>
+
+void f(int* ptr) {
+    *ptr = 5;
+}
+
+int main() {
+    int i = 3;
+    f(&i);
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+
+@step
+~ 2 parameter_passing:1 pointers:0.8
+```
+#include <stdio.h>
+
+void swap_ints(int* a, int* b) {
+    int temp = *a;
+    // ?
+    *b = temp;
+}
+
+int main() {
+    int x = 5, y = 10;
+    swap_ints(&x, &y);
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+@expect
+```
+x = 10, y = 5
+```
+@solution
+```
+#include <stdio.h>
+
+void swap_ints(int* a, int* b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int main() {
+    int x = 5, y = 10;
+    swap_ints(&x, &y);
+    printf("x = %d, y = %d\n", x, y);
+    return 0;
+}
+```
+
+@step
+~ 2 parameter_passing:1 pointers:0.8 debugging:0.8
+```
+#include <stdio.h>
+
+void swap(int x, int y) {
+    int z = x;
+    x = y;
+    y = z;
+}
+
+int main() {
+    int a = 45, b = 35;
+    printf("Before Swap a=%d b=%d\n", a, b);
+    swap(a, b);
+    printf("After Swap a=%d b=%d\n", a, b);
+    return 0;
+}
+```
+@expect
+```
+Before Swap a=45 b=35
+After Swap a=35 b=45
+```
+@solution
+```
+#include <stdio.h>
+
+void swap(int* x, int* y) {
+    int z = *x;
+    *x = *y;
+    *y = z;
+}
+
+int main() {
+    int a = 45, b = 35;
+    printf("Before Swap a=%d b=%d\n", a, b);
+    swap(&a, &b);
+    printf("After Swap a=%d b=%d\n", a, b);
+    return 0;
+}
+```
+
+@step
+~ 2 parameter_passing:1 pointers:0.8
+```
+#include <stdio.h>
+
+void swap_chars(char* a, char* b) {
+}
+
+int main() {
+    char a = 'A', b = 'B';
+    swap_chars(&a, &b);
+    printf("a = %c, b = %c\n", a, b);
+    return 0;
+}
+```
+@expect
+```
+a = B, b = A
+```
+@solution
+```
+#include <stdio.h>
+
+void swap_chars(char* a, char* b) {
+    char temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+int main() {
+    char a = 'A', b = 'B';
+    swap_chars(&a, &b);
+    printf("a = %c, b = %c\n", a, b);
+    return 0;
+}
+```
+
+@step
+~ 2 parameter_passing:1 arrays:0.6 loops:0.6
+```
+#include <stdio.h>
+
+void minMax(int arr[], int size, int* min, int* max) {
+    *min = arr[0];
+    *max = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] < *min) *min = arr[i];
+        if (arr[i] > *max) *max = arr[i];
+    }
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67};
+    int min = 0, max = 0;
+    // ?
+    printf("min = %d, max = %d\n", min, max);
+    return 0;
+}
+```
+@expect
+```
+min = 12, max = 89
+```
+@solution
+```
+#include <stdio.h>
+
+void minMax(int arr[], int size, int* min, int* max) {
+    *min = arr[0];
+    *max = arr[0];
+    for (int i = 1; i < size; i++) {
+        if (arr[i] < *min) *min = arr[i];
+        if (arr[i] > *max) *max = arr[i];
+    }
+}
+
+int main() {
+    int values[] = {45, 12, 89, 34, 67};
+    int min = 0, max = 0;
+    minMax(values, 5, &min, &max);
+    printf("min = %d, max = %d\n", min, max);
+    return 0;
+}
+```
+
+@step
+~ 3 parameter_passing:1 pointers:0.8 operators:0.6
+```
+#include <stdio.h>
+
+void divide(int a, int b, int* quotient, int* remainder) {
+}
+
+int main() {
+    int a = 17, b = 5;
+    int q = 0, r = 0;
+    divide(a, b, &q, &r);
+    printf("%d / %d = %d r %d\n", a, b, q, r);
+    return 0;
+}
+```
+@expect
+```
+17 / 5 = 3 r 2
+```
+@solution
+```
+#include <stdio.h>
+
+void divide(int a, int b, int* quotient, int* remainder) {
+    *quotient = a / b;
+    *remainder = a % b;
+}
+
+int main() {
+    int a = 17, b = 5;
+    int q = 0, r = 0;
+    divide(a, b, &q, &r);
+    printf("%d / %d = %d r %d\n", a, b, q, r);
+    return 0;
+}
+```
+
+@step
+~ 3 parameter_passing:1 pointers:0.8 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+9 4
+```
+@expect
+```
+4 9
+```
+@solution
+```
+#include <stdio.h>
+
+void order(int* a, int* b) {
+    if (*a > *b) {
+        int temp = *a;
+        *a = *b;
+        *b = temp;
+    }
+}
+
+int main() {
+    int x, y;
+    scanf("%d %d", &x, &y);
+    order(&x, &y);
+    printf("%d %d\n", x, y);
+    return 0;
+}
+```

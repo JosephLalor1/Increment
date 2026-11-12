@@ -2,3 +2,447 @@
 @track C++
 @speed objects
 @title Classes: Grouping Related Data
+
+@step
+~ 1 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(3,4)
+(5,6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    Point q;
+    q.x = 5.0;
+    q.y = 6.0;
+    cout << "(" << q.x << "," << q.y << ")" << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 1 classes:1 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(3,4)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+
+@step
+~ 1 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+int main() {
+    Vector vec1;
+    vec1.start.x = 3.0;
+    vec1.start.y = 4.0;
+    vec1.end.x = 5.0;
+    // ?
+    cout << "(" << vec1.start.x << "," << vec1.start.y << ") -> ("
+         << vec1.end.x << "," << vec1.end.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(3,4) -> (5,6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+int main() {
+    Vector vec1;
+    vec1.start.x = 3.0;
+    vec1.start.y = 4.0;
+    vec1.end.x = 5.0;
+    vec1.end.y = 6.0;
+    cout << "(" << vec1.start.x << "," << vec1.start.y << ") -> ("
+         << vec1.end.x << "," << vec1.end.y << ")" << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 2 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Vector {
+public:
+    double xStart, xEnd, yStart, yEnd;
+    // ?
+};
+
+int main() {
+    Vector v;
+    v.xStart = 0.4;
+    v.color = 3;
+    cout << v.xStart << " " << v.color << endl;
+    return 0;
+}
+```
+@expect
+```
+0.4 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Vector {
+public:
+    double xStart, xEnd, yStart, yEnd;
+    int color;
+};
+
+int main() {
+    Vector v;
+    v.xStart = 0.4;
+    v.color = 3;
+    cout << v.xStart << " " << v.color << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1 tracing:0.8 copying:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+int main() {
+    Vector vec1;
+    vec1.start.x = 3.0;
+    vec1.start.y = 4.0;
+    Vector vec2;
+    // ?
+    vec2.start.x = 7.0;
+    cout << vec1.start.x << " " << vec1.start.y << endl;
+    cout << vec2.start.x << " " << vec2.start.y << endl;
+    return 0;
+}
+```
+@expect
+```
+3 4
+7 4
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+int main() {
+    Vector vec1;
+    vec1.start.x = 3.0;
+    vec1.start.y = 4.0;
+    Vector vec2;
+    vec2.start = vec1.start;
+    vec2.start.x = 7.0;
+    cout << vec1.start.x << " " << vec1.start.y << endl;
+    cout << vec2.start.x << " " << vec2.start.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1 references:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point p, double x, double y) {
+    p.x += x;
+    p.y += y;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(p, 1.0, 2.0);
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(4,6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point& p, double x, double y) {
+    p.x += x;
+    p.y += y;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(p, 1.0, 2.0);
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1 functions:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+void printVector(Vector v) {
+}
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    printVector(vec);
+    return 0;
+}
+```
+@expect
+```
+(1.2,0.4) -> (2,1.6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+void printVector(Vector v) {
+    cout << "(" << v.start.x << "," << v.start.y << ") -> (";
+    cout << v.end.x << "," << v.end.y << ")" << endl;
+}
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    printVector(vec);
+    return 0;
+}
+```
+
+@step
+~ 3 classes:1 references:0.8 functions:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+void printVector(Vector v) {
+    cout << "(" << v.start.x << "," << v.start.y << ") -> (";
+    cout << v.end.x << "," << v.end.y << ")" << endl;
+}
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    printVector(vec);
+    return 0;
+}
+```
+@expect
+```
+(2.2,1.9) -> (3,3.1)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+};
+
+void offsetVector(Vector& v, double offsetX, double offsetY) {
+    v.start.x += offsetX;
+    v.end.x += offsetX;
+    v.start.y += offsetY;
+    v.end.y += offsetY;
+}
+
+void printVector(Vector v) {
+    cout << "(" << v.start.x << "," << v.start.y << ") -> (";
+    cout << v.end.x << "," << v.end.y << ")" << endl;
+}
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    offsetVector(vec, 1.0, 1.5);
+    printVector(vec);
+    return 0;
+}
+```

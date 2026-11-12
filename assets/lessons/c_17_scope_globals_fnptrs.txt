@@ -2,3 +2,288 @@
 @track C
 @speed function_pointers
 @title Scope, Globals and Function Pointers
+
+@step
+~ 1 scope:1 functions:0.6
+```
+#include <stdio.h>
+
+int glVar = 10;
+
+void change() {
+    glVar = 20;
+}
+
+int main() {
+    // ?
+    printf("glVar = %d\n", glVar);
+    return 0;
+}
+```
+@expect
+```
+glVar = 20
+```
+@solution
+```
+#include <stdio.h>
+
+int glVar = 10;
+
+void change() {
+    glVar = 20;
+}
+
+int main() {
+    change();
+    printf("glVar = %d\n", glVar);
+    return 0;
+}
+```
+
+@step
+~ 2 scope:1 debugging:0.8 tracing:0.6
+```
+#include <stdio.h>
+
+int glVar = 10;
+
+void change() {
+    int glVar;
+    glVar = 20;
+    printf("inside: %d\n", glVar);
+}
+
+int main() {
+    change();
+    printf("glVar = %d\n", glVar);
+    return 0;
+}
+```
+@expect
+```
+inside: 20
+glVar = 20
+```
+@solution
+```
+#include <stdio.h>
+
+int glVar = 10;
+
+void change() {
+    glVar = 20;
+    printf("inside: %d\n", glVar);
+}
+
+int main() {
+    change();
+    printf("glVar = %d\n", glVar);
+    return 0;
+}
+```
+
+@step broken
+~ 2 scope:1 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int number = 7;
+    if (number > 5) {
+        int doubled = number * 2;
+    }
+    printf("%d\n", doubled);
+    return 0;
+}
+```
+@expect
+```
+14
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int number = 7;
+    int doubled = 0;
+    if (number > 5) {
+        doubled = number * 2;
+    }
+    printf("%d\n", doubled);
+    return 0;
+}
+```
+
+@step
+~ 1 function_pointers:1 functions:0.6
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Subtract(int num1, int num2) {
+    return num1 - num2;
+}
+
+int main() {
+    int (*functionPtr)(int, int);
+    functionPtr = Add;
+    int result = functionPtr(20, 10);
+    printf("Result: %d\n", result);
+    return 0;
+}
+```
+@expect
+```
+Result: 10
+```
+@solution
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Subtract(int num1, int num2) {
+    return num1 - num2;
+}
+
+int main() {
+    int (*functionPtr)(int, int);
+    functionPtr = Subtract;
+    int result = functionPtr(20, 10);
+    printf("Result: %d\n", result);
+    return 0;
+}
+```
+
+@step broken
+~ 2 function_pointers:1 functions:0.6
+```
+#include <stdio.h>
+
+int Multiply(int num1, int num2) {
+    return num1 * num2;
+}
+
+int main() {
+    // ?
+    functionPtr = Multiply;
+    printf("Result: %d\n", functionPtr(20, 10));
+    return 0;
+}
+```
+@expect
+```
+Result: 200
+```
+@solution
+```
+#include <stdio.h>
+
+int Multiply(int num1, int num2) {
+    return num1 * num2;
+}
+
+int main() {
+    int (*functionPtr)(int, int);
+    functionPtr = Multiply;
+    printf("Result: %d\n", functionPtr(20, 10));
+    return 0;
+}
+```
+
+@step
+~ 2 function_pointers:1 functions:0.8
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Multiply(int num1, int num2) {
+    return num1 * num2;
+}
+
+int apply(int (*op)(int, int), int a, int b) {
+    // ?
+}
+
+int main() {
+    int a = 6, b = 7;
+    printf("%d %d\n", apply(Add, a, b), apply(Multiply, a, b));
+    return 0;
+}
+```
+@expect
+```
+13 42
+```
+@solution
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) {
+    return num1 + num2;
+}
+
+int Multiply(int num1, int num2) {
+    return num1 * num2;
+}
+
+int apply(int (*op)(int, int), int a, int b) {
+    return op(a, b);
+}
+
+int main() {
+    int a = 6, b = 7;
+    printf("%d %d\n", apply(Add, a, b), apply(Multiply, a, b));
+    return 0;
+}
+```
+
+@step
+~ 3 function_pointers:1 arrays:0.6 loops:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) { return num1 + num2; }
+int Subtract(int num1, int num2) { return num1 - num2; }
+int Multiply(int num1, int num2) { return num1 * num2; }
+int Divide(int num1, int num2) { return num1 / num2; }
+
+int main() {
+    int a = 12, b = 4;
+    printf("%d\n", Add(a, b));
+    return 0;
+}
+```
+@expect
+```
+16 8 48 3
+```
+@solution
+```
+#include <stdio.h>
+
+int Add(int num1, int num2) { return num1 + num2; }
+int Subtract(int num1, int num2) { return num1 - num2; }
+int Multiply(int num1, int num2) { return num1 * num2; }
+int Divide(int num1, int num2) { return num1 / num2; }
+
+int main() {
+    int a = 12, b = 4;
+    int (*ops[4])(int, int) = {Add, Subtract, Multiply, Divide};
+    for (int i = 0; i < 4; i++) {
+        printf("%d ", ops[i](a, b));
+    }
+    printf("\n");
+    return 0;
+}
+```

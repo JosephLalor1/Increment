@@ -2,3 +2,369 @@
 @track C++
 @speed new_delete
 @title Memory Leaks and Other Mistakes
+
+@step
+~ 1 memory_safety:1 dynamic_memory:0.8 loops:0.6
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* p = nullptr;
+    for (int i = 0; i < 3; ++i) {
+        p = getPtrToFive();
+        cout << *p << endl;
+    }
+    release(p);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+5
+5
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* p = nullptr;
+    for (int i = 0; i < 3; ++i) {
+        p = getPtrToFive();
+        cout << *p << endl;
+        release(p);
+    }
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 1 memory_safety:1 dynamic_memory:0.8
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* p = getPtrToFive();
+    cout << *p << endl;
+    // ?
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* p = getPtrToFive();
+    cout << *p << endl;
+    release(p);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 memory_safety:1 debugging:0.8 tracing:0.6
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* x = getPtrToFive();
+    release(x);
+    cout << "released" << endl;
+    cout << *x << endl;
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+released
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* x = getPtrToFive();
+    cout << *x << endl;
+    release(x);
+    cout << "released" << endl;
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 memory_safety:1 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* x = getPtrToFive();
+    cout << *x << endl;
+    release(x);
+    release(x);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* x = getPtrToFive();
+    cout << *x << endl;
+    release(x);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 memory_safety:1 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int x = 5;
+    int* xPtr = &x;
+    cout << *xPtr << endl;
+    release(xPtr);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int x = 5;
+    int* xPtr = &x;
+    cout << *xPtr << endl;
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 memory_safety:1 dynamic_memory:0.8 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    cout << "live: " << live << endl;
+    return 0;
+}
+```
+@expect
+```
+15
+live: 0
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int live = 0;
+
+int* getPtrToFive() {
+    int* x = new int;
+    *x = 5;
+    live++;
+    return x;
+}
+
+void release(int* p) {
+    delete p;
+    live--;
+}
+
+int main() {
+    int* a = getPtrToFive();
+    int* b = getPtrToFive();
+    int* c = getPtrToFive();
+    cout << *a + *b + *c << endl;
+    release(a);
+    release(b);
+    release(c);
+    cout << "live: " << live << endl;
+    return 0;
+}
+```

@@ -2,3 +2,266 @@
 @track C
 @speed pointers
 @title Pointers: Addresses and Dereferencing
+
+@step
+~ 1 pointers:1
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr;
+    ptr = &i;
+    printf("i = %d\n", i);
+    // ?
+    return 0;
+}
+```
+@expect
+```
+i = 5
+*ptr = 5
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr;
+    ptr = &i;
+    printf("i = %d\n", i);
+    printf("*ptr = %d\n", *ptr);
+    return 0;
+}
+```
+
+@step
+~ 1 pointers:1
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr;
+    ptr = &i;
+    // ?
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+@expect
+```
+i = 10
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5;
+    int* ptr;
+    ptr = &i;
+    *ptr = 10;
+    printf("i = %d\n", i);
+    return 0;
+}
+```
+
+@step
+~ 2 pointers:1 tracing:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5, j = 10;
+    int* ptr;
+    ptr = &i;
+    *ptr = 3;
+    // ?
+    *ptr = -2;
+    printf("i = %d, j = %d\n", i, j);
+    return 0;
+}
+```
+@expect
+```
+i = 3, j = -2
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int i = 5, j = 10;
+    int* ptr;
+    ptr = &i;
+    *ptr = 3;
+    ptr = &j;
+    *ptr = -2;
+    printf("i = %d, j = %d\n", i, j);
+    return 0;
+}
+```
+
+@step broken
+~ 2 pointers:1 debugging:0.8
+```
+#include <stdio.h>
+
+int main() {
+    int x = 25;
+    int* p;
+    p = x;
+    printf("%d %d\n", x, *p);
+    return 0;
+}
+```
+@expect
+```
+25 25
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int x = 25;
+    int* p;
+    p = &x;
+    printf("%d %d\n", x, *p);
+    return 0;
+}
+```
+
+@step
+~ 2 pointers:1 conditions:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int x = 15;
+    int* p = NULL;
+    if (p == NULL) {
+        printf("p points nowhere\n");
+    }
+    else {
+        printf("*p = %d\n", *p);
+    }
+    return 0;
+}
+```
+@expect
+```
+*p = 15
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int x = 15;
+    int* p = NULL;
+    p = &x;
+    if (p == NULL) {
+        printf("p points nowhere\n");
+    }
+    else {
+        printf("*p = %d\n", *p);
+    }
+    return 0;
+}
+```
+
+@step
+~ 2 pointers:1 debugging:0.8 memory_safety:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int x = 0;
+    int* p = NULL;
+    *p = 50;
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+@expect
+```
+x = 50
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int x = 0;
+    int* p = &x;
+    *p = 50;
+    printf("x = %d\n", x);
+    return 0;
+}
+```
+
+@step
+~ 2 pointers:1 conditions:0.6
+```
+#include <stdio.h>
+
+int main() {
+    int a = 4, b = 9;
+    int* big = &a;
+    // ?
+    printf("Bigger: %d\n", *big);
+    return 0;
+}
+```
+@expect
+```
+Bigger: 9
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int a = 4, b = 9;
+    int* big = &a;
+    if (b > a) big = &b;
+    printf("Bigger: %d\n", *big);
+    return 0;
+}
+```
+
+@step
+~ 3 pointers:1 conditions:0.6 input:0.6 problem_solving:0.8
+```
+#include <stdio.h>
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+8 3 5
+```
+@expect
+```
+8 0 5
+```
+@solution
+```
+#include <stdio.h>
+
+int main() {
+    int a, b, c;
+    scanf("%d %d %d", &a, &b, &c);
+    int* smallest = &a;
+    if (b < *smallest) smallest = &b;
+    if (c < *smallest) smallest = &c;
+    *smallest = 0;
+    printf("%d %d %d\n", a, b, c);
+    return 0;
+}
+```

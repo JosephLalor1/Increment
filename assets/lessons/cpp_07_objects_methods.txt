@@ -2,3 +2,485 @@
 @track C++
 @speed objects
 @title Objects, Functions and Methods
+
+@step
+~ 1 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void print() {
+        cout << "(" << x << "," << y << ")" << endl;
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 1.2;
+    p.y = 0.4;
+    // ?
+    return 0;
+}
+```
+@expect
+```
+(1.2,0.4)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void print() {
+        cout << "(" << x << "," << y << ")" << endl;
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 1.2;
+    p.y = 0.4;
+    p.print();
+    return 0;
+}
+```
+
+@step
+~ 1 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY) {
+        x += offsetX;
+        y += offsetY;
+    }
+    void print() {
+        cout << "(" << x << "," << y << ")" << endl;
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 1.2;
+    p.y = 0.4;
+    // ?
+    p.print();
+    return 0;
+}
+```
+@expect
+```
+(2.2,1.9)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY) {
+        x += offsetX;
+        y += offsetY;
+    }
+    void print() {
+        cout << "(" << x << "," << y << ")" << endl;
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 1.2;
+    p.y = 0.4;
+    p.offset(1.0, 1.5);
+    p.print();
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void print() {
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    p.print();
+    cout << endl;
+    return 0;
+}
+```
+@expect
+```
+(3,4)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void print() {
+        cout << "(" << x << "," << y << ")";
+    }
+};
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    p.print();
+    cout << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 classes:1
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY) {
+        x += offsetX;
+        y += offsetY;
+    }
+    void print() {
+        cout << "(" << x << "," << y << ")";
+    }
+};
+
+class Vector {
+public:
+    Point start, end;
+    void offset(double offsetX, double offsetY) {
+        start.offset(offsetX, offsetY);
+        // ?
+    }
+    void print() {
+        start.print();
+        cout << " -> ";
+        end.print();
+        cout << endl;
+    }
+};
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    vec.offset(1.0, 1.5);
+    vec.print();
+    return 0;
+}
+```
+@expect
+```
+(2.2,1.9) -> (3,3.1)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY) {
+        x += offsetX;
+        y += offsetY;
+    }
+    void print() {
+        cout << "(" << x << "," << y << ")";
+    }
+};
+
+class Vector {
+public:
+    Point start, end;
+    void offset(double offsetX, double offsetY) {
+        start.offset(offsetX, offsetY);
+        end.offset(offsetX, offsetY);
+    }
+    void print() {
+        start.print();
+        cout << " -> ";
+        end.print();
+        cout << endl;
+    }
+};
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.2;
+    vec.end.x = 2.0;
+    vec.start.y = 0.4;
+    vec.end.y = 1.6;
+    vec.offset(1.0, 1.5);
+    vec.print();
+    return 0;
+}
+```
+
+@step broken
+~ 2 classes:1 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY);
+    void print();
+};
+
+void offset(double offsetX, double offsetY) {
+    x += offsetX;
+    y += offsetY;
+}
+
+void Point::print() {
+    cout << "(" << x << "," << y << ")" << endl;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    p.offset(1.0, 2.0);
+    p.print();
+    return 0;
+}
+```
+@expect
+```
+(4,6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    void offset(double offsetX, double offsetY);
+    void print();
+};
+
+void Point::offset(double offsetX, double offsetY) {
+    x += offsetX;
+    y += offsetY;
+}
+
+void Point::print() {
+    cout << "(" << x << "," << y << ")" << endl;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    p.offset(1.0, 2.0);
+    p.print();
+    return 0;
+}
+```
+
+@step broken
+~ 2 classes:1 pointers:0.8 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point* p, double offsetX, double offsetY) {
+    p.x += offsetX;
+    p.y += offsetY;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(&p, 1.0, 2.0);
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+@expect
+```
+(4,6)
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+void offsetPoint(Point* p, double offsetX, double offsetY) {
+    p->x += offsetX;
+    p->y += offsetY;
+}
+
+int main() {
+    Point p;
+    p.x = 3.0;
+    p.y = 4.0;
+    offsetPoint(&p, 1.0, 2.0);
+    cout << "(" << p.x << "," << p.y << ")" << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 classes:1 operators:0.6 problem_solving:0.6
+```
+#include <iostream>
+#include <cmath>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+    double length() {
+        return 0;
+    }
+};
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.0;
+    vec.start.y = 1.0;
+    vec.end.x = 4.0;
+    vec.end.y = 5.0;
+    cout << "length = " << vec.length() << endl;
+    return 0;
+}
+```
+@expect
+```
+length = 5
+```
+@solution
+```
+#include <iostream>
+#include <cmath>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+};
+
+class Vector {
+public:
+    Point start, end;
+    double length() {
+        double dx = end.x - start.x;
+        double dy = end.y - start.y;
+        return sqrt(dx * dx + dy * dy);
+    }
+};
+
+int main() {
+    Vector vec;
+    vec.start.x = 1.0;
+    vec.start.y = 1.0;
+    vec.end.x = 4.0;
+    vec.end.y = 5.0;
+    cout << "length = " << vec.length() << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 3 classes:1 problem_solving:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    Rectangle r;
+    r.width = 3.0;
+    r.height = 4.5;
+    cout << "area = " << r.area() << endl;
+    r.scale(2.0);
+    cout << "area = " << r.area() << endl;
+    return 0;
+}
+```
+@expect
+```
+area = 13.5
+area = 54
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Rectangle {
+public:
+    double width, height;
+    double area() {
+        return width * height;
+    }
+    void scale(double factor) {
+        width *= factor;
+        height *= factor;
+    }
+};
+
+int main() {
+    Rectangle r;
+    r.width = 3.0;
+    r.height = 4.5;
+    cout << "area = " << r.area() << endl;
+    r.scale(2.0);
+    cout << "area = " << r.area() << endl;
+    return 0;
+}
+```

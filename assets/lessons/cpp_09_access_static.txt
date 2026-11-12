@@ -2,3 +2,372 @@
 @track C++
 @speed objects
 @title Static Members, Access Modifiers and Structs
+
+@step broken
+~ 1 encapsulation:1 classes:0.6 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    bool setX(double px) {
+        x = px;
+        return true;
+    }
+    double getX() {
+        return x;
+    }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    p.x = 5.0;
+    cout << p.getX() << endl;
+    return 0;
+}
+```
+@expect
+```
+5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    bool setX(double px) {
+        x = px;
+        return true;
+    }
+    double getX() {
+        return x;
+    }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    p.setX(5.0);
+    cout << p.getX() << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 1 encapsulation:1 classes:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    double getX() {
+        return x;
+    }
+    // ?
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    cout << p.getX() << " " << p.getY() << endl;
+    return 0;
+}
+```
+@expect
+```
+2 3
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+private:
+    double x, y;
+public:
+    Point(double nx, double ny) {
+        x = nx;
+        y = ny;
+    }
+    double getX() {
+        return x;
+    }
+    double getY() { return y; }
+};
+
+int main() {
+    Point p(2.0, 3.0);
+    cout << p.getX() << " " << p.getY() << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 2 encapsulation:1 classes:0.6 debugging:0.8
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+    double x, y;
+};
+
+int main() {
+    Point p;
+    p.x = 1.5;
+    p.y = 2.5;
+    cout << p.x + p.y << endl;
+    return 0;
+}
+```
+@expect
+```
+4
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+struct Point {
+    double x, y;
+};
+
+int main() {
+    Point p;
+    p.x = 1.5;
+    p.y = 2.5;
+    cout << p.x + p.y << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 encapsulation:1 classes:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Maths {
+public:
+    static float PI;
+};
+
+float Maths::PI = 0;
+
+int main() {
+    float radius = 2;
+    // ?
+    cout << Maths::PI * radius * radius << endl;
+    return 0;
+}
+```
+@expect
+```
+12.56
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Maths {
+public:
+    static float PI;
+};
+
+float Maths::PI = 0;
+
+int main() {
+    float radius = 2;
+    Maths::PI = 3.14;
+    cout << Maths::PI * radius * radius << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 encapsulation:1 classes:0.6 functions:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {}
+};
+
+class Maths {
+public:
+    static float Mul(Point a, Point b) {
+        return 0;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r(3.0, 4.0);
+    cout << Maths::Mul(q, q) << " " << Maths::Mul(q, r) << endl;
+    return 0;
+}
+```
+@expect
+```
+5 11
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {}
+};
+
+class Maths {
+public:
+    static float Mul(Point a, Point b) {
+        return a.x * b.x + a.y * b.y;
+    }
+};
+
+int main() {
+    Point q(1.0, 2.0);
+    Point r(3.0, 4.0);
+    cout << Maths::Mul(q, q) << " " << Maths::Mul(q, r) << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 encapsulation:1 constructors:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    static int count;
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {
+    }
+};
+
+int Point::count = 0;
+
+int main() {
+    Point a(1, 2), b(3, 4), c(5, 6);
+    cout << Point::count << " points" << endl;
+    return 0;
+}
+```
+@expect
+```
+3 points
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Point {
+public:
+    static int count;
+    double x, y;
+    Point(double nx, double ny) : x(nx), y(ny) {
+        count++;
+    }
+};
+
+int Point::count = 0;
+
+int main() {
+    Point a(1, 2), b(3, 4), c(5, 6);
+    cout << Point::count << " points" << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 encapsulation:1 classes:0.8 conditions:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+class Temperature {
+private:
+    double celsius;
+public:
+    Temperature() : celsius(0) {}
+    bool setCelsius(double value) {
+        celsius = value;
+        return true;
+    }
+    double getCelsius() {
+        return celsius;
+    }
+};
+
+int main() {
+    Temperature t;
+    cout << t.setCelsius(25) << " " << t.setCelsius(-300) << endl;
+    cout << t.getCelsius() << endl;
+    return 0;
+}
+```
+@expect
+```
+1 0
+25
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+class Temperature {
+private:
+    double celsius;
+public:
+    Temperature() : celsius(0) {}
+    bool setCelsius(double value) {
+        if (value < -273.15) return false;
+        celsius = value;
+        return true;
+    }
+    double getCelsius() {
+        return celsius;
+    }
+};
+
+int main() {
+    Temperature t;
+    cout << t.setCelsius(25) << " " << t.setCelsius(-300) << endl;
+    cout << t.getCelsius() << endl;
+    return 0;
+}
+```

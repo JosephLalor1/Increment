@@ -2,3 +2,233 @@
 @track C++
 @speed variables arithmetic conditions
 @title From C to C++
+
+@step
+~ 1 cpp_basics:1 output:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, C!" << endl;
+    return 0;
+}
+```
+@expect
+```
+Hello, C++!
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, C++!" << endl;
+    return 0;
+}
+```
+
+@step
+~ 1 cpp_basics:1 output:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 45;
+    int b = 35;
+    cout << "Before Swap" << endl;
+    // ?
+    return 0;
+}
+```
+@expect
+```
+Before Swap
+a=45 b=35
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a = 45;
+    int b = 35;
+    cout << "Before Swap" << endl;
+    cout << "a=" << a << " b=" << b << endl;
+    return 0;
+}
+```
+
+@step broken
+~ 1 cpp_basics:1 debugging:0.8
+```
+#include <iostream>
+
+int main() {
+    int x = 5;
+    cout << "x = " << x << endl;
+    return 0;
+}
+```
+@expect
+```
+x = 5
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int x = 5;
+    cout << "x = " << x << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 cpp_basics:1 input:0.8
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int age;
+    cin >> age;
+    cout << "Age: " << age << endl;
+    return 0;
+}
+```
+@input
+```
+25
+```
+@expect
+```
+Next year: 26
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int age;
+    cin >> age;
+    cout << "Next year: " << age + 1 << endl;
+    return 0;
+}
+```
+
+@step
+~ 2 cpp_basics:1 conditions:0.8 input:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int number;
+    cin >> number;
+    cout << number << endl;
+    return 0;
+}
+```
+@input
+```
+7
+```
+@expect
+```
+7 is odd
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int number;
+    cin >> number;
+    if (number % 2 == 0) {
+        cout << number << " is even" << endl;
+    }
+    else {
+        cout << number << " is odd" << endl;
+    }
+    return 0;
+}
+```
+
+@step
+~ 3 cpp_basics:1 loops:0.8 input:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+4
+2 4 6 8
+```
+@expect
+```
+Total: 20
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int count;
+    cin >> count;
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        int value;
+        cin >> value;
+        total += value;
+    }
+    cout << "Total: " << total << endl;
+    return 0;
+}
+```
+
+@step
+~ 3 cpp_basics:1 operators:0.8 input:0.6 problem_solving:0.6
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    return 0;
+}
+```
+@input
+```
+3 4
+```
+@expect
+```
+3 + 4 = 7
+3 * 4 = 12
+```
+@solution
+```
+#include <iostream>
+using namespace std;
+
+int main() {
+    int a, b;
+    cin >> a >> b;
+    cout << a << " + " << b << " = " << a + b << endl;
+    cout << a << " * " << b << " = " << a * b << endl;
+    return 0;
+}
+```

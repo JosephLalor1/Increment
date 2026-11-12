@@ -2,3 +2,555 @@
 @track C
 @speed arithmetic conditions loops arrays functions
 @title Exam 1 Practice: Lab 1 Problems
+
+@step
+~ 1 functions:0.8 conditions:1 operators:0.6 debugging:0.6
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isLeapYear(int year) {
+    return year % 4 == 0;
+}
+
+int main() {
+    int a = 1700, b = 1600, c = 2016;
+    printf("%d: %s\n", a, isLeapYear(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isLeapYear(b) ? "yes" : "no");
+    printf("%d: %s\n", c, isLeapYear(c) ? "yes" : "no");
+    return 0;
+}
+```
+@expect
+```
+1700: no
+1600: yes
+2016: yes
+```
+@solution
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isLeapYear(int year) {
+    if (year % 400 == 0) return true;
+    if (year % 100 == 0) return false;
+    return year % 4 == 0;
+}
+
+int main() {
+    int a = 1700, b = 1600, c = 2016;
+    printf("%d: %s\n", a, isLeapYear(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isLeapYear(b) ? "yes" : "no");
+    printf("%d: %s\n", c, isLeapYear(c) ? "yes" : "no");
+    return 0;
+}
+```
+
+@step
+~ 2 functions:0.8 loops:1 operators:0.8
+```
+#include <stdio.h>
+
+int reversed(int number) {
+    int result = 0;
+    while (number > 0) {
+        // ?
+        number /= 10;
+    }
+    return result;
+}
+
+int main() {
+    int n = 123;
+    printf("%d -> %d\n", n, reversed(n));
+    return 0;
+}
+```
+@expect
+```
+123 -> 321
+```
+@solution
+```
+#include <stdio.h>
+
+int reversed(int number) {
+    int result = 0;
+    while (number > 0) {
+        result = result * 10 + number % 10;
+        number /= 10;
+    }
+    return result;
+}
+
+int main() {
+    int n = 123;
+    printf("%d -> %d\n", n, reversed(n));
+    return 0;
+}
+```
+
+@step
+~ 2 functions:1 conditions:0.6 loops:0.6
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+int reversed(int number) {
+    int result = 0;
+    while (number > 0) {
+        result = result * 10 + number % 10;
+        number /= 10;
+    }
+    return result;
+}
+
+bool isAPalindrome(int number) {
+    return false;
+}
+
+int main() {
+    int a = 121, b = 1213;
+    printf("%d: %s\n", a, isAPalindrome(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isAPalindrome(b) ? "yes" : "no");
+    return 0;
+}
+```
+@expect
+```
+121: yes
+1213: no
+```
+@solution
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+int reversed(int number) {
+    int result = 0;
+    while (number > 0) {
+        result = result * 10 + number % 10;
+        number /= 10;
+    }
+    return result;
+}
+
+bool isAPalindrome(int number) {
+    return reversed(number) == number;
+}
+
+int main() {
+    int a = 121, b = 1213;
+    printf("%d: %s\n", a, isAPalindrome(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isAPalindrome(b) ? "yes" : "no");
+    return 0;
+}
+```
+
+@step
+~ 2 functions:0.8 loops:1 conditions:0.8 debugging:0.8
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isAPrimeNumber(int number) {
+    if (number < 2) return false;
+    for (int i = 2; i <= number; i++) {
+        if (number % i == 0) return false;
+    }
+    return true;
+}
+
+int main() {
+    int a = 3, b = 4, c = 97;
+    printf("%d: %s\n", a, isAPrimeNumber(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isAPrimeNumber(b) ? "yes" : "no");
+    printf("%d: %s\n", c, isAPrimeNumber(c) ? "yes" : "no");
+    return 0;
+}
+```
+@expect
+```
+3: yes
+4: no
+97: yes
+```
+@solution
+```
+#include <stdio.h>
+#include <stdbool.h>
+
+bool isAPrimeNumber(int number) {
+    if (number < 2) return false;
+    for (int i = 2; i * i <= number; i++) {
+        if (number % i == 0) return false;
+    }
+    return true;
+}
+
+int main() {
+    int a = 3, b = 4, c = 97;
+    printf("%d: %s\n", a, isAPrimeNumber(a) ? "yes" : "no");
+    printf("%d: %s\n", b, isAPrimeNumber(b) ? "yes" : "no");
+    printf("%d: %s\n", c, isAPrimeNumber(c) ? "yes" : "no");
+    return 0;
+}
+```
+
+@step
+~ 2 functions:0.8 loops:1 operators:0.8
+```
+#include <stdio.h>
+
+int convertBinarytoDecimal(int binaryNumber) {
+    return 0;
+}
+
+int main() {
+    int a = 110, b = 111;
+    printf("%d -> %d\n", a, convertBinarytoDecimal(a));
+    printf("%d -> %d\n", b, convertBinarytoDecimal(b));
+    return 0;
+}
+```
+@expect
+```
+110 -> 6
+111 -> 7
+```
+@solution
+```
+#include <stdio.h>
+
+int convertBinarytoDecimal(int binaryNumber) {
+    int decimal = 0, place = 1;
+    while (binaryNumber > 0) {
+        decimal += (binaryNumber % 10) * place;
+        place *= 2;
+        binaryNumber /= 10;
+    }
+    return decimal;
+}
+
+int main() {
+    int a = 110, b = 111;
+    printf("%d -> %d\n", a, convertBinarytoDecimal(a));
+    printf("%d -> %d\n", b, convertBinarytoDecimal(b));
+    return 0;
+}
+```
+
+@step
+~ 2 loops:1 functions:0.6
+```
+#include <stdio.h>
+
+void drawRightAngledTriangle(int rows) {
+    for (int i = 1; i <= rows; i++) {
+        printf("A");
+    }
+    printf("\n");
+}
+
+int main() {
+    int rows = 4;
+    drawRightAngledTriangle(rows);
+    return 0;
+}
+```
+@expect
+```
+A
+AA
+AAA
+AAAA
+```
+@solution
+```
+#include <stdio.h>
+
+void drawRightAngledTriangle(int rows) {
+    for (int i = 1; i <= rows; i++) {
+        for (int j = 1; j <= i; j++) {
+            printf("A");
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    int rows = 4;
+    drawRightAngledTriangle(rows);
+    return 0;
+}
+```
+
+@step
+~ 2 functions:0.8 arrays:1 loops:0.8
+```
+#include <stdio.h>
+
+int find(int size, int arr[], int toFind) {
+    return -1;
+}
+
+int main() {
+    int arr[] = {10, 20, 30, 40};
+    int a = 30, b = 99;
+    printf("%d at %d\n", a, find(4, arr, a));
+    printf("%d at %d\n", b, find(4, arr, b));
+    return 0;
+}
+```
+@expect
+```
+30 at 2
+99 at -1
+```
+@solution
+```
+#include <stdio.h>
+
+int find(int size, int arr[], int toFind) {
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == toFind) return i;
+    }
+    return -1;
+}
+
+int main() {
+    int arr[] = {10, 20, 30, 40};
+    int a = 30, b = 99;
+    printf("%d at %d\n", a, find(4, arr, a));
+    printf("%d at %d\n", b, find(4, arr, b));
+    return 0;
+}
+```
+
+@step
+~ 3 loops:1 conditions:0.8 problem_solving:0.8
+```
+#include <stdio.h>
+
+void drawIsocelesTriangle(int rows) {
+    for (int i = 1; i <= rows; i++) {
+        for (int j = 1; j <= i; j++) {
+            printf("A");
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    int rows = 4;
+    drawIsocelesTriangle(rows);
+    return 0;
+}
+```
+@expect
+```
+A
+AA
+AAA
+AAAA
+AAA
+AA
+A
+```
+@solution
+```
+#include <stdio.h>
+
+void drawIsocelesTriangle(int rows) {
+    for (int i = 1; i < rows * 2; i++) {
+        int width = i <= rows ? i : rows * 2 - i;
+        for (int j = 1; j <= width; j++) {
+            printf("A");
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    int rows = 4;
+    drawIsocelesTriangle(rows);
+    return 0;
+}
+```
+
+@step
+~ 3 functions:0.8 arrays:1 loops:0.8 problem_solving:0.6
+```
+#include <stdio.h>
+
+int frequencyCount(int size, int arr[], int value) {
+    return 0;
+}
+
+int main() {
+    int arr[] = {4, 7, 4, 1, 4, 7};
+    int value = 4;
+    int count = frequencyCount(6, arr, value);
+    printf("%d appears %d times\n", value, count);
+    return 0;
+}
+```
+@expect
+```
+4 appears 3 times
+```
+@solution
+```
+#include <stdio.h>
+
+int frequencyCount(int size, int arr[], int value) {
+    int count = 0;
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == value) count++;
+    }
+    return count;
+}
+
+int main() {
+    int arr[] = {4, 7, 4, 1, 4, 7};
+    int value = 4;
+    int count = frequencyCount(6, arr, value);
+    printf("%d appears %d times\n", value, count);
+    return 0;
+}
+```
+
+@step
+~ 3 functions:0.8 arrays:1 loops:0.8 problem_solving:0.6
+```
+#include <stdio.h>
+
+void reverse(int size, int arr[]) {
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    reverse(5, arr);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+5 4 3 2 1
+```
+@solution
+```
+#include <stdio.h>
+
+void reverse(int size, int arr[]) {
+    for (int i = 0; i < size / 2; i++) {
+        int temp = arr[i];
+        arr[i] = arr[size - 1 - i];
+        arr[size - 1 - i] = temp;
+    }
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    reverse(5, arr);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+@step
+~ 3 functions:0.8 arrays:1 loops:0.8 problem_solving:0.8
+```
+#include <stdio.h>
+
+int find2ndLargest(int size, int arr[]) {
+    return -1;
+}
+
+int main() {
+    int arr[] = {12, 35, 1, 10, 34, 1};
+    printf("Second largest: %d\n", find2ndLargest(6, arr));
+    return 0;
+}
+```
+@expect
+```
+Second largest: 34
+```
+@solution
+```
+#include <stdio.h>
+
+int find2ndLargest(int size, int arr[]) {
+    int largest = -1, second = -1;
+    for (int i = 0; i < size; i++) {
+        if (arr[i] > largest) {
+            second = largest;
+            largest = arr[i];
+        }
+        else if (arr[i] > second && arr[i] != largest) {
+            second = arr[i];
+        }
+    }
+    return second;
+}
+
+int main() {
+    int arr[] = {12, 35, 1, 10, 34, 1};
+    printf("Second largest: %d\n", find2ndLargest(6, arr));
+    return 0;
+}
+```
+
+@step
+~ 3 functions:0.8 arrays:1 loops:0.8 problem_solving:0.8
+```
+#include <stdio.h>
+
+void rotateLeft(int size, int arr[]) {
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    rotateLeft(5, arr);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
+@expect
+```
+2 3 4 5 1
+```
+@solution
+```
+#include <stdio.h>
+
+void rotateLeft(int size, int arr[]) {
+    int first = arr[0];
+    for (int i = 0; i < size - 1; i++) {
+        arr[i] = arr[i + 1];
+    }
+    arr[size - 1] = first;
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    rotateLeft(5, arr);
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    return 0;
+}
+```
