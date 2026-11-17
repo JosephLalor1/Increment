@@ -310,6 +310,24 @@ static int LineOf(const char *code, int offset)
     return line;
 }
 
+// Whether a struct or class the code defines has a '*' in its body: a pointer member such
+// as a node's next, or a method using one. Its variables may then hold links.
+static bool TypesHoldPointers(const char *clean, int len)
+{
+    for (int i = 0; i < len; i++) {
+        bool isStruct = strncmp(clean + i, "struct", 6) == 0, isClass = strncmp(clean + i, "class", 5) == 0;
+        if (!(isStruct || isClass) || (i > 0 && CodeIsWordChar(clean[i - 1]))) continue;
+        int at = i + (isStruct ? 6 : 5);
+        if (CodeIsWordChar(clean[at])) continue;
+        while (at < len && clean[at] != '{' && clean[at] != ';') at++;
+        if (at >= len || clean[at] != '{') continue;
+        int close = CodeMatchBracket(clean, at, len);
+        if (memchr(clean + at, '*', (size_t)(close - at))) return true;
+        i = close;
+    }
+    return false;
+}
+
 void ProbeScanCode(const char *code, ProbeScan *scan)
 {
     memset(scan, 0, sizeof *scan);
@@ -332,6 +350,13 @@ void ProbeScanCode(const char *code, ProbeScan *scan)
             else if (!ParseDeclaration(scan, clean, start, stop, false, LineOf(code, start)))
                 ParseAssignment(scan, clean, start, stop);
         }
+    }
+
+    // Structs holding pointers (a list's nodes, a list object) are worth a picture too, for
+    // the links between them, even with no pointer variable in main.
+    for (int i = 0; i < scan->count && !scan->hasPointers; i++) {
+        const ProbeVar *var = &scan->vars[i];
+        if (var->kind == PROBE_OPAQUE && var->pointerDepth == 0 && TypesHoldPointers(clean, len)) scan->hasPointers = true;
     }
     free(clean);
 }
@@ -409,6 +434,23 @@ static const char *const prelude =
     "        return 1;\n"
     "    }\n"
     "    return 0;\n"
+    "}\n"
+    "static void probe_words(const void *at, unsigned long long size) {\n"
+    "    unsigned long long k, word;\n"
+    "    for (k = 0; k + sizeof(void *) <= size && k < 8 * sizeof(void *); k += sizeof(void *)) {\n"
+    "        word = 0;\n"
+    "        memcpy(&word, (const char *)at + k, sizeof(void *));\n"
+    "        printf(\" %llx\", word);\n"
+    "    }\n"
+    "}\n"
+    "static void probe_report_blocks(void) {\n"
+    "    int i;\n"
+    "    for (i = 0; i < probe_count && i < 64; i++) {\n"
+    "        printf(\"@@MEM B %llx %llu %d\", (unsigned long long)(size_t)probe_blocks[i].at, probe_blocks[i].size,\n"
+    "               probe_blocks[i].freed);\n"
+    "        probe_words(probe_blocks[i].at, probe_blocks[i].size);\n"
+    "        printf(\"\\n\");\n"
+    "    }\n"
     "}\n"
     "#ifdef __cplusplus\n"
     "#include <new>\n"
@@ -493,8 +535,14 @@ static void AppendReport(Buffer *b, const ProbeScan *scan)
             AppendValue(b, name, var->kind, var->pointerDepth);
             Append(b, "\nprintf(\"\\n\");\n");
             if (var->pointerDepth > 0) AppendHeap(b, name, var->kind, var->pointerDepth, 0);
+            if (var->kind == PROBE_OPAQUE && var->pointerDepth == 0) {  // a struct's words, for its links
+                Append(b, "printf(\"@@MEM W %%llx\", (unsigned long long)(size_t)&%s); probe_words(&%s, sizeof(%s)); "
+                          "printf(\"\\n\");\n",
+                       name, name, name);
+            }
         }
     }
+    Append(b, "probe_report_blocks();\n");  // every heap block's words, to follow links between them
     Append(b, "printf(\"@@MEM END\\n\"); fflush(stdout); }\n");
 }
 
@@ -573,8 +621,88 @@ static void ReadValues(ProbeCell *cell, const char *rest)
     }
 }
 
+// The pointer-sized words of a struct, an object or a heap block, as a run reported them.
+typedef struct {
+    unsigned long long address, size;
+    bool freed;
+    unsigned long long words[PROBE_MAX_WORDS];
+    int wordCount;
+} RawWords;
+
+#define MAX_RAW_BLOCKS 64  // as many as probe_report_blocks prints
+
+// Reads up to PROBE_MAX_WORDS hex words from the rest of a report line.
+static void ReadWords(RawWords *raw, const char *rest)
+{
+    int used = 0;
+    raw->wordCount = 0;
+    while (raw->wordCount < PROBE_MAX_WORDS && sscanf(rest, " %llx%n", &raw->words[raw->wordCount], &used) == 1) {
+        rest += used;
+        raw->wordCount++;
+    }
+}
+
+static const RawWords *FindRaw(const RawWords *raws, int count, unsigned long long address)
+{
+    for (int i = 0; i < count; i++)
+        if (raws[i].address == address) return &raws[i];
+    return NULL;
+}
+
+// A struct or object: something whose words may hold links (not a plain value or pointer).
+static bool Linkable(const ProbeCell *cell) { return cell->kind == PROBE_OPAQUE && cell->pointerDepth == 0; }
+
+// Follows the links kept inside structs and objects. First every heap block reached only
+// through them (the second node of a list on) is added to the snapshot, as an opaque block;
+// then each word that holds the address of a known variable or block becomes a link. Words
+// of freed blocks are left alone: they are whatever the block held before it was freed.
+static void ReadLinks(ProbeSnapshot *snapshot, const RawWords *vars, int varCount, const RawWords *blocks,
+                      int blockCount)
+{
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (int source = 0; source < snapshot->varCount + snapshot->blockCount; source++) {
+            bool isBlock = source >= snapshot->varCount;
+            const ProbeCell *cell = isBlock ? &snapshot->blocks[source - snapshot->varCount] : &snapshot->vars[source];
+            if (!Linkable(cell) || cell->freed) continue;
+            const RawWords *raw = FindRaw(isBlock ? blocks : vars, isBlock ? blockCount : varCount, cell->address);
+            for (int w = 0; raw && w < raw->wordCount && snapshot->blockCount < PROBE_MAX_BLOCKS; w++) {
+                if (raw->words[w] == 0 || ProbeResolve(snapshot, raw->words[w]).kind != PROBE_TARGET_WILD) continue;
+                for (int b = 0; b < blockCount; b++) {
+                    const RawWords *found = &blocks[b];
+                    if (raw->words[w] < found->address || raw->words[w] >= found->address + found->size) continue;
+                    ProbeCell *added = &snapshot->blocks[snapshot->blockCount++];
+                    memset(added, 0, sizeof *added);
+                    added->address = found->address;
+                    added->elementSize = (int)found->size;
+                    added->count = added->shown = 1;
+                    added->kind = PROBE_OPAQUE;
+                    added->freed = found->freed;
+                    grew = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    for (int source = 0; source < snapshot->varCount + snapshot->blockCount; source++) {
+        bool isBlock = source >= snapshot->varCount;
+        int index = isBlock ? source - snapshot->varCount : source;
+        const ProbeCell *cell = isBlock ? &snapshot->blocks[index] : &snapshot->vars[index];
+        if (!Linkable(cell) || cell->freed) continue;
+        const RawWords *raw = FindRaw(isBlock ? blocks : vars, isBlock ? blockCount : varCount, cell->address);
+        for (int w = 0; raw && w < raw->wordCount && snapshot->linkCount < PROBE_MAX_LINKS; w++) {
+            ProbeTargetKind kind = ProbeResolve(snapshot, raw->words[w]).kind;
+            if (kind != PROBE_TARGET_VAR && kind != PROBE_TARGET_HEAP && kind != PROBE_TARGET_FREED) continue;
+            snapshot->links[snapshot->linkCount++] = (ProbeLink){ isBlock, index, w, raw->words[w] };
+        }
+    }
+}
+
 bool ProbeRead(const char *output, ProbeSnapshot *snapshot)
 {
+    static RawWords rawVars[PROBE_MAX_VARS], rawBlocks[MAX_RAW_BLOCKS];
+    int rawVarCount = 0, rawBlockCount = 0;
     memset(snapshot, 0, sizeof *snapshot);
     if (!output) return false;
     const char *begin = NULL;  // the last report, should the program print more than one
@@ -608,8 +736,18 @@ bool ProbeRead(const char *output, ProbeSnapshot *snapshot)
             cell.freed = freed != 0;
             ReadValues(&cell, line + used);
             snapshot->blocks[snapshot->blockCount++] = cell;
+        } else if (rawVarCount < PROBE_MAX_VARS && sscanf(line, "@@MEM W %llx%n", &rawVars[rawVarCount].address, &used) == 1) {
+            ReadWords(&rawVars[rawVarCount++], line + used);
+        } else if (rawBlockCount < MAX_RAW_BLOCKS) {
+            RawWords *raw = &rawBlocks[rawBlockCount];
+            if (sscanf(line, "@@MEM B %llx %llu %d%n", &raw->address, &raw->size, &freed, &used) == 3) {
+                raw->freed = freed != 0;
+                ReadWords(raw, line + used);
+                rawBlockCount++;
+            }
         }
     }
+    if (snapshot->valid) ReadLinks(snapshot, rawVars, rawVarCount, rawBlocks, rawBlockCount);
     if (!snapshot->valid) memset(snapshot, 0, sizeof *snapshot);
     return snapshot->valid;
 }

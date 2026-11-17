@@ -309,11 +309,93 @@ static void TestRuns(void)
     assert(row.kind == PROBE_TARGET_HEAP && strcmp(snap.blocks[row.index].values[2], "42") == 0);
 }
 
+// The link held by the variable or block `from` (whichever kind), or NULL.
+static const ProbeLink *LinkFrom(const ProbeSnapshot *snap, bool fromBlock, int from)
+{
+    for (int i = 0; i < snap->linkCount; i++)
+        if (snap->links[i].fromBlock == fromBlock && snap->links[i].from == from) return &snap->links[i];
+    return NULL;
+}
+
+// A struct variable counts as worth a picture when its type holds pointers (a node).
+static void TestStructsHoldingPointers(void)
+{
+    ProbeScan scan;
+    ProbeScanCode("struct Node { int data; Node* nextPtr; };\n"
+                  "int main() {\n    Node a, b;\n    a.nextPtr = &b;\n    return 0;\n}\n", &scan);
+    assert(scan.hasPointers && Var(&scan, "a") && Var(&scan, "a")->pointerDepth == 0);
+    ProbeScanCode("struct Point { int x, y; };\n"
+                  "int main() {\n    Point p;\n    p.x = 1;\n    return 0;\n}\n", &scan);
+    assert(!scan.hasPointers);
+}
+
+static void TestLinks(void)
+{
+    // Nodes on the stack, linked by address: a -> b -> c, and c's null link is no link.
+    ProbeSnapshot snap = Run("#include <iostream>\nusing namespace std;\n"
+                             "struct Node { int data; Node* nextPtr; };\n"
+                             "int main() {\n"
+                             "    Node a, b, c;\n"
+                             "    a.data = 10; b.data = 20; c.data = 30;\n"
+                             "    a.nextPtr = &b;\n"
+                             "    b.nextPtr = &c;\n"
+                             "    c.nextPtr = nullptr;\n"
+                             "    cout << a.nextPtr->nextPtr->data << endl;\n"
+                             "    return 0;\n"
+                             "}\n",
+                             true, "30");
+    int a = ProbeFindVar(&snap, "a"), b = ProbeFindVar(&snap, "b"), c = ProbeFindVar(&snap, "c");
+    const ProbeLink *link = LinkFrom(&snap, false, a);
+    assert(link && link->word == 1);
+    assert(ProbeResolve(&snap, link->address).kind == PROBE_TARGET_VAR && ProbeResolve(&snap, link->address).index == b);
+    link = LinkFrom(&snap, false, b);
+    assert(link && ProbeResolve(&snap, link->address).index == c);
+    assert(!LinkFrom(&snap, false, c));
+
+    // A list on the heap that only an object knows the start of: every node joins the
+    // picture, in order, each linked to the next; a deleted node is shown freed.
+    snap = Run("#include <iostream>\nusing namespace std;\n"
+               "class Node {\npublic:\n    int data;\n    Node* next;\n"
+               "    Node(int value) : data(value), next(nullptr) {}\n};\n"
+               "class LinkedList {\npublic:\n    Node* head;\n    LinkedList() : head(nullptr) {}\n"
+               "    void Prepend(int value) { Node* n = new Node(value); n->next = head; head = n; }\n};\n"
+               "int main() {\n"
+               "    LinkedList list;\n"
+               "    list.Prepend(3);\n"
+               "    list.Prepend(2);\n"
+               "    list.Prepend(1);\n"
+               "    Node* gone = new Node(9);\n"
+               "    delete gone;\n"
+               "    cout << list.head->data << endl;\n"
+               "    return 0;\n"
+               "}\n",
+               true, "1");
+    link = LinkFrom(&snap, false, ProbeFindVar(&snap, "list"));
+    assert(link && link->word == 0);
+    ProbeTarget node = ProbeResolve(&snap, link->address);
+    for (int k = 0; k < 2; k++) {  // the first two nodes each lead to the next
+        assert(node.kind == PROBE_TARGET_HEAP && !snap.blocks[node.index].freed);
+        link = LinkFrom(&snap, true, node.index);
+        assert(link && link->word == 1);
+        node = ProbeResolve(&snap, link->address);
+    }
+    assert(node.kind == PROBE_TARGET_HEAP && !LinkFrom(&snap, true, node.index));  // the last ends the list
+    assert(snap.blockCount == 4 && TargetOf(&snap, "gone").kind == PROBE_TARGET_FREED);
+
+    // Plain values and pointers to ints have no links.
+    snap = Run("#include <stdio.h>\n#include <stdlib.h>\n"
+               "int main() {\n    int x = 5;\n    int* p = &x;\n    int* h = (int*)malloc(4 * sizeof(int));\n"
+               "    printf(\"%d\\n\", *p);\n    return 0;\n}\n",
+               false, "5");
+    assert(snap.linkCount == 0 && snap.blockCount == 1);
+}
+
 int main(int argc, char **argv)
 {
     TestDeclarations();
     TestGuesses();
     TestReadingAReport();
+    TestStructsHoldingPointers();
     if (argc < 3) {
         printf("usage: test_probe <compiler bin folder> <empty folder>\n");
         return 2;
@@ -321,6 +403,7 @@ int main(int argc, char **argv)
     snprintf(compilerBin, sizeof compilerBin, "%s", argv[1]);
     snprintf(workDir, sizeof workDir, "%s", argv[2]);
     TestRuns();
+    TestLinks();
     printf("All memory probe tests passed\n");
     return 0;
 }

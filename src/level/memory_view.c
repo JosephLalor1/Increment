@@ -37,6 +37,17 @@ static Memory memories[PROBE_MAX_VARS];
 static int memoryCount;
 static float scroll;
 
+// A link inside a struct as last drawn, so a new one draws itself in.
+typedef struct {
+    unsigned long long holder;  // the address of the struct or block holding it
+    int word;
+    unsigned long long address; // where it points
+    double since;
+} LinkMemory;
+
+static LinkMemory linkMemories[PROBE_MAX_LINKS];
+static int linkMemoryCount;
+
 // A row as laid out this frame: a variable's box or boxes, or a heap block's.
 typedef struct {
     Rectangle cells[PROBE_MAX_CELLS];
@@ -47,6 +58,7 @@ typedef struct {
 void MemoryViewReset(void)
 {
     memoryCount = 0;
+    linkMemoryCount = 0;
     scroll = 0;
 }
 
@@ -255,6 +267,75 @@ static void DrawAim(Rectangle from, Aim aim, const Row *stack, const Row *heap, 
     if (landed > 0) DrawRectangleRoundedLinesEx(box, 0.3f, 6, 2, Fade(color, aim.solid ? 0.9f : 0.5f));
 }
 
+// Draws a link kept inside a struct (a node's next pointer) from the box holding it to the
+// box it points at. Into a box further right it curves in from the left; otherwise (the next
+// node down the same column) it loops out to the right and back in, `lane` spreading
+// neighbouring loops apart. Links leave a box low on its right side and arrive high, so a
+// node's outgoing dot and incoming arrowhead don't sit on each other.
+static void DrawLink(Rectangle from, Rectangle to, Color color, bool solid, int lane, float progress, double now)
+{
+    Vector2 start = { from.x + from.width, from.y + from.height * 0.7f };
+    DrawCircleV(start, 4, color);
+    Vector2 end, pull;
+    float bulge = 34 + lane * 12.0f;
+    if (to.x > start.x + 40) {
+        end = (Vector2){ to.x - 2, to.y + to.height / 2 };
+        pull = (Vector2){ end.x - bulge, end.y };
+    } else {
+        end = (Vector2){ to.x + to.width + 2, to.y + to.height * 0.3f };
+        bulge += fabsf(end.y - start.y) * 0.25f;  // longer loops reach further out
+        pull = (Vector2){ end.x + bulge, end.y };
+    }
+    DrawArrow(start, (Vector2){ start.x + bulge, start.y }, pull, end, color, solid, progress, now);
+    if (progress >= 1) DrawRectangleRoundedLinesEx(to, 0.3f, 6, 2, Fade(color, solid ? 0.9f : 0.5f));
+}
+
+// How long ago a link first appeared (a new one starts now).
+static double LinkAge(const ProbeSnapshot *snapshot, const ProbeLink *link, double now)
+{
+    unsigned long long holder = link->fromBlock ? snapshot->blocks[link->from].address : snapshot->vars[link->from].address;
+    for (int i = 0; i < linkMemoryCount; i++) {
+        LinkMemory *memory = &linkMemories[i];
+        if (memory->holder != holder || memory->word != link->word) continue;
+        if (memory->address != link->address) {
+            memory->address = link->address;
+            memory->since = now;
+        }
+        return now - memory->since;
+    }
+    if (linkMemoryCount < PROBE_MAX_LINKS) linkMemories[linkMemoryCount++] = (LinkMemory){ holder, link->word, link->address, now };
+    return 0;
+}
+
+// The links kept inside structs and objects: a list's nodes, each pointing at the next.
+static void DrawLinks(const ProbeScan *scan, const ProbeSnapshot *snapshot, const Row *stack, const Row *heap, bool fresh,
+                      double now)
+{
+    Color color = ColorLerp(COL_ACCENT, COL_TEXT, 0.35f);
+    for (int i = 0; i < snapshot->linkCount; i++) {
+        const ProbeLink *link = &snapshot->links[i];
+        const Row *holder = NULL;
+        int element = 0;
+        if (link->fromBlock) {
+            holder = &heap[link->from];
+            const ProbeCell *block = &snapshot->blocks[link->from];
+            if (block->elementSize > 0) element = link->word * PROBE_WORD_BYTES / block->elementSize;  // an array of structs
+            if (element >= holder->cellCount) continue;
+        } else {
+            int row = ProbeScanFindVar(scan, snapshot->vars[link->from].name);
+            if (row < 0) continue;  // gone from the code since the run
+            holder = &stack[row];
+        }
+        Aim aim = AimFromRun(scan, snapshot, link->address, fresh);
+        if (aim.row < 0) continue;
+        bool beyond;
+        Rectangle to = ElementBox(aim.heap ? &heap[aim.row] : &stack[aim.row], aim.element, &beyond);
+        if (beyond) continue;
+        float progress = fminf(1, (float)LinkAge(snapshot, link, now) / ARROW_SECONDS);
+        DrawLink(holder->cells[element], to, aim.kind == PROBE_TARGET_FREED ? COL_BAD : color, fresh, i % 3, progress, now);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // The picture
 
@@ -402,5 +483,6 @@ void MemoryViewDraw(Rectangle area, const ProbeScan *scan, const ProbeSnapshot *
             DrawAim(heap[i].cells[e], aim, stack, heap, PointerColor(ordinal + e), e % 4, 1, now);
         }
     }
+    if (ran) DrawLinks(scan, snapshot, stack, heap, fresh, now);
     EndScissorMode();
 }

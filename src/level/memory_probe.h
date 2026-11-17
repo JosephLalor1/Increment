@@ -18,6 +18,11 @@
 //    apart). ProbeResolve then says what an address is: a variable, a heap block, a freed
 //    block, null, or nothing known.
 //
+//    Structs and objects (a linked list's nodes) are followed too: the run reports the
+//    pointer-sized words inside each one, and any word holding the address of a known
+//    variable or heap block is a link (`a.nextPtr = &b`, `node->next`). Heap blocks reached
+//    only through links (the second node on) join the picture.
+//
 // Variables in nested blocks or other functions, references, function pointers and
 // arrays of more than one dimension are left out.
 
@@ -26,6 +31,9 @@
 #define PROBE_MAX_CELLS  10  // elements of an array or heap block kept
 #define PROBE_VALUE      16  // a value as text, with its terminator
 #define PROBE_MAX_BLOCKS 12
+#define PROBE_MAX_LINKS  24
+#define PROBE_MAX_WORDS  8   // pointer-sized words read from each struct or object
+#define PROBE_WORD_BYTES 8   // the size of a pointer in the programs run (64-bit)
 
 typedef enum { PROBE_INT, PROBE_CHAR, PROBE_FLOAT, PROBE_BOOL, PROBE_OPAQUE } ProbeKind;  // OPAQUE: a struct or class
 
@@ -57,7 +65,8 @@ typedef struct {
 typedef struct {
     ProbeVar vars[PROBE_MAX_VARS];
     int count;
-    bool hasPointers;  // any of them is a pointer: the picture is worth showing
+    bool hasPointers;  // any of them is a pointer, or a struct whose type holds pointers:
+                       // the picture is worth showing
     int injectAt;      // offset in the code where a run reports from (-1: no main found)
 } ProbeScan;
 
@@ -84,12 +93,23 @@ typedef struct {
     bool freed;         // heap blocks only
 } ProbeCell;
 
+// A pointer kept inside a struct or object: in which variable or heap block, at which
+// word, and the address it holds.
+typedef struct {
+    bool fromBlock;  // from a heap block (otherwise a variable)
+    int from;        // its index among the snapshot's blocks or variables
+    int word;        // which pointer-sized word of it
+    unsigned long long address;
+} ProbeLink;
+
 typedef struct {
     bool valid;  // a whole report was read
     ProbeCell vars[PROBE_MAX_VARS];
     int varCount;
     ProbeCell blocks[PROBE_MAX_BLOCKS];
     int blockCount;
+    ProbeLink links[PROBE_MAX_LINKS];  // pointers inside structs and objects, to known things
+    int linkCount;
 } ProbeSnapshot;
 
 // Reads the report out of an instrumented program's output. False (and valid false) if it
