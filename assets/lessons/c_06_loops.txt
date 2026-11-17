@@ -293,6 +293,22 @@ int main() {
 ```
 5! = 120
 ```
+@input
+```
+1
+```
+@expect
+```
+1! = 1
+```
+@input
+```
+7
+```
+@expect
+```
+7! = 5040
+```
 @solution
 ```
 #include <stdio.h>

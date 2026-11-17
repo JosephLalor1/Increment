@@ -15,8 +15,9 @@
 //    starter and its solution both set ("int a = 3;" in both: the learner is meant to work
 //    with a, not replace it); a string a variable is set to counts too (char name[20] =
 //    "Alice";). Changing every given (numbers grow, letters move along the alphabet, in
-//    strings as well), and every number and word in the step's input, the same way in the
-//    solution and in the learner's code must still give matching output. So
+//    strings as well), and every number and word in the input of the step's main (first)
+//    test case, the same way in the solution and in the learner's code must still give
+//    matching output. So
 //    "a = 8; b = 3;" passes a swap with 3 and 8 but not with 4 and 10, and printing the
 //    answer as text fails as soon as the values change. If the learner's code no longer sets
 //    a given to its value (they edited the given instead), that is caught without a run.
@@ -34,7 +35,7 @@
 // A step's second run: its solution and input with the given values changed.
 typedef struct {
     char *solution;  // malloc'd
-    char *input;     // malloc'd, or NULL when the step has no input
+    char *input;     // the main test case's input changed (malloc'd), or NULL when it has none
     int changes;     // values changed in the solution plus numbers changed in the input
     char summary[STEP_CHECK_SUMMARY];  // the changed givens as code: "a = 4, b = 10"
 } StepVariation;

@@ -217,8 +217,8 @@ static Step MakeStep(const char *starter, const char *solution, const char *expe
     Step step = { 0 };
     step.starter = (char *)starter;
     step.solution = (char *)solution;
-    step.expected = (char *)expected;
-    step.input = (char *)input;
+    step.cases[0] = (StepCase){ (char *)input, (char *)expected };
+    step.caseCount = 1;
     if (skill < SKILL_COUNT) {
         step.skills[0] = (SkillWeight){ skill, 1.0f };
         step.skillCount = 1;
@@ -262,6 +262,17 @@ static void TestCheats(void)
     Step echo = MakeStep("int main() { return 0; }", "int main() { int a; scanf(\"%d\", &a); printf(\"%d\\n\", a); return 0; }",
                          "42\n", "42\n", SKILL_COUNT);
     assert(StepCheatFind(&echo, "int main() { printf(\"42\\n\"); return 0; }").kind == CHEAT_NONE);
+    // Every test case counts: the targets of all of them typed in are caught, and a number in
+    // any case's input was never computed.
+    const char *doubleIt = "int main() { int a; scanf(\"%d\", &a); printf(\"%d\\n\", a * 2); return 0; }";
+    Step twice = MakeStep("int main() { return 0; }", doubleIt, "14\n", "7\n", SKILL_COUNT);
+    twice.cases[1] = (StepCase){ (char *)"21\n", (char *)"42\n" };
+    twice.caseCount = 2;
+    assert(StepCheatFind(&twice, doubleIt).kind == CHEAT_NONE);
+    cheat = StepCheatFind(&twice, "int main() { int a; scanf(\"%d\", &a);\n"
+                                  "    if (a == 7) printf(\"14\\n\"); else printf(\"42\\n\"); return 0; }");
+    assert(cheat.kind == CHEAT_ANSWER_WRITTEN && strcmp(cheat.note, "14, 42") == 0);
+    assert(StepCheatFind(&twice, "int main() { printf(\"21\\n\"); return 0; }").kind == CHEAT_NONE);
 
     // A word the solution has to build (a name reversed) typed in as a string.
     const char *nameStarter = "#include <stdio.h>\nint main() {\n    char name[20] = \"Alice\";\n    printf(\"%s\\n\", name);\n"
@@ -418,7 +429,8 @@ static void TestParser(void)
     WriteText("build/test_steps_lessons/b_level.txt",
               "@id c_99_test\n@track C\n@title Test level\n@speed loops arrays\n\n"
               "@step\n~ 2 loops:1 output:0.5\n```\nint main() {\n\tint x;\n}\n```\n@input\n```\n3 4\n```\n"
-              "@expect\n```\n7\n```\n@solution\n```\nint main() {}\n```\n\n"
+              "@expect\n```\n7\n```\n@input\n```\n10 5\n```\n@expect\n```\n15\n```\n@expect\n```\n0\n```\n"
+              "@solution\n```\nint main() {}\n```\n\n"
               "@step broken fixed\n```\nstarter two\n```\n@expect\n```\nout\n```\n\n"
               "Some words to read.\n");
     WriteText("build/test_steps_lessons/a_unwritten.txt", "@id c_98_soon\n@track C++\n@title Coming soon\n");
@@ -432,9 +444,13 @@ static void TestParser(void)
     assert(one->difficulty == 2 && one->skillCount == 2 && one->skills[0].skill == SKILL_LOOPS);
     assert(one->skills[1].skill == SKILL_OUTPUT && one->skills[1].weight == 0.5f);
     assert(!strcmp(one->starter, "int main() {\n    int x;\n}"));  // tabs become four spaces
-    assert(!strcmp(one->input, "3 4") && !strcmp(one->expected, "7") && !strcmp(one->solution, "int main() {}"));
+    assert(!strcmp(one->solution, "int main() {}"));
+    // Each "@expect" ends a test case; an "@input" after one starts the next.
+    assert(one->caseCount == 3 && !strcmp(one->cases[0].input, "3 4") && !strcmp(one->cases[0].expected, "7"));
+    assert(!strcmp(one->cases[1].input, "10 5") && !strcmp(one->cases[1].expected, "15"));
+    assert(one->cases[2].input == NULL && !strcmp(one->cases[2].expected, "0"));
     // A step without a "~" line is difficulty 1; without a solution, its starter stands in.
-    assert(two->difficulty == 1 && two->skillCount == 0 && two->input == NULL);
+    assert(two->difficulty == 1 && two->skillCount == 0 && two->caseCount == 1 && two->cases[0].input == NULL);
     assert(two->fixedValues && !one->fixedValues);
     assert(!strcmp(two->starter, "starter two") && !strcmp(two->solution, "starter two"));
     LessonsUnload(&set);
@@ -513,12 +529,13 @@ static void TestSecondRun(void)
     // amount. A step with nothing to vary has no second run, and "@step fixed" switches it off.
     Step reads = { 0 };
     reads.starter = reads.solution = "int main() { }";
-    reads.input = "25 J\n1500.50 -3";
+    reads.caseCount = 1;
+    reads.cases[0].input = "25 J\n1500.50 -3";
     assert(StepVariationMake(&reads, &variation));
     assert(variation.changes == 4 && strcmp(variation.input, "26 L\n1503.50 -7") == 0);
     assert(strcmp(variation.solution, reads.solution) == 0);
     StepVariationFree(&variation);
-    reads.input = NULL;
+    reads.cases[0].input = NULL;
     assert(!StepVariationMake(&reads, &variation) && variation.solution == NULL && variation.changes == 0);
     swap.fixedValues = true;
     assert(!StepVariationMake(&swap, &variation));

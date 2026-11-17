@@ -250,6 +250,22 @@ int main() {
 ```
 8 0 5
 ```
+@input
+```
+2 9 6
+```
+@expect
+```
+0 9 6
+```
+@input
+```
+7 8 1
+```
+@expect
+```
+7 8 0
+```
 @solution
 ```
 #include <stdio.h>

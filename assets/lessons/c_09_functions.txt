@@ -330,6 +330,22 @@ int main() {
 ```
 3^4 = 81
 ```
+@input
+```
+2 10
+```
+@expect
+```
+2^10 = 1024
+```
+@input
+```
+5 0
+```
+@expect
+```
+5^0 = 1
+```
 @solution
 ```
 #include <stdio.h>

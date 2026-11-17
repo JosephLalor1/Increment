@@ -94,10 +94,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         SettingsOpen();
         return SCREEN_SETTINGS;
     }
-    if (Is(name, "editor")) {  // the free editor needs a user for its draft
+    if (Is(name, "editor") || Is(name, "editorcases")) {  // the free editor needs a user for its draft
         if (!AccountCurrent()) return Home();
         CodeSetDraftFolder(AccountCodeDir());
         CodeOpenPlayground();
+        if (Is(name, "editorcases")) CodeDemoCases();
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (runFirst && runFirst[0] == '1') CodeRunNow();
         return SCREEN_CODE;

@@ -8,8 +8,8 @@
 // out from the step's starter, solution, input and target. Data only, unit-tested
 // (tests/test_steps.c). A step's own solution never trips them.
 //
-// 1. The answer written in. Numbers and words in the target that the step's solution
-//    doesn't contain (nor its starter or input) can only come from computing them:
+// 1. The answer written in. Numbers and words in any test case's target that the step's
+//    solution doesn't contain (nor its starter or any input) can only come from computing them:
 //    "Sum: 15" from a loop, "ecilA" from reversing "Alice". If they are sitting in the
 //    learner's code as literals, the answer was typed in. Words count at once; of the
 //    numbers, most must be there (one or both of one or two, more than half of more), so

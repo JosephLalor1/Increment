@@ -1,6 +1,7 @@
 // Playing a level's coding steps. See level_screen.h.
 #include "level/level_screen.h"
 #include "learning/answers.h"
+#include "code/case_runner.h"
 #include "code/drafts.h"
 #include "code/editor.h"
 #include "ui/layout.h"
@@ -60,13 +61,14 @@ static struct {
     char draftFolder[600];
 
     Editor code;
-    Runner runner;
+    CaseRunner runner; // runs the learner's code on every test case of the step
     bool wasBusy;
     bool learnerRun;   // the latest run was started by the learner (not the automatic first run)
     unsigned markedVersion;
 
     bool ran;          // a run has finished since the step opened
-    bool passed;       // the last run printed the target output
+    bool passed;       // the last run printed every test case's target output
+    int shownCase;     // the test case the target, input and output panels show
     bool rewarded;     // this opening of the step has already earned its XP
     // A step passed before earns XP again only for new work (StepReplayEarns): measured from
     // the code it opened with, or from the starter once Reset is pressed and not undone.
@@ -138,7 +140,7 @@ static void UpdateScan(void)
 }
 
 // After a run that worked: runs the code again with its memory report added, if it has
-// pointers to show. The learner isn't kept waiting for it.
+// pointers to show, on the test case on show. The learner isn't kept waiting for it.
 static void StartProbe(void)
 {
     RunnerCancel(&ls.probe);
@@ -147,7 +149,7 @@ static void StartProbe(void)
     char *instrumented = ProbeInstrument(ls.code.text);
     if (!instrumented) return;
     ls.probingVersion = ls.code.version;
-    RunnerStart(&ls.probe, instrumented, Cpp(), CurrentStep()->input);
+    RunnerStart(&ls.probe, instrumented, Cpp(), CurrentStep()->cases[ls.shownCase].input);
     free(instrumented);
 }
 
@@ -172,7 +174,27 @@ static void StartRun(bool byLearner)
     ls.ranVersion = ls.code.version;
     LevelFxEmit(FX_RUN_STARTED);
     EditorSetMarks(&ls.code, NULL, 0);
-    RunnerStart(&ls.runner, ls.code.text, Cpp(), CurrentStep()->input);
+    const Step *step = CurrentStep();
+    const char *inputs[MAX_STEP_CASES];
+    for (int i = 0; i < step->caseCount; i++) inputs[i] = step->cases[i].input;
+    CaseRunnerStart(&ls.runner, ls.code.text, Cpp(), inputs, step->caseCount);
+}
+
+// Whether the last run printed test case index's target.
+static bool CaseMatches(int index)
+{
+    const CaseOutcome *outcome = &ls.runner.outcomes[index];
+    return outcome->result == RESULT_OK && !outcome->truncated
+        && RunnerOutputMatches(outcome->output, CurrentStep()->cases[index].expected, NULL);
+}
+
+// Shows test case index in the panels, its lines typed out afresh.
+static void ShowCase(int index)
+{
+    ls.shownCase = index;
+    ls.outputScroll = ls.targetScroll = 0;
+    ls.shownAt = GetTime();
+    ls.linesRevealed = 0;
 }
 
 // Whether this pass earns XP. A first pass always does. A step passed before earns again
@@ -290,7 +312,7 @@ static void CheckerFinished(void)
     if (ls.check == CHECK_EXPECTING) {
         // If the changed solution fails or prints the same as before, the second run proves
         // nothing: remember that, and let the pass stand.
-        bool useful = out && !RunnerOutputMatches(out, CurrentStep()->expected, &badLine);
+        bool useful = out && !RunnerOutputMatches(out, CurrentStep()->cases[0].expected, &badLine);
         free(ls.variedExpected);
         ls.variedExpected = malloc(strlen(useful ? out : "") + 1);
         if (ls.variedExpected) strcpy(ls.variedExpected, useful ? out : "");
@@ -301,23 +323,24 @@ static void CheckerFinished(void)
             CheckPassed();
         } else {
             snprintf(ls.checkNote, sizeof ls.checkNote, "%s", ls.variation.summary);
-            ls.outputScroll = ls.targetScroll = 0;
-            ls.shownAt = GetTime();  // the second run's output is typed out in its turn
-            ls.linesRevealed = 0;
+            ShowCase(0);  // the second run changes the main case: its output is typed out in its turn
             CheckFailed(CHECK_VALUES_FAILED);
         }
     }
 }
 
-// Called once when a run finishes: error marks, or the output checked against the target.
+// Called once when a run finishes: error marks, or every test case's output checked against
+// its target. The panels move to the first case that went wrong.
 static void RunFinished(void)
 {
-    Runner *r = &ls.runner;
+    Runner *r = &ls.runner.runner;  // the build: its diagnostics
     ls.ran = true;
-    ls.outputScroll = 0;
-    ls.shownAt = GetTime();
-    ls.linesRevealed = 0;
-    if (r->result == RESULT_COMPILE_ERROR) {
+    int firstWrong = -1;
+    for (int i = 0; i < CurrentStep()->caseCount && firstWrong < 0; i++)
+        if (!CaseMatches(i)) firstWrong = i;
+    ShowCase(firstWrong >= 0 ? firstWrong : ls.shownCase);
+    bool compileFailed = ls.runner.buildFailed && ls.runner.outcomes[0].result == RESULT_COMPILE_ERROR;
+    if (compileFailed) {
         int lines[RUNNER_MAX_DIAGS], n = 0;
         for (int i = 0; i < r->diagCount; i++) if (r->diags[i].error) lines[n++] = r->diags[i].line;
         EditorSetMarks(&ls.code, lines, n);
@@ -327,18 +350,16 @@ static void RunFinished(void)
             LevelFxEmit(FX_COMPILE_FAILED);
         }
     }
-    if (r->result == RESULT_OK) StartProbe();
-    int badLine;
+    if (ls.runner.outcomes[ls.shownCase].result == RESULT_OK) StartProbe();
     bool wasPassed = ls.passed;
-    ls.passed = r->result == RESULT_OK && r->programOutput && !r->outputTruncated
-             && RunnerOutputMatches(r->programOutput, CurrentStep()->expected, &badLine);
+    ls.passed = firstWrong < 0;
     if (ls.passed) {
         if (!wasPassed) ls.passedAt = GetTime();
         if (ls.learnerRun) BeginCheck();
     } else if (ls.learnerRun) {
         ls.failedAt = GetTime();
         MascotReact(FOX_EDITOR, FOX_INCORRECT);
-        if (r->result != RESULT_COMPILE_ERROR) LevelFxEmit(FX_OUTPUT_WRONG);
+        if (!compileFailed) LevelFxEmit(FX_OUTPUT_WRONG);
     }
 }
 
@@ -349,7 +370,7 @@ static void RunFinished(void)
 static void OpenStep(int index, bool leavingStep)
 {
     if (leavingStep) SaveDraft();
-    RunnerCancel(&ls.runner);
+    CaseRunnerCancel(&ls.runner);
     RunnerCancel(&ls.checker);
     RunnerCancel(&ls.probe);
     memset(&ls.snapshot, 0, sizeof ls.snapshot);
@@ -375,6 +396,7 @@ static void OpenStep(int index, bool leavingStep)
     ls.memoryHeight = 0;
     ls.code.fontSize = 19 * UiTextScale();
     ls.ran = ls.passed = ls.rewarded = false;
+    ls.shownCase = 0;
     ls.passedAt = ls.failedAt = -10;
     ls.hintsShown = 0;
     ls.targetScroll = ls.outputScroll = 0;
@@ -413,7 +435,7 @@ void LevelScreenClose(void)
 {
     if (!ls.open) return;
     SaveDraft();
-    RunnerCancel(&ls.runner);
+    CaseRunnerCancel(&ls.runner);
     RunnerCancel(&ls.checker);
     RunnerCancel(&ls.probe);
     ls.open = false;
@@ -424,7 +446,7 @@ void LevelScreenShutdown(void)
 {
     LevelScreenClose();
     if (!ls.ready) return;
-    RunnerFree(&ls.runner);
+    CaseRunnerFree(&ls.runner);
     RunnerFree(&ls.checker);
     RunnerFree(&ls.probe);
     StepVariationFree(&ls.variation);
@@ -579,14 +601,15 @@ static void OutputLinesView(Rectangle area, const char *text, const char *compar
     EndScissorMode();
 }
 
-// What the program did, when it didn't print anything to compare: compile errors (line and
-// message), a crash or a timeout.
+// What the program did on the test case on show, when it didn't print anything to compare:
+// compile errors (line and message), a crash or a timeout.
 static void ProblemView(Rectangle area)
 {
-    Runner *r = &ls.runner;
+    const Runner *r = &ls.runner.runner;  // the build: its diagnostics
+    const CaseOutcome *outcome = &ls.runner.outcomes[ls.shownCase];
     float size = 17 * UiTextScale(), y = area.y;
     BeginScissorMode((int)area.x, (int)area.y, (int)area.width, (int)area.height);
-    if (r->result == RESULT_COMPILE_ERROR && r->errorCount > 0) {
+    if (outcome->result == RESULT_COMPILE_ERROR && r->errorCount > 0) {
         for (int i = 0; i < r->diagCount && y < area.y + area.height; i++) {
             if (!r->diags[i].error) continue;
             const char *number = TextFormat("%d", r->diags[i].line);
@@ -597,9 +620,10 @@ static void ProblemView(Rectangle area)
         }
     } else {
         IconDraw(ICON_CROSS, (Vector2){ area.x + 12, y + size * 0.6f }, size, COL_BAD);
-        y += UiWrappedText(gFonts.text, r->summary, (Vector2){ area.x + 30, y }, area.width - 34, size, COL_BAD, true) + 10;
+        y += UiWrappedText(gFonts.text, outcome->summary, (Vector2){ area.x + 30, y }, area.width - 34, size, COL_BAD,
+                           true) + 10;
         // A failed build with no line to point at (a link error, say): the compiler's own words.
-        if (r->result == RESULT_COMPILE_ERROR && r->compileOutput)
+        if (outcome->result == RESULT_COMPILE_ERROR && r->compileOutput)
             UiWrappedText(gFonts.mono, r->compileOutput, (Vector2){ area.x, y }, area.width, size * 0.85f, COL_DIM, true);
     }
     EndScissorMode();
@@ -635,33 +659,73 @@ static void CheckStrip(Rectangle r)
     EndScissorMode();
 }
 
-// The right-hand column: the target, the input if the step has one, and what the program
-// printed. After a failed second run it shows that run instead: the target, input and output
-// for the changed values.
+// A step with several test cases: a chip per case above the panels, numbered, the one on
+// show filled. Once a run is over each gets a tick or a cross; during it, the cases still to
+// run are dim. Clicking a chip shows that case. Returns the height used.
+static float CaseChips(Rectangle row)
+{
+    const Step *step = CurrentStep();
+    if (step->caseCount < 2) return 0;
+    const CaseRunner *c = &ls.runner;
+    float chipW = 74, chipH = 34, gap = 8, x = row.x;
+    for (int i = 0; i < step->caseCount; i++, x += chipW + gap) {
+        Rectangle chip = { x, row.y, chipW, chipH };
+        bool shown = i == ls.shownCase, over = !shown && UiMouseOver(chip);
+        if (over) UiWantHand();
+        UiRoundRect(chip, 8, shown ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL);
+        Color ink = shown ? COL_ON_ACCENT : COL_TEXT;
+        IconDraw(ICON_USER, (Vector2){ chip.x + 16, chip.y + chipH / 2 }, 15, ink);
+        UiText(gFonts.bold, TextFormat("%d", i + 1), chip.x + 29, chip.y + 7, 18, ink);
+        // How the case went: a tick or a cross once it has run, a dim dot while it waits.
+        Vector2 mark = { chip.x + chipW - 17, chip.y + chipH / 2 };
+        if (c->outcomes[i].result != RESULT_NONE) {
+            bool right = CaseMatches(i);
+            DrawCircleV(mark, 10, shown ? COL_ON_ACCENT : right ? COL_GOOD : COL_BAD);
+            IconDraw(right ? ICON_CHECK : ICON_CROSS, mark, 12, shown ? (right ? COL_GOOD : COL_BAD) : COL_ON_ACCENT);
+        } else {
+            DrawCircleV(mark, 4, Fade(ink, 0.35f));
+        }
+        if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            ShowCase(i);
+            if (!CaseRunnerBusy(c) && c->outcomes[i].result == RESULT_OK) StartProbe();  // its picture of memory
+        }
+    }
+    return chipH + 10;
+}
+
+// The right-hand column: the test case chips (if the step has several), then the target, the
+// input if the case has one, and what the program printed, for the case on show. After a
+// failed second run it shows that run instead (of the main case): the target, input and
+// output for the changed values.
 static void OutputColumn(Rectangle column)
 {
     const Step *step = CurrentStep();
-    Runner *r = &ls.runner;
+    const CaseOutcome *outcome = &ls.runner.outcomes[ls.shownCase];
+    bool runBusy = CaseRunnerBusy(&ls.runner);
     double now = GetTime();
     float gap = 12;
+    float chipsH = CaseChips(column);
+    column.y += chipsH;
+    column.height -= chipsH;
     float targetH = (column.height - gap) * 0.42f;
     float y = column.y;
-    bool varied = ls.check == CHECK_VALUES_FAILED;
+    bool varied = ls.check == CHECK_VALUES_FAILED && ls.shownCase == 0;
     bool checking = ls.check == CHECK_EXPECTING || ls.check == CHECK_RUNNING;
     bool refused = ls.check == CHECK_VALUES_FAILED || ls.check == CHECK_GIVEN_CHANGED
                 || ls.check == CHECK_CONSTRUCT_MISSING || ls.check == CHECK_ANSWER_WRITTEN
                 || ls.check == CHECK_FUNCTION_UNTOUCHED || ls.check == CHECK_INDEXED;
-    const char *expected = varied ? ls.variedExpected : step->expected;
-    const char *input = varied ? ls.variation.input : step->input;
+    const StepCase *shownCase = &step->cases[ls.shownCase];
+    const char *expected = varied ? ls.variedExpected : shownCase->expected;
+    const char *input = varied ? ls.variation.input : shownCase->input;
 
     Rectangle target = { column.x, y, column.width, targetH };
     OutputLinesView(Panel(target, ICON_TARGET, "Target", BLANK, LevelFxTargetBackdrop), expected, NULL, &ls.targetScroll);
     y += targetH + gap;
 
     // Between the panels: how much of the output matches the target so far.
-    const char *shown = varied ? ls.checker.programOutput : r->result == RESULT_OK ? r->programOutput : NULL;
+    const char *shown = varied ? ls.checker.programOutput : outcome->result == RESULT_OK ? outcome->output : NULL;
     int wanted = OutputLines(expected), matching = 0;
-    for (int i = 1; shown && ls.ran && !RunnerBusy(r) && i <= wanted && i <= ls.linesRevealed; i++)
+    for (int i = 1; shown && ls.ran && !runBusy && i <= wanted && i <= ls.linesRevealed; i++)
         matching += SameLine(shown, expected, i);
     int rows = shown && OutputLines(shown) > wanted ? OutputLines(shown) : wanted;
     LevelFxMatchBar((Rectangle){ column.x + 4, y - gap + 4, column.width - 8, 4 }, rows ? (float)matching / rows : 0);
@@ -682,7 +746,7 @@ static void OutputColumn(Rectangle column)
     Rectangle mine = { column.x + shake, y, column.width, column.y + column.height - y };
     if (glow > 0) UiRoundRect((Rectangle){ mine.x - 6 * glow, mine.y - 6 * glow, mine.width + 12 * glow, mine.height + 12 * glow },
                               14, Fade(COL_GOOD, 0.25f * glow));
-    bool wrong = refused || (!ls.passed && ls.ran && ls.learnerRun && !RunnerBusy(r));
+    bool wrong = refused || (!ls.passed && ls.ran && ls.learnerRun && !runBusy);
     Color edge = cleared ? COL_GOOD : wrong ? Fade(COL_BAD, 0.6f) : BLANK;
     Rectangle area = Panel(mine, ICON_PLAY, "Output", edge, LevelFxOutputBackdrop);
     ls.fxLayout.target = target;
@@ -693,13 +757,13 @@ static void OutputColumn(Rectangle column)
         CheckStrip((Rectangle){ mine.x + 10, mine.y + mine.height - 54, mine.width - 20, 44 });
     }
     int dots = (int)(now * 3) % 4;
-    if (RunnerBusy(r)) {
+    if (runBusy) {
         UiText(gFonts.mono, TextFormat("%.*s", dots + 1, "...."), area.x + 6, area.y, 22, COL_DIM);
     } else if (varied) {
         const char *out = ls.checker.result == RESULT_OK && ls.checker.programOutput ? ls.checker.programOutput : "";
         OutputLinesView(area, out, expected, &ls.outputScroll);
-    } else if (ls.ran && r->result == RESULT_OK) {
-        OutputLinesView(area, r->programOutput ? r->programOutput : "", step->expected, &ls.outputScroll);
+    } else if (ls.ran && outcome->result == RESULT_OK) {
+        OutputLinesView(area, outcome->output, shownCase->expected, &ls.outputScroll);
     } else if (ls.ran) {
         ProblemView(area);
     }
@@ -821,20 +885,20 @@ LevelAction LevelScreen(void)
 
     // Finish runs (the learner's, then the check's second run); drop error marks once the
     // code has been edited.
-    RunnerUpdate(&ls.runner);
-    bool running = RunnerBusy(&ls.runner);
+    CaseRunnerUpdate(&ls.runner);
+    bool running = CaseRunnerBusy(&ls.runner);
     if (ls.wasBusy && !running) RunFinished();
     ls.wasBusy = running;
     RunnerUpdate(&ls.checker);
     bool checking = RunnerBusy(&ls.checker);
     if (ls.checkerWasBusy && !checking) CheckerFinished();
     ls.checkerWasBusy = checking = RunnerBusy(&ls.checker);  // one check run may start the next
-    bool busy = RunnerBusy(&ls.runner) || checking;
+    bool busy = CaseRunnerBusy(&ls.runner) || checking;
     RunnerUpdate(&ls.probe);  // in the background: it never holds the learner up
     if (ls.probeWasBusy && !RunnerBusy(&ls.probe)) ProbeFinished();
     ls.probeWasBusy = RunnerBusy(&ls.probe);
     UpdateScan();
-    LevelFxActivity(RunnerBusy(&ls.runner), checking);
+    LevelFxActivity(CaseRunnerBusy(&ls.runner), checking);
     LevelFxUpdate(GetFrameTime());
     if (ls.code.markCount && ls.code.version != ls.markedVersion) EditorSetMarks(&ls.code, NULL, 0);
     UpdateHint();
@@ -856,7 +920,7 @@ LevelAction LevelScreen(void)
     if (busy) {
         if (UiButtonIconEx((Rectangle){ x, barY, 130, barH }, ICON_CROSS, "Stop", 20, COL_BAD,
                            ColorBrightness(COL_BAD, 0.15f), COL_ON_ACCENT, true)) {
-            RunnerCancel(&ls.runner);
+            CaseRunnerCancel(&ls.runner);
             RunnerCancel(&ls.checker);
             RunnerCancel(&ls.probe);
             ls.wasBusy = ls.checkerWasBusy = false;
@@ -1025,5 +1089,5 @@ void LevelScreenDemoCelebration(void)
 
 bool LevelScreenBusy(void)
 {
-    return ls.open && (RunnerBusy(&ls.runner) || RunnerBusy(&ls.checker) || RunnerBusy(&ls.probe));
+    return ls.open && (CaseRunnerBusy(&ls.runner) || RunnerBusy(&ls.checker) || RunnerBusy(&ls.probe));
 }

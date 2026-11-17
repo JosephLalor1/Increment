@@ -111,15 +111,21 @@ static bool AddToNote(char *note, const char *token, bool quoted)
     return true;
 }
 
-// The target's numbers and words that the step itself never spells out, found written in
-// the learner's code. Fills note with them and returns whether there are enough to matter.
-static bool AnswerWritten(const Step *step, const char *words, const char *solutionWords, const char *starterWords,
-                          char *note)
+// Whether any of the step's test cases gives the program this word in its input.
+static bool InAnInput(const Step *step, const char *word)
 {
-    note[0] = '\0';
-    // Words of three letters or more: any one of them in a string is the answer typed in.
+    for (int i = 0; i < step->caseCount; i++)
+        if (step->cases[i].input && strstr(step->cases[i].input, word)) return true;
+    return false;
+}
+
+// The words of three letters or more in a target that the step never spells out, found in
+// a string in the learner's code: any one of them is the answer typed in. Adds them to note.
+static bool WordsWritten(const Step *step, const char *expected, const char *words, const char *solutionWords,
+                         const char *starterWords, char *note)
+{
     bool wordFound = false;
-    for (const char *p = step->expected ? step->expected : ""; *p;) {
+    for (const char *p = expected ? expected : ""; *p;) {
         if (!isalpha((unsigned char)*p)) {
             p++;
             continue;
@@ -132,17 +138,32 @@ static bool AnswerWritten(const Step *step, const char *words, const char *solut
         }
         word[length] = '\0';
         if (length < 3 || InAString(solutionWords, word) || InAString(starterWords, word)) continue;
-        if (step->input && strstr(step->input, word)) continue;
+        if (InAnInput(step, word)) continue;
         if (InAString(words, word) && !strstr(note, word)) wordFound |= AddToNote(note, word, true);
     }
+    return wordFound;
+}
+
+// The targets' numbers and words that the step itself never spells out, found written in
+// the learner's code. Fills note with them and returns whether there are enough to matter.
+// Every test case's target counts, and every case's input is something the step spells out.
+static bool AnswerWritten(const Step *step, const char *words, const char *solutionWords, const char *starterWords,
+                          char *note)
+{
+    note[0] = '\0';
+    bool wordFound = false;
+    for (int i = 0; i < step->caseCount; i++)
+        wordFound |= WordsWritten(step, step->cases[i].expected, words, solutionWords, starterWords, note);
     if (wordFound) return true;
 
     // Numbers: those the step's own code and input never mention had to be computed.
     Tokens target = { .count = 0 }, known = { .count = 0 }, written = { .count = 0 };
-    CollectNumbers(step->expected, false, &target);
+    for (int i = 0; i < step->caseCount; i++) {
+        CollectNumbers(step->cases[i].expected, false, &target);
+        CollectNumbers(step->cases[i].input, false, &known);
+    }
     CollectNumbers(solutionWords, true, &known);
     CollectNumbers(starterWords, true, &known);
-    CollectNumbers(step->input, false, &known);
     CollectNumbers(words, true, &written);
     int computed = 0, found = 0;
     for (int i = 0; i < target.count; i++) {

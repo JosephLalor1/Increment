@@ -110,6 +110,22 @@ int main() {
 ```
 Next year: 26
 ```
+@input
+```
+9
+```
+@expect
+```
+Next year: 10
+```
+@input
+```
+70
+```
+@expect
+```
+Next year: 71
+```
 @solution
 ```
 #include <iostream>
@@ -143,6 +159,22 @@ int main() {
 @expect
 ```
 7 is odd
+```
+@input
+```
+10
+```
+@expect
+```
+10 is even
+```
+@input
+```
+0
+```
+@expect
+```
+0 is even
 ```
 @solution
 ```
@@ -181,6 +213,24 @@ int main() {
 ```
 Total: 20
 ```
+@input
+```
+3
+10 -5 1
+```
+@expect
+```
+Total: 6
+```
+@input
+```
+1
+42
+```
+@expect
+```
+Total: 42
+```
 @solution
 ```
 #include <iostream>
@@ -218,6 +268,24 @@ int main() {
 ```
 3 + 4 = 7
 3 * 4 = 12
+```
+@input
+```
+10 5
+```
+@expect
+```
+10 + 5 = 15
+10 * 5 = 50
+```
+@input
+```
+-2 6
+```
+@expect
+```
+-2 + 6 = 4
+-2 * 6 = -12
 ```
 @solution
 ```

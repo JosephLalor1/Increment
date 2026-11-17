@@ -274,6 +274,22 @@ b
 ```
 Good job!
 ```
+@input
+```
+A
+```
+@expect
+```
+Excellent performance!
+```
+@input
+```
+x
+```
+@expect
+```
+Invalid grade entered
+```
 @solution
 ```
 #include <stdio.h>
@@ -312,6 +328,30 @@ int main() {
 @expect
 ```
 Grade: C
+```
+@input
+```
+95
+```
+@expect
+```
+Grade: A
+```
+@input
+```
+80
+```
+@expect
+```
+Grade: B
+```
+@input
+```
+55
+```
+@expect
+```
+Grade: F
 ```
 @solution
 ```
@@ -355,6 +395,22 @@ int main() {
 @expect
 ```
 12 is larger
+```
+@input
+```
+20 3
+```
+@expect
+```
+20 is larger
+```
+@input
+```
+6 6
+```
+@expect
+```
+Equal
 ```
 @solution
 ```

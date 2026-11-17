@@ -1,6 +1,7 @@
 // Audit: for every step of every level, builds the plainest cheat (the starter, with main
-// reduced to its declarations and a printf of each target line) and says which check, if
-// any, refuses it. Static checks only: a step with a second run is counted as caught by it.
+// reduced to its declarations and a printf of each line of its main test case's target) and
+// says which check, if any, refuses it. Static checks only: a step with a second run is
+// counted as caught by it, and so is one whose test cases print different things.
 #include "learning/lesson.h"
 #include "level/step_cheats.h"
 #include "level/step_check.h"
@@ -27,7 +28,8 @@ static char *Cheat(const Step *step)
     if (!mainAt) return NULL;
     const char *open = strchr(mainAt, '{');
     if (!open) return NULL;
-    char *out = malloc(strlen(step->starter) + strlen(step->expected) * 2 + 4096);
+    const char *expected = step->cases[0].expected;
+    char *out = malloc(strlen(step->starter) + strlen(expected) * 2 + 4096);
     size_t used = (size_t)(open + 1 - step->starter);
     memcpy(out, step->starter, used);
     out[used++] = '\n';
@@ -46,7 +48,7 @@ static char *Cheat(const Step *step)
         }
         line = *end ? end + 1 : end;
     }
-    for (const char *line = step->expected; *line;) {
+    for (const char *line = expected; *line;) {
         const char *end = strchr(line, '\n');
         if (!end) end = line + strlen(line);
         used += (size_t)sprintf(out + used, "    printf(\"");
@@ -66,7 +68,7 @@ int main(int argc, char **argv)
 {
     LessonSet set = { 0 };
     LessonsLoad(&set, argc > 1 ? argv[1] : "assets/lessons");
-    int steps = 0, open = 0, by[5] = { 0 };
+    int steps = 0, open = 0, by[5] = { 0 };  // construct, code checks, givens, second run, test cases
     for (int l = 0; l < set.count; l++) {
         const Lesson *lesson = &set.items[l];
         bool cpp = lesson->track == TRACK_CPP;
@@ -80,12 +82,16 @@ int main(int argc, char **argv)
             char note[STEP_CHECK_SUMMARY];
             StepVariation variation;
             const char *caught = NULL;
+            bool casesDiffer = false;  // one printed answer can't match them all
+            for (int c = 1; c < step->caseCount; c++)
+                casesDiffer |= strcmp(step->cases[c].expected, step->cases[0].expected) != 0;
             if (StepMissingConstructs(step, cheat, cpp, &construct, 1)) { caught = "construct"; by[0]++; }
             else if (StepCheatFind(step, cheat).kind != CHEAT_NONE) { caught = "cheat"; by[1]++; }
             else {
                 free(StepVariationApply(step, cheat, &missing, note));
                 if (missing) { caught = "given"; by[2]++; }
                 else if (StepVariationMake(step, &variation)) { caught = "second run"; by[3]++; StepVariationFree(&variation); }
+                else if (casesDiffer) { caught = "test cases"; by[4]++; }
             }
             if (!caught) {
                 open++;
@@ -94,7 +100,7 @@ int main(int argc, char **argv)
             free(cheat);
         }
     }
-    printf("%d steps: %d by construct, %d by code checks, %d by givens, %d left to the second run, %d open\n", steps, by[0],
-           by[1], by[2], by[3], open);
+    printf("%d steps: %d by construct, %d by code checks, %d by givens, %d left to the second run, %d by test cases, "
+           "%d open\n", steps, by[0], by[1], by[2], by[3], by[4], open);
     return 0;
 }
