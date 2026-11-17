@@ -1,13 +1,13 @@
 // Used by tools/check_lessons.py: builds a step's second run (src/step_check.h) with the
 // app's own code, so the checker tests exactly what learners will meet.
 //
-// usage: step_variant <c|cpp> <starter file> <solution file> <input file or -> <out prefix>
-//        [<expected file> [<skill:weight> ...]]
+// usage: step_variant <c|cpp> <starter file> <solution file> <out prefix> <case count>
+//        (<input file or -> <expected file>) per test case, then [<skill:weight> ...]
 //
-// Writes <out prefix>.code (the solution with its given values changed) and, if there's
-// input, <out prefix>.in. Prints one line: the number of changes, then the changed values.
-// Also checks the solution against its own step: prints "missing ..." or "cheat ..." lines
-// if it is refused (the cheat checks need the step's expected output and "~" skills).
+// Writes <out prefix>.code (the solution with its given values changed) and, if the main
+// (first) test case has input, <out prefix>.in. Prints one line: the number of changes, then
+// the changed values. Also checks the solution against its own step: prints "missing ..."
+// or "cheat ..." lines if it is refused.
 #include "level/step_cheats.h"
 #include "level/step_check.h"
 
@@ -42,16 +42,25 @@ int main(int argc, char **argv)
 {
     if (argc < 6) return 2;
     bool cpp = strcmp(argv[1], "cpp") == 0;
+    const char *prefix = argv[4];
     Step step = { 0 };
     step.starter = ReadFile(argv[2]);
     step.solution = ReadFile(argv[3]);
-    step.input = strcmp(argv[4], "-") == 0 ? NULL : ReadFile(argv[4]);
-    if (!step.starter || !step.solution) return 2;
+    step.caseCount = atoi(argv[5]);
+    if (!step.starter || !step.solution || step.caseCount < 1 || step.caseCount > MAX_STEP_CASES
+        || argc < 6 + 2 * step.caseCount)
+        return 2;
+    for (int i = 0; i < step.caseCount; i++) {
+        const char *input = argv[6 + 2 * i], *expected = argv[7 + 2 * i];
+        step.cases[i].input = strcmp(input, "-") == 0 ? NULL : ReadFile(input);
+        step.cases[i].expected = ReadFile(expected);
+        if (!step.cases[i].expected) return 2;
+    }
 
     StepVariation variation;
     if (StepVariationMake(&step, &variation)) {
-        WriteFile(argv[5], ".code", variation.solution);
-        if (variation.input) WriteFile(argv[5], ".in", variation.input);
+        WriteFile(prefix, ".code", variation.solution);
+        if (variation.input) WriteFile(prefix, ".in", variation.input);
     }
     printf("%d %s\n", variation.changes, variation.summary);
 
@@ -64,17 +73,14 @@ int main(int argc, char **argv)
     if (StepMissingConstructs(&step, step.solution, cpp, &construct, 1)) printf("missing construct\n");
 
     // Nor may it look like a cheat (step_cheats.h).
-    if (argc > 6) {
-        step.expected = ReadFile(argv[6]);
-        for (int i = 7; i < argc && step.skillCount < MAX_QUESTION_SKILLS; i++) {
-            char name[64];
-            float weight;
-            Skill skill;
-            if (sscanf(argv[i], "%63[^:]:%f", name, &weight) == 2 && SkillFromName(name, -1, &skill))
-                step.skills[step.skillCount++] = (SkillWeight){ skill, weight };
-        }
-        StepCheat cheat = StepCheatFind(&step, step.solution);
-        if (cheat.kind != CHEAT_NONE) printf("cheat in solution: %s\n", cheat.note);
+    for (int i = 6 + 2 * step.caseCount; i < argc && step.skillCount < MAX_QUESTION_SKILLS; i++) {
+        char name[64];
+        float weight;
+        Skill skill;
+        if (sscanf(argv[i], "%63[^:]:%f", name, &weight) == 2 && SkillFromName(name, -1, &skill))
+            step.skills[step.skillCount++] = (SkillWeight){ skill, weight };
     }
+    StepCheat cheat = StepCheatFind(&step, step.solution);
+    if (cheat.kind != CHEAT_NONE) printf("cheat in solution: %s\n", cheat.note);
     return 0;
 }

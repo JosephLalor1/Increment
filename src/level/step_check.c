@@ -319,7 +319,8 @@ bool StepVariationMake(const Step *step, StepVariation *out)
         AddToSummary(out->summary, slot->name, patches[g].text);
     }
     int inputChanges = 0;
-    if (step->input) out->input = VaryInput(step->input, &inputChanges);
+    const char *input = step->cases[0].input;  // the main test case's (lesson.h)
+    if (input) out->input = VaryInput(input, &inputChanges);
     out->changes = givenCount + inputChanges;
     if (out->changes == 0) {
         StepVariationFree(out);

@@ -236,6 +236,22 @@ programming
 ```
 programming has 11 letters
 ```
+@input
+```
+C
+```
+@expect
+```
+C has 1 letters
+```
+@input
+```
+abstraction
+```
+@expect
+```
+abstraction has 11 letters
+```
 @solution
 ```
 #include <stdio.h>

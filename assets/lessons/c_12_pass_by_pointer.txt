@@ -298,6 +298,22 @@ int main() {
 ```
 4 9
 ```
+@input
+```
+12 -1
+```
+@expect
+```
+-1 12
+```
+@input
+```
+5 5
+```
+@expect
+```
+5 5
+```
 @solution
 ```
 #include <stdio.h>

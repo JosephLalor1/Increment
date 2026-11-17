@@ -10,16 +10,24 @@
 
 #include "learning/skills.h"
 
-#define MAX_STEPS 16  // steps in one level
+#define MAX_STEPS 16      // steps in one level
+#define MAX_STEP_CASES 6  // test cases in one step
 
 typedef enum { TRACK_C, TRACK_CPP, TRACK_COUNT } Track;
 
-// One coding step. It passes when the learner's program prints `expected` (given `input` on
-// stdin); hints come from comparing their code with `solution` (step_hints.h).
+// One test case of a step: what the program reads, and what it must print for it.
+typedef struct {
+    char *input;     // stdin, may be NULL
+    char *expected;  // the target output; never NULL once loaded
+} StepCase;
+
+// One coding step. It passes when the learner's program prints every case's `expected` given
+// that case's `input` on stdin; hints come from comparing their code with `solution`
+// (step_hints.h).
 typedef struct {
     char *starter;   // the code the editor starts with; always compiles, never already passes
-    char *input;     // stdin, may be NULL
-    char *expected;  // the target output
+    StepCase cases[MAX_STEP_CASES];  // at least one once loaded; the first is the step's main
+    int caseCount;                   // case, the one its second run changes (step_check.h)
     char *solution;  // a reference solution; never NULL once loaded
     int difficulty;  // 1 (easy) to 3 (hard), from its "~" line
     bool fixedValues;  // "@step fixed": no second run with different values (step_check.h)

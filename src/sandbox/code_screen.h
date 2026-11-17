@@ -3,8 +3,9 @@
 
 #include <stdbool.h>
 
-// The free code editor, from the home bar: write C or C++, compile and run it, see the
-// output, and save programs (code_library.h). Lessons' coding steps have their own screen
+// The free code editor, from the home bar: write C or C++, compile and run it on one or more
+// test cases (each an input and, optionally, the output it should give), see the output,
+// and save programs (code_library.h). Lessons' coding steps have their own screen
 // (level_screen.h).
 
 // Where drafts are saved, normally the signed-in user's code folder. NULL or "" turns
@@ -24,5 +25,8 @@ void CodeShutdown(void);  // frees everything, at exit
 // Dev aid for --shot: start running immediately; CodeBusy says when it has finished.
 void CodeRunNow(void);
 bool CodeBusy(void);
+// Dev aid for --shot: a program that reads a number, with three test cases (one expecting
+// the wrong output).
+void CodeDemoCases(void);
 
 #endif

@@ -38,7 +38,7 @@ build\test_editor.exe
 if errorlevel 1 set FAILED=1
 
 rem Compiles and runs real programs; one waits for the 5-second time limit.
-"%CC%" %CFLAGS% tests\test_runner.c src\code\runner.c src\core\platform.c -o build\test_runner.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_runner.c src\code\runner.c src\code\case_runner.c src\core\platform.c -o build\test_runner.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_runner.exe
 if errorlevel 1 set FAILED=1

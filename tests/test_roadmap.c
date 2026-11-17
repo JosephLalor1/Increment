@@ -26,7 +26,7 @@ int main(void)
         ready += RoadmapLevelReady(&real.items[i]);
         for (int s = 0; s < real.items[i].stepCount; s++) {
             const Step *step = &real.items[i].steps[s];
-            assert(step->starter[0] && step->expected[0] && step->solution[0]);
+            assert(step->starter[0] && step->caseCount >= 1 && step->cases[0].expected[0] && step->solution[0]);
             assert(step->difficulty >= 1 && step->difficulty <= 3);
         }
     }

@@ -207,6 +207,22 @@ int main() {
 ```
 42
 ```
+@input
+```
+5
+```
+@expect
+```
+10
+```
+@input
+```
+-8
+```
+@expect
+```
+-16
+```
 @solution
 ```
 #include <iostream>

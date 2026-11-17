@@ -1,5 +1,7 @@
-// End-to-end tests for src/runner.c: compiles and runs real programs with the bundled gcc.
+// End-to-end tests for src/code/runner.c and case_runner.c: compiles and runs real programs
+// with the bundled gcc.
 // Run via test.bat. Takes about 10 seconds (one test waits for the 5-second time limit).
+#include "code/case_runner.h"
 #include "code/runner.h"
 #include "raylib.h"
 
@@ -60,6 +62,41 @@ static void TestPureHelpers(void)
 
     CHECK(RunnerCrashReason(0xC0000005UL) != NULL);
     CHECK(RunnerCrashReason(0) == NULL && RunnerCrashReason(1) == NULL);
+}
+
+static void RunCases(CaseRunner *c, const char *code, const char *const *inputs, int count)
+{
+    CaseRunnerStart(c, code, false, inputs, count);
+    double start = GetTime();
+    while (CaseRunnerBusy(c) && GetTime() - start < 60) {
+        CaseRunnerUpdate(c);
+        WaitTime(0.01);
+    }
+}
+
+// One build, then a run per test case; a crash in one case doesn't stop the next.
+static void TestCases(void)
+{
+    CaseRunner c = { 0 };
+    const char *doubler =
+        "#include <stdio.h>\nint main() {\n    int n = 0;\n    scanf(\"%d\", &n);\n"
+        "    if (n == 0) { int *p = 0; *p = 1; }\n    printf(\"%d\\n\", n * 2);\n}";
+    const char *inputs[] = { "3", "0", "21" };
+    RunCases(&c, doubler, inputs, 3);
+    CHECK(!c.buildFailed && c.count == 3 && c.runner.buildCount == 1);
+    CHECK(c.outcomes[0].result == RESULT_OK && RunnerOutputMatches(c.outcomes[0].output, "6", NULL));
+    CHECK(c.outcomes[1].result == RESULT_CRASH);
+    CHECK(c.outcomes[2].result == RESULT_OK && RunnerOutputMatches(c.outcomes[2].output, "42", NULL));
+
+    // A build that fails gives every case its result, and keeps the diagnostics.
+    RunCases(&c, "int main() { return x; }", inputs, 2);
+    CHECK(c.buildFailed && c.outcomes[0].result == RESULT_COMPILE_ERROR && c.outcomes[1].result == RESULT_COMPILE_ERROR);
+    CHECK(c.runner.errorCount >= 1);
+
+    // No inputs at all is one case with nothing on stdin.
+    RunCases(&c, "#include <stdio.h>\nint main() { printf(\"hi\\n\"); }", NULL, 0);
+    CHECK(c.count == 1 && c.outcomes[0].result == RESULT_OK && RunnerOutputMatches(c.outcomes[0].output, "hi", NULL));
+    CaseRunnerFree(&c);
 }
 
 int main(void)
@@ -125,6 +162,7 @@ int main(void)
     CHECK(r.result == RESULT_OK && RunnerOutputMatches(r.programOutput, "refused", NULL));
 
     RunnerFree(&r);
+    TestCases();
     CloseWindow();
 
     if (failures) {

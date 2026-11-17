@@ -57,6 +57,7 @@ typedef struct {
     bool inCode;
     bool ignoringStep;   // past MAX_STEPS: the rest of the file's steps are skipped
     char **fenceTarget;  // which field of the current step the next code block fills
+    char *discarded;     // where a block that has no place goes (a test case past the limit)
     const char *file;
     int lineNo;
 } Parser;
@@ -129,6 +130,22 @@ static void StartStep(Parser *ps, const char *options)
     step->fixedValues = strstr(options, "fixed") != NULL;
 }
 
+// Where an "@input" or "@expect" block goes. Each "@expect" ends a test case, so an "@input"
+// after one (or a second "@input") starts the next case, and so does an "@expect" after one.
+static char **CaseField(Parser *ps, Step *step, bool input)
+{
+    StepCase *last = step->caseCount ? &step->cases[step->caseCount - 1] : NULL;
+    bool startsCase = !last || last->expected || (input && last->input);
+    if (startsCase) {
+        if (step->caseCount >= MAX_STEP_CASES) {
+            TraceLog(LOG_WARNING, "LESSON: %s:%d: too many test cases, ignoring the rest", ps->file, ps->lineNo);
+            return &ps->discarded;
+        }
+        last = &step->cases[step->caseCount++];
+    }
+    return input ? &last->input : &last->expected;
+}
+
 static void ParseLine(Parser *ps, const char *line)
 {
     Lesson *L = ps->lesson;
@@ -167,8 +184,8 @@ static void ParseLine(Parser *ps, const char *line)
     Step *step = CurrentStep(ps);
     if (ps->ignoringStep) return;
     if (step && StartsWith(line, "~ "))       { ParseSkillLine(ps, step, line + 2); return; }
-    if (step && StartsWith(line, "@input"))    { ps->fenceTarget = &step->input; return; }
-    if (step && StartsWith(line, "@expect"))   { ps->fenceTarget = &step->expected; return; }
+    if (step && StartsWith(line, "@input"))    { ps->fenceTarget = CaseField(ps, step, true); return; }
+    if (step && StartsWith(line, "@expect"))   { ps->fenceTarget = CaseField(ps, step, false); return; }
     if (step && StartsWith(line, "@solution")) { ps->fenceTarget = &step->solution; return; }
     // Levels have nothing to read: any other text is a mistake in the file.
     TraceLog(LOG_WARNING, "LESSON: %s:%d: unrecognised line", ps->file, ps->lineNo);
@@ -179,9 +196,11 @@ static void ParseLine(Parser *ps, const char *line)
 static void FinishStep(const char *path, int number, Step *step)
 {
     if (!step->starter) step->starter = CopyText("");
-    if (!step->expected) {
-        TraceLog(LOG_WARNING, "LESSON: %s: step %d has no @expect output", path, number);
-        step->expected = CopyText("");
+    if (step->caseCount == 0) step->caseCount = 1;  // the warning below says what's missing
+    for (int i = 0; i < step->caseCount; i++) {
+        if (step->cases[i].expected) continue;
+        TraceLog(LOG_WARNING, "LESSON: %s: step %d, test case %d has no @expect output", path, number, i + 1);
+        step->cases[i].expected = CopyText("");
     }
     if (!step->solution) {
         TraceLog(LOG_WARNING, "LESSON: %s: step %d has no @solution", path, number);
@@ -216,6 +235,7 @@ static bool ParseLessonFile(const char *path, Lesson *L)
     }
     if (ps.inCode) FlushCode(&ps);
     free(ps.code.data);
+    free(ps.discarded);
     UnloadFileText(text);
 
     for (int i = 0; i < L->stepCount; i++) FinishStep(path, i + 1, &L->steps[i]);
@@ -228,8 +248,10 @@ static void FreeLesson(Lesson *L)
     for (int i = 0; i < L->stepCount; i++) {
         Step *step = &L->steps[i];
         free(step->starter);
-        free(step->input);
-        free(step->expected);
+        for (int c = 0; c < step->caseCount; c++) {
+            free(step->cases[c].input);
+            free(step->cases[c].expected);
+        }
         free(step->solution);
     }
 }

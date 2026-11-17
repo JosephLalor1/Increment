@@ -269,6 +269,23 @@ static void StartProgram(Runner *r)
     snprintf(r->summary, sizeof r->summary, "Running...");
 }
 
+bool RunnerRunAgain(Runner *r, const char *input)
+{
+    // Only a program that was built: a run that ended (any way) after a good compile.
+    bool built = r->phase == RUN_DONE && r->exeName[0]
+              && (r->result == RESULT_OK || r->result == RESULT_CRASH || r->result == RESULT_TIMEOUT);
+    if (!built) return false;
+    r->result = RESULT_NONE;
+    r->exitCode = 0;
+    r->runSeconds = 0;
+    r->outputTruncated = false;
+    SetText(&r->programOutput, "");
+    free(r->input);
+    r->input = CopyText(input ? input : "");
+    StartProgram(r);
+    return true;
+}
+
 void RunnerUpdate(Runner *r)
 {
     if (r->phase != RUN_COMPILING && r->phase != RUN_RUNNING) return;

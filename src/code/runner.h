@@ -59,6 +59,9 @@ typedef struct {
 } Runner;
 
 void RunnerStart(Runner *r, const char *code, bool cpp, const char *input);
+// Runs the program the last RunnerStart built again, with other input, without compiling
+// it again (compiler messages and diagnostics are kept). False if nothing was built.
+bool RunnerRunAgain(Runner *r, const char *input);
 void RunnerUpdate(Runner *r);
 bool RunnerBusy(const Runner *r);
 void RunnerCancel(Runner *r);
