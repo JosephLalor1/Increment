@@ -14,6 +14,7 @@
 // progress.
 int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height,
                     Vector2 *clickedAt);
+// Exam clicks return -2-section; -1 remains no selection. All real exams are selectable.
 float JourneyViewFocus(const LessonSet *set, Track track); // scroll offset of the first unfinished level
 
 // The middle of a level's station on screen, as last drawn (even if scrolled out of view).

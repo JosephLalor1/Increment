@@ -236,6 +236,8 @@ static void TestDelete(void)
     CHECK(codeDir && DirectoryExists(codeDir));
     WriteFile(DataFile("users/temp_user_code/playground.c"), "int main() {}\n");
     MakeDirectory(DataFile("users/temp_user_code/saved"));
+    MakeDirectory(DataFile("users/temp_user_code/exams"));
+    WriteFile(DataFile("users/temp_user_code/exams/attempt.exam"), "exam snapshot");
     WriteFile(DataFile("users/temp_user_code/saved/My loops.c"), "int main() {}\n");
     WriteFile(DataFile("users/temp_user.bookmarks.txt"), "c_01_hello\n");  // saved lessons, from older versions
     CHECK(strstr(AccountReviewPath(), "users/temp_user.review.txt") != NULL);

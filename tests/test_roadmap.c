@@ -1,11 +1,12 @@
 #include "learning/roadmap.h"
+#include "raylib.h"
 #include "learning/progress.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// The roadmap's data logic: steps unlocking in order inside a level, where to resume, and
+// The roadmap's data logic: freely accessible steps inside a level, where to resume, and
 // progress through a track (levels without steps are skipped). Also loads the real lessons,
 // so a level that fails to parse shows up here.
 
@@ -35,6 +36,7 @@ int main(void)
 
     const char *path = "build/test_roadmap_progress.txt";
     remove(path);
+    FILE *legacy=fopen(path,"w");assert(legacy);fputs("legacy_quiz 80\n",legacy);fclose(legacy);
     ProgressLoad(path);
     LessonSet set = { calloc(4, sizeof(Lesson)), 4 };
     assert(set.items);
@@ -44,13 +46,17 @@ int main(void)
     MakeLevel(&set.items[3], "cpp_one", TRACK_CPP, 2);
     const Lesson *one = &set.items[0];
 
-    // Inside a level: only the first step is open, and it's where to start.
+    // Every valid step is open from the outset; resume and completion remain independent.
     assert(RoadmapStepsDone(one) == 0 && !RoadmapLevelComplete(one) && RoadmapResumeStep(one) == 0);
-    assert(RoadmapStepOpen(one, 0) && !RoadmapStepOpen(one, 1) && !RoadmapStepOpen(one, 3) && !RoadmapStepOpen(one, -1));
+    assert(RoadmapStepOpen(one, 0) && RoadmapStepOpen(one, 1) && RoadmapStepOpen(one, 2) && !RoadmapStepOpen(one, 3) && !RoadmapStepOpen(one, -1));
+    assert(!ProgressLevelStarted(one->id) && ProgressRecordLevelStarted(one->id) && ProgressLevelStarted(one->id));
+    assert(RoadmapStepsDone(one)==0 && !RoadmapLevelComplete(one));
+    ProgressLoad(path);assert(ProgressLevelStarted(one->id));
+    char *saved=LoadFileText(path);assert(saved && strstr(saved,"legacy_quiz 80"));UnloadFileText(saved);
     assert(ProgressRecordStep("c_one", 0));
-    assert(RoadmapStepOpen(one, 1) && !RoadmapStepOpen(one, 2) && RoadmapResumeStep(one) == 1);
+    assert(RoadmapStepOpen(one, 1) && RoadmapStepOpen(one, 2) && RoadmapResumeStep(one) == 1);
     assert(ProgressRecordStep("c_one", 2));  // passed out of order (possible only in older data)
-    assert(RoadmapResumeStep(one) == 1 && !RoadmapStepOpen(one, 2) && RoadmapStepsDone(one) == 2);
+    assert(RoadmapResumeStep(one) == 1 && RoadmapStepOpen(one, 2) && RoadmapStepsDone(one) == 2);
     assert(ProgressRecordStep("c_one", 1));
     assert(RoadmapLevelComplete(one) && RoadmapResumeStep(one) == 0);  // a finished level replays from the start
     assert(!RoadmapLevelReady(&set.items[1]) && !RoadmapLevelComplete(&set.items[1]));

@@ -599,13 +599,16 @@ HomeAction DashboardScreen(const LessonSet *set)
     float top = TOPBAR_H + 14;
     float right = ContentX() + ContentWidth();
     // The journey's background code and mouse trail fill the page, round its buttons too.
-    if (page.view == HOME_VIEW_JOURNEY) JourneyBackdrop(top + 42 + 14 + JOURNEY_HEADER_H);
+    bool recoveryNotice=AccountCurrent() && !AccountHasRecovery();
+    if (page.view == HOME_VIEW_JOURNEY) JourneyBackdrop(top + 42 + 14 + JOURNEY_HEADER_H + (recoveryNotice ? 30 : 0));
     if (BarButton((Rectangle){ right - 276, top, 132, 42 }, ICON_BOLT, "Challenge")) action.kind = HOME_CHALLENGE;
     if (BarButton((Rectangle){ right - 132, top, 132, 42 }, ICON_TROPHY, "Rankings")) action.kind = HOME_RANKINGS;
+    if (BarButton((Rectangle){ right - 420, top, 132, 42 }, ICON_BOOK, "Courses")) action.kind = HOME_COURSES;
     bool openSettings = false;
-    RecoveryReminder(ContentX(), top + 10, &openSettings);
+    if(recoveryNotice) RecoveryReminder(ContentX(), top + 52, &openSettings);
     if (openSettings) action.kind = HOME_SETTINGS;
     top += 42 + 14;
+    if(recoveryNotice) top+=30;
 
     int clicked;
     if (page.view == HOME_VIEW_STATISTICS) {
@@ -624,6 +627,9 @@ HomeAction DashboardScreen(const LessonSet *set)
     if (clicked >= 0 && action.kind == HOME_STAY) {
         action.kind = HOME_OPEN_LESSON;
         action.lessonIndex = clicked;
+    }
+    if(clicked < -1 && page.view==HOME_VIEW_JOURNEY && action.kind==HOME_STAY) {
+        action.kind=HOME_OPEN_EXAM;action.lessonIndex=-2-clicked;action.track=page.journeyTrack;
     }
     return action;
 }

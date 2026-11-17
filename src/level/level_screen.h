@@ -13,7 +13,7 @@
 // constructs the step is about, and a second, automatic run with different values must match
 // too; otherwise the output panel shows why, in code and icons, and the step isn't passed.
 // A pass records the step (progress.h), earns XP in the skills the learner's code used
-// (step_skills.h, answers.h) with the reward animation, and unlocks the next step; passing
+// (step_skills.h, answers.h) with the reward animation; all steps remain freely selectable. Passing
 // the last step celebrates the level. Returns what the learner chose; main.c navigates.
 
 typedef enum {
@@ -30,6 +30,8 @@ typedef struct {
 // Opens a level at the first step not yet passed. Drafts are kept in draftFolder (normally
 // the signed-in user's code folder; NULL or "" keeps none).
 void LevelScreenOpen(const LessonSet *set, int lessonIndex, const char *draftFolder);
+// A detached exam revision task. Reuses learning checks/hints, records no exam/level/XP changes.
+void LevelScreenPractice(const Lesson *lesson);
 
 // Draws the screen and handles input.
 LevelAction LevelScreen(void);
@@ -37,7 +39,7 @@ LevelAction LevelScreen(void);
 void LevelScreenClose(void);     // saves the draft and stops any running program
 void LevelScreenShutdown(void);  // frees everything, at exit
 
-// Dev aids for --shot: open a step even if it's locked, reveal hints, and (solved) put the
+// Dev aids for --shot: open any step, reveal hints, and (solved) put the
 // solution in the editor; show the celebration; and wait for a run.
 void LevelScreenDemo(int stepIndex, int hints, bool solved);
 void LevelScreenDemoRun(void);  // runs the code as the learner would (checks and all); records nothing

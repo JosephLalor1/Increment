@@ -21,6 +21,8 @@ typedef enum {
 typedef enum {
     HOME_STAY,          // nothing to do
     HOME_OPEN_LESSON,   // play level HomeAction.lessonIndex
+    HOME_OPEN_EXAM,     // lessonIndex is the checkpoint section, track identifies its course
+    HOME_COURSES,
     HOME_SPEED_ROUND,   // start HomeAction.lessonIndex's speed round (from the statistics)
     HOME_CHALLENGE,     // a short challenge on the learner's most necessary skills
     HOME_CODE_EDITOR,
@@ -35,6 +37,7 @@ typedef struct {
     int lessonIndex;  // HOME_OPEN_LESSON, HOME_SPEED_ROUND
     Vector2 clickedAt;  // HOME_OPEN_LESSON: where on screen the level was picked (its station,
                         // or the mouse), for the zoom into it
+    Track track;     // HOME_OPEN_EXAM
 } HomeAction;
 
 // After signing in: the C journey, scrolled to the top, and statistics filters reset. Coming back from a lesson, the code editor or Settings, don't call this:

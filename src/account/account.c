@@ -870,6 +870,7 @@ bool AccountDelete(const char *password, const char **err)
     remove(UserFile(removed.name, ".review.txt"));  // answer history and review schedule
     remove(UserFile(removed.name, ".skills.txt"));  // skill XP
     PlatformRemoveDir(UserFile(removed.name, "_code/saved")); // named sandbox programs
+    PlatformRemoveDir(UserFile(removed.name, "_code/exams")); // immutable exam attempts
     PlatformRemoveDir(UserFile(removed.name, "_code"));   // code drafts: the editor's and each step's
     PlatformRemoveDir(UserFile(removed.name, "_notes"));  // lesson notes, from older versions
     memset(&mail, 0, sizeof mail);

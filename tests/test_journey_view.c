@@ -50,6 +50,14 @@ int main(int argc, char **argv)
                 assert(heights[scroll] > 640);
             }
             assert(fabsf(heights[0] - heights[1]) < 0.01f); // allow subpixel floating-point rounding
+            // The last real level is selectable without completing any earlier section/exam.
+            int last=-1;
+            for(int i=0;i<set.count;i++) if(set.items[i].track==(Track)t) last=i;
+            JourneyViewDemoClick(last);
+            UiBeginFrame();BeginDrawing();ClearBackground(COL_BG);
+            float selectableHeight;
+            assert(JourneyViewDraw(&set,(Track)t,40,184,820,&selectableHeight,NULL)==last);
+            EndDrawing();UiEndFrame();
         }
     }
     char *after = LoadFileText(path);
@@ -65,7 +73,7 @@ int main(int argc, char **argv)
         for (int s = 0; s < set.items[i].stepCount; s++) ProgressRecordStep(set.items[i].id, s);
     int done, total;
     assert(RoadmapNext(&set, TRACK_CPP, &done, &total) == -1 && done == total);
-    assert(JourneyViewFocus(&set, TRACK_CPP) == 0);
+    assert(JourneyViewFocus(&set, TRACK_CPP) > 0); // completed levels do not automatically pass checkpoints
     UiBeginFrame();
     BeginDrawing();
     float height;

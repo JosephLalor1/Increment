@@ -101,6 +101,15 @@ bool ProgressRecordStep(const char *lessonId, int stepIndex)
     return RecordDone(id);
 }
 
+bool ProgressLevelStarted(const char *lessonId) {
+    char id[64];snprintf(id,sizeof id,"%s!started",lessonId);return Best(id)>=100;
+}
+bool ProgressRecordLevelStarted(const char *lessonId) {
+    if(!savePath[0]) return false;
+    if(ProgressLevelStarted(lessonId)) return true;
+    char id[64];snprintf(id,sizeof id,"%s!started",lessonId);return RecordDone(id);
+}
+
 bool ProgressParseStepId(const char *id, char *lessonId, size_t size, int *stepIndex)
 {
     const char *slash = strrchr(id, '/');

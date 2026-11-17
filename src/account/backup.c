@@ -105,6 +105,8 @@ bool BackupExport(const char *backupPath, const char *owner, const BackupFiles *
         char saved[1200];
         snprintf(saved, sizeof saved, "%s/saved", files->codeFolder);
         ok = AddFolder(backup, "code/", files->codeFolder) && AddFolder(backup, "code/saved/", saved);
+        snprintf(saved, sizeof saved, "%s/exams", files->codeFolder);
+        ok = ok && AddFolder(backup, "code/exams/", saved);
     }
     ok = ok && fputs("@end\n", backup) != EOF;
     if (fclose(backup) != 0) ok = false;
@@ -133,9 +135,10 @@ static bool TargetPath(const char *what, const BackupFiles *files, char *out, si
     if (strncmp(what, "code/", 5) != 0 || !Given(files->codeFolder)) return false;
     const char *name = what + 5;
     bool saved = strncmp(name, "saved/", 6) == 0;
-    if (saved) name += 6;
+    bool exams = strncmp(name, "exams/", 6) == 0;
+    if (saved || exams) name += 6;
     if (!SafeFileName(name)) return false;  // no folders, no "..": it stays inside the code folder
-    snprintf(out, size, "%s/%s%s", files->codeFolder, saved ? "saved/" : "", name);
+    snprintf(out, size, "%s/%s%s", files->codeFolder, saved ? "saved/" : exams ? "exams/" : "", name);
     return true;
 }
 
@@ -190,6 +193,8 @@ bool BackupImport(const char *backupPath, const BackupFiles *files, const char *
         char saved[1200];
         snprintf(saved, sizeof saved, "%s/saved", files->codeFolder);
         MakeDirectory(saved);  // makes the code folder too
+        snprintf(saved, sizeof saved, "%s/exams", files->codeFolder);
+        MakeDirectory(saved);
     }
     const char *singles[4] = { files->progress, files->skills, files->review, files->settings };
     for (int i = 0; i < 4; i++)
