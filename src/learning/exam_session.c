@@ -19,10 +19,18 @@ bool ExamSessionStart(ExamSession *s,const LessonSet *set,const Checkpoint *exam
         const Lesson *lesson=&set->items[exam->lessons[i]];
         if(exam->steps[i]<0 || exam->steps[i]>=lesson->stepCount || lesson->track!=exam->track) goto failed;
         const Step *step=&lesson->steps[exam->steps[i]]; ExamTask *t=&r->tasks[i];
-        if(!step->starter || !step->expected || !step->solution) goto failed;
+        if(!step->starter || step->caseCount<1 || !step->cases[0].expected || !step->solution) goto failed;
         snprintf(t->lessonId,sizeof t->lessonId,"%s",lesson->id); snprintf(t->title,sizeof t->title,"%s",lesson->title); t->step=exam->steps[i];
-        t->code=CopyText(step->starter); t->starter=CopyText(step->starter); t->input=CopyText(step->input ? step->input : "");
-        t->expected=CopyText(step->expected); t->solution=CopyText(step->solution); t->testCount=1;
+        // The main test case, then the step's others (lesson.h): each is a test of the task.
+        const StepCase *mainCase=&step->cases[0];
+        t->code=CopyText(step->starter); t->starter=CopyText(step->starter); t->input=CopyText(mainCase->input ? mainCase->input : "");
+        t->expected=CopyText(mainCase->expected); t->solution=CopyText(step->solution); t->testCount=1;
+        t->extraCount=step->caseCount-1;
+        for(int c=0;c<t->extraCount;c++) {
+            const StepCase *extra=&step->cases[c+1];
+            t->extraInputs[c]=CopyText(extra->input ? extra->input : "");t->extraExpected[c]=CopyText(extra->expected);
+            if(!t->extraInputs[c] || !t->extraExpected[c]) goto failed;
+        }
         // Fixed-value metadata is needed by the existing second-test generator.
         t->fixedValues=step->fixedValues;
         t->difficulty=step->difficulty;
@@ -45,7 +53,12 @@ void ExamSessionScore(ExamRecord *r) {
     r->percent=r->count ? (int)floor(marks*100/r->count+0.00001) : 0;
 }
 Step ExamTaskStep(const ExamTask *t) {
-    Step step={0}; step.starter=t->starter;step.input=t->input;step.expected=t->expected;step.solution=t->solution;step.fixedValues=t->fixedValues;step.difficulty=t->difficulty;
+    Step step={0}; step.starter=t->starter;step.solution=t->solution;step.fixedValues=t->fixedValues;step.difficulty=t->difficulty;
+    // A saved empty input is no input, as in the lesson it came from.
+    step.cases[0]=(StepCase){ t->input && t->input[0] ? t->input : NULL, t->expected };
+    step.caseCount=1;
+    for(int c=0;c<t->extraCount;c++)
+        step.cases[step.caseCount++]=(StepCase){ t->extraInputs[c][0] ? t->extraInputs[c] : NULL, t->extraExpected[c] };
     for(int s=0;s<SKILL_COUNT && step.skillCount<MAX_QUESTION_SKILLS;s++) if(t->skills[s]) step.skills[step.skillCount++]=(SkillWeight){(Skill)s,t->weights[s]};
     return step;
 }

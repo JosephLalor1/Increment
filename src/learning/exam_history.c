@@ -18,9 +18,14 @@ static bool String(FILE *f,char **s,bool write) {
     if(write) return n==0 || Bytes(f,*s,(size_t)n,true);
     *s=calloc((size_t)n+1,1); return *s && Bytes(f,*s,(size_t)n,false) && !memchr(*s,0,(size_t)n);
 }
-static bool Header(FILE *f,ExamRecord *r,bool write) {
-    char magic[8]="INCEX01";
-    if(!Bytes(f,magic,8,write) || memcmp(magic,"INCEX01",8)) return false;
+// Version 2 adds each task's extra test cases and a result per test (up to EXAM_MAX_TESTS);
+// version 1 attempts (one case, two results) still read. *version says which was read.
+static bool Header(FILE *f,ExamRecord *r,bool write,int *version) {
+    char magic[8]="INCEX02";
+    if(!Bytes(f,magic,8,write)) return false;
+    if(!memcmp(magic,"INCEX02",8)) *version=2;
+    else if(!memcmp(magic,"INCEX01",8)) *version=1;
+    else return false;
     int track=r->track, interrupted=r->interrupted;
     bool ok=Bytes(f,r->id,sizeof r->id,write) && Bytes(f,r->title,sizeof r->title,write)
         && Number(f,&track,write) && Number(f,&r->count,write) && Number(f,&r->passPercent,write)
@@ -31,7 +36,8 @@ static bool Header(FILE *f,ExamRecord *r,bool write) {
         && track>=0 && track<TRACK_COUNT && r->count>0 && r->count<=EXAM_MAX_TASKS && r->percent>=0 && r->percent<=100
         && r->passPercent>0 && r->passPercent<=100 && r->duration>0 && r->elapsed>=0 && r->elapsed<=r->duration;
 }
-static bool Tasks(FILE *f,ExamRecord *r,bool write) {
+static bool Tasks(FILE *f,ExamRecord *r,bool write,int version) {
+    int maxTests=version>=2 ? EXAM_MAX_TESTS : 2;
     for(int i=0;i<r->count;i++) {
         ExamTask *t=&r->tasks[i];
         if(!Bytes(f,t->lessonId,sizeof t->lessonId,write) || !Bytes(f,t->title,sizeof t->title,write) || !Number(f,&t->step,write)
@@ -40,21 +46,26 @@ static bool Tasks(FILE *f,ExamRecord *r,bool write) {
         if(!Bytes(f,t->weights,sizeof t->weights,write) || !Number(f,&t->difficulty,write)) return false;
         for(int s=0;s<SKILL_COUNT;s++) if(!isfinite(t->weights[s]) || t->weights[s]<0 || t->weights[s]>1) return false;
         int fixed=t->fixedValues; if(!Number(f,&fixed,write)) return false; t->fixedValues=fixed!=0;
-        if(!Number(f,&t->testCount,write) || !Number(f,&t->passed,write) || t->testCount<1 || t->testCount>2 || t->passed<0 || t->passed>t->testCount) return false;
-        for(int j=0;j<2;j++) { int status=t->tests[j]; if(!Number(f,&status,write) || status<EXAM_UNTESTED || status>EXAM_INFRASTRUCTURE) return false; t->tests[j]=(ExamTest)status; }
+        if(!Number(f,&t->testCount,write) || !Number(f,&t->passed,write) || t->testCount<1 || t->testCount>maxTests || t->passed<0 || t->passed>t->testCount) return false;
+        for(int j=0;j<maxTests;j++) { int status=t->tests[j]; if(!Number(f,&status,write) || status<EXAM_UNTESTED || status>EXAM_INFRASTRUCTURE) return false; t->tests[j]=(ExamTest)status; }
         char **strings[]={&t->code,&t->starter,&t->input,&t->expected,&t->solution,&t->diagnostics,&t->output,&t->detail};
         for(unsigned j=0;j<sizeof strings/sizeof *strings;j++) if(!String(f,strings[j],write)) return false;
+        if(version<2) continue;
+        if(!Number(f,&t->extraCount,write) || t->extraCount<0 || t->extraCount>EXAM_EXTRA_CASES) return false;
+        for(int j=0;j<t->extraCount;j++) if(!String(f,&t->extraInputs[j],write) || !String(f,&t->extraExpected[j],write)) return false;
     }
     return true;
 }
 void ExamRecordFree(ExamRecord *r) {
     for(int i=0;i<EXAM_MAX_TASKS;i++) { ExamTask *t=&r->tasks[i];
         free(t->code);free(t->starter);free(t->input);free(t->expected);free(t->solution);free(t->diagnostics);free(t->output);free(t->detail);
+        for(int j=0;j<EXAM_EXTRA_CASES;j++) { free(t->extraInputs[j]);free(t->extraExpected[j]); }
     } memset(r,0,sizeof *r);
 }
 bool ExamHistoryRead(const char *path,ExamRecord *r) {
     memset(r,0,sizeof *r); FILE *f=fopen(path,"rb"); if(!f) return false;
-    bool ok=Header(f,r,false) && Tasks(f,r,false) && fgetc(f)==EOF && !ferror(f); fclose(f);
+    int version=0;
+    bool ok=Header(f,r,false,&version) && Tasks(f,r,false,version) && fgetc(f)==EOF && !ferror(f); fclose(f);
     if(!ok) ExamRecordFree(r);
     return ok;
 }
@@ -95,7 +106,8 @@ bool ExamHistorySave(ExamRecord *r) {
     if(!PlatformRandom((unsigned char *)&nonce,sizeof nonce)) return false;
     do { snprintf(path,sizeof path,"%s/%lld_%08u_%016llx.exam",folder,(long long)r->timestamp,++serial,(unsigned long long)nonce); } while(FileExists(path));
     snprintf(temp,sizeof temp,"%s.tmp",path); FILE *f=fopen(temp,"wb"); if(!f) return false;
-    bool ok=Header(f,r,true) && Tasks(f,r,true); if(fclose(f)!=0) ok=false;
+    int version=2;
+    bool ok=Header(f,r,true,&version) && Tasks(f,r,true,version); if(fclose(f)!=0) ok=false;
     if(ok) ok=PlatformReplaceFile(temp,path);
     if(!ok) remove(temp); else Forget();
     return ok;

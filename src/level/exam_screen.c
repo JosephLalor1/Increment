@@ -50,7 +50,7 @@ void ExamScreenShutdown(void) {
         if(screen.page==EXAM_ACTIVE) { Commit();ExamSessionSubmit(&screen.session,GetTime()); }
         screen.session.record.interrupted=true;screen.session.record.percent=0;
         for(int i=0;i<screen.session.record.count;i++) {
-            ExamTask *task=&screen.session.record.tasks[i];task->passed=0;task->tests[0]=task->tests[1]=EXAM_UNTESTED;
+            ExamTask *task=&screen.session.record.tasks[i];task->passed=0;for(int j=0;j<EXAM_MAX_TESTS;j++) task->tests[j]=EXAM_UNTESTED;
             free(task->detail);task->detail=CopyText("Interrupted before the final assessment completed. Submission retained for review.");
         }
         if(!screen.demo && !ExamHistorySave(&screen.session.record)) TraceLog(LOG_WARNING,"EXAM: interrupted attempt could not be saved");

@@ -21,7 +21,7 @@ rem A throwaway folder for the tests that write files.
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
 mkdir "%TESTDIR%"
 
-"%CC%" %CFLAGS% tests\test_exams.c src\learning\checkpoints.c src\learning\exam_history.c src\learning\exam_session.c src\learning\roadmap.c src\learning\progress.c src\learning\lesson.c src\learning\skills.c src\level\exam_grader.c src\level\step_check.c src\level\step_cheats.c src\level\line_diff.c src\code\code_text.c src\code\code_skills.c src\code\runner.c src\core\platform.c -o build\test_exams.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_exams.c src\learning\checkpoints.c src\learning\exam_history.c src\learning\exam_session.c src\learning\roadmap.c src\learning\progress.c src\learning\lesson.c src\learning\skills.c src\level\exam_grader.c src\level\step_check.c src\level\step_cheats.c src\level\line_diff.c src\code\code_text.c src\code\code_skills.c src\code\runner.c src\code\case_runner.c src\core\platform.c -o build\test_exams.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_exams.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

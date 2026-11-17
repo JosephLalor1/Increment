@@ -101,6 +101,28 @@ int main(int argc,char **argv) {
         if(session.record.percent!=100) for(int i=0;i<exam.count;i++) printf("task %d: %s / %s: %s\n",i,ExamTestName(session.record.tasks[i].tests[0]),ExamTestName(session.record.tasks[i].tests[1]),session.record.tasks[i].detail);
         assert(session.record.percent==100);ExamSessionFree(&session);
     }
+    // Each test case of a task is a test of its own: printing the main case's target fails the
+    // others. The cases are kept with the attempt.
+    assert(ExamSessionStart(&session,&set,&first,0));
+    int withCases=-1;
+    for(int i=0;i<session.record.count && withCases<0;i++) if(session.record.tasks[i].extraCount>0) withCases=i;
+    assert(withCases>=0);
+    ExamTask *task=&session.record.tasks[withCases];
+    char printer[4000];int used=snprintf(printer,sizeof printer,"#include <stdio.h>\nint main(void){fputs(\"");
+    for(const char *p=task->expected;*p && used<3900;p++) {
+        if(*p=='\n') {printer[used++]='\\';printer[used++]='n';continue;}
+        if(*p=='"' || *p=='\\' || *p=='%') printer[used++]=*p=='%' ? '%' : '\\';
+        printer[used++]=*p;
+    }
+    snprintf(printer+used,sizeof printer-used,"\\n\",stdout);return 0;}");
+    for(int i=0;i<session.record.count;i++) assert(ExamSessionCode(&session,i,i==withCases ? printer : "int main(void){return 0;}"));
+    ExamSessionSubmit(&session,10);Grade(&session.record);
+    assert(task->testCount>=1+task->extraCount && task->tests[1]==EXAM_WRONG && task->passed<task->testCount);
+    ExamHistoryInit(userB);assert(ExamHistorySave(&session.record));
+    items=ExamHistoryList(first.id,&count);assert(count==1 && ExamHistoryRead(items[0].file,&loaded));free(items);
+    assert(loaded.tasks[withCases].extraCount==task->extraCount && loaded.tasks[withCases].tests[1]==EXAM_WRONG);
+    assert(!strcmp(loaded.tasks[withCases].extraExpected[0],task->extraExpected[0]));
+    ExamRecordFree(&loaded);ExamSessionFree(&session);ExamHistoryInit(userA);
     // Compilation, wrong output, runtime failures and timeouts are distinguishable.
     assert(ExamSessionStart(&session,&set,&first,0));
     assert(ExamSessionCode(&session,0,"this is not C"));
