@@ -25,10 +25,7 @@ int RoadmapResumeStep(const Lesson *lesson)
 
 bool RoadmapStepOpen(const Lesson *lesson, int stepIndex)
 {
-    if (stepIndex < 0 || stepIndex >= lesson->stepCount) return false;
-    for (int i = 0; i < stepIndex; i++)
-        if (!ProgressStepDone(lesson->id, i)) return false;
-    return true;
+    return lesson && stepIndex>=0 && stepIndex<lesson->stepCount;
 }
 
 int RoadmapNext(const LessonSet *set, Track track, int *done, int *total)

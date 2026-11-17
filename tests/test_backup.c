@@ -72,6 +72,8 @@ static void TestRoundTrip(void)
     Put(ann.settings, "theme 1\naccent 2\n");
     Put(In("ann_code/c_01_hello_step3.c"), "#include <stdio.h>\r\nint main() { return 0; }\n@end\n@file x 3\n");
     Put(In("ann_code/saved/primes.cpp"), "int main() {}\n");
+    MakeDirectory(In("ann_code/exams"));
+    Put(In("ann_code/exams/attempt.exam"), "immutable exam snapshot");
     Put(In("ann_code/.hidden"), "not ours");
 
     CHECK(BackupExport(In("ann.increment"), "Ann", &ann, &err));
@@ -90,6 +92,7 @@ static void TestRoundTrip(void)
     // Code comes back byte for byte, even when it looks like the backup's own markers.
     CHECK(Holds(In("ben_code/c_01_hello_step3.c"), "#include <stdio.h>\r\nint main() { return 0; }\n@end\n@file x 3\n"));
     CHECK(Holds(In("ben_code/saved/primes.cpp"), "int main() {}\n"));
+    CHECK(Holds(In("ben_code/exams/attempt.exam"), "immutable exam snapshot"));
     CHECK(Holds(In("ben_code/playground.c"), "mine"));
     CHECK(!FileExists(In("ben_code/.hidden")));
 }

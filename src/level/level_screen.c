@@ -53,6 +53,7 @@ static const float hintXpShare[STEP_HINT_LEVELS + 1] = { 1.0f, 0.85f, 0.65f, 0.4
 static struct {
     bool ready;        // editors initialised
     bool open;
+    bool practice;
     const LessonSet *set;
     int lessonIndex;
     const Lesson *lesson;
@@ -121,7 +122,7 @@ static void DraftKey(char *out, size_t size) { snprintf(out, size, "%s_step%d", 
 
 static void SaveDraft(void)
 {
-    if (ls.demo) return;
+    if (ls.demo || ls.practice) return;
     char key[64];
     DraftKey(key, sizeof key);
     DraftSave(ls.draftFolder, key, Cpp(), ls.code.text, (size_t)ls.code.len);
@@ -213,7 +214,7 @@ static bool EarnsXp(bool passedBefore)
 // Replaying a passed step earns XP only for new work (see EarnsXp).
 static void RecordPass(void)
 {
-    if (ls.demo) return;  // a shot records nothing
+    if (ls.demo || ls.practice) return;  // revision and shots never mutate ordinary progress
     const Step *step = CurrentStep();
     bool passedBefore = ProgressStepDone(ls.lesson->id, ls.step);
     bool levelBefore = RoadmapLevelComplete(ls.lesson);
@@ -418,9 +419,16 @@ void LevelScreenOpen(const LessonSet *set, int lessonIndex, const char *draftFol
     ls.lesson = &set->items[lessonIndex];
     snprintf(ls.draftFolder, sizeof ls.draftFolder, "%s", draftFolder ? draftFolder : "");
     ls.celebrating = ls.demo = false;
+    ls.practice=false;
     LevelFxReset();
     OpenStep(RoadmapResumeStep(ls.lesson), false);
     ls.open = true;
+}
+
+void LevelScreenPractice(const Lesson *lesson) {
+    static LessonSet practice;
+    practice.items=(Lesson *)lesson;practice.count=1;
+    LevelScreenOpen(&practice,0,NULL);ls.practice=true;
 }
 
 void LevelScreenClose(void)
@@ -772,7 +780,7 @@ static void OutputColumn(Rectangle column)
 // The step pips and the toolbar
 
 // A circle per step in the top bar: passed ones ticked, the current one ringed with its
-// number, locked ones dim with a padlock. Clicking an open step plays it.
+// number. Every step can be selected, regardless of earlier completions.
 static void StepPips(void)
 {
     int count = ls.lesson->stepCount;
@@ -780,8 +788,8 @@ static void StepPips(void)
     float x = GetScreenWidth() - 24 - width + PIP_RADIUS, y = TOPBAR_H / 2;
     for (int i = 0; i < count; i++, x += PIP_RADIUS * 2 + gap) {
         Vector2 c = { x, y };
-        bool done = ProgressStepDone(ls.lesson->id, i), open = RoadmapStepOpen(ls.lesson, i), current = i == ls.step;
-        bool over = open && !current && CheckCollisionPointCircle(GetMousePosition(), c, PIP_RADIUS + 3)
+        bool done = ProgressStepDone(ls.lesson->id, i), current = i == ls.step;
+        bool over = !current && CheckCollisionPointCircle(GetMousePosition(), c, PIP_RADIUS + 3)
                  && UiMouseOver((Rectangle){ c.x - PIP_RADIUS, c.y - PIP_RADIUS, PIP_RADIUS * 2, PIP_RADIUS * 2 });
         if (over) UiWantHand();
         if (current) {  // ringed, with a dot in orbit
@@ -793,9 +801,8 @@ static void StepPips(void)
         }
         DrawCircleV(c, PIP_RADIUS, done ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL_HI);
         if (done) IconDraw(ICON_CHECK, c, 14, COL_ON_ACCENT);
-        else if (open || current) UiTextCentered(gFonts.bold, TextFormat("%d", i + 1), c.x, c.y - 9, 15,
+        else UiTextCentered(gFonts.bold, TextFormat("%d", i + 1), c.x, c.y - 9, 15,
                                                  current ? COL_ACCENT : COL_TEXT);
-        else IconDraw(ICON_LOCK, c, 12, COL_DIM);
         if (over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) OpenStep(i, true);
     }
 }
@@ -963,7 +970,7 @@ LevelAction LevelScreen(void)
     }
     x += 142;
     bool hasNext = ls.step + 1 < ls.lesson->stepCount;
-    if (cleared && hasNext) {
+    if (hasNext) {
         float pulse = (sinf((float)GetTime() * 5) + 1) / 2;
         Rectangle next = { x, barY, 150, barH };
         DrawRectangleRoundedLinesEx((Rectangle){ next.x - 3, next.y - 3, next.width + 6, next.height + 6 }, 0.3f, 8, 2,

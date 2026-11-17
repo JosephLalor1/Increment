@@ -1,5 +1,7 @@
 // The journey: a winding path of a track's levels. See journey_view.h.
 #include "home/journey_view.h"
+#include "learning/checkpoints.h"
+#include "learning/exam_history.h"
 #include "ui/mascot.h"
 #include "learning/progress.h"
 #include "learning/roadmap.h"
@@ -24,13 +26,17 @@ static float StationStep(const Lesson *lesson, float scale)
 
 float JourneyViewFocus(const LessonSet *set, Track track)
 {
-    int done, total;
-    int next = RoadmapNext(set, track, &done, &total);
-    if (next < 0) return 0;
     float offset = 0;
-    for (int i = 0; i < next; i++)
-        if (set->items[i].track == track) offset += StationStep(&set->items[i], UiTextScale());
-    return offset;
+    for (int i = 0; i < set->count; i++) if (set->items[i].track == track) {
+        if (CheckpointLessonOpen(set,i) && !RoadmapLevelComplete(&set->items[i])) return offset;
+        offset += StationStep(&set->items[i], UiTextScale());
+        int section=CheckpointAfter(set,i); Checkpoint exam;
+        if(section>=0 && CheckpointGet(set,track,section,&exam)) {
+            if(!CheckpointPassed(&exam)) return offset;
+            offset+=260*UiTextScale();
+        }
+    }
+    return 0;
 }
 
 // Cubic segments have vertical tangents at each station, making a continuous winding trail.
@@ -102,6 +108,25 @@ static int demoClick = -1;  // --shot: a level to report as clicked on the next 
 
 void JourneyViewDemoClick(int lessonIndex) { demoClick = lessonIndex; }
 
+static bool ExamStation(const LessonSet *set,const Checkpoint *exam,Vector2 center,float scale) {
+    bool passed=CheckpointPassed(exam),available=CheckpointAvailable(set,exam);
+    float radius=53*scale;int best=ExamHistoryBest(exam->id);
+    Rectangle hit={center.x-radius-12,center.y-radius-12,2*radius+24,2*radius+106};
+    bool over=UiMouseOver(hit);if(over) UiWantHand();
+    DrawRing(center,radius+5,radius+9,0,360,64,passed ? COL_GOLD : COL_ACCENT);
+    DrawCircleV((Vector2){center.x,center.y+7},radius,ColorBrightness(COL_PANEL,-0.15f));
+    DrawCircleV(center,radius,passed ? COL_GOOD_BG : COL_ACCENT);
+    IconDraw(passed ? ICON_TROPHY : ICON_CODE,center,40*scale,passed ? COL_GOOD : COL_ON_ACCENT);
+    UiTextCentered(gFonts.bold,TextFormat("%s EXAM %d",TrackName(exam->track),exam->section+1),center.x,center.y+radius+18,22*scale,COL_TEXT);
+    const char *status=passed ? TextFormat("BEST %d%% | REVIEW / RETAKE",best) : best>=0 ? TextFormat("ATTEMPTED | BEST %d%% | RETRY",best) : "NOT STARTED | START EXAM";
+    UiTextCentered(gFonts.text,status,center.x,center.y+radius+50,14*scale,passed ? COL_GOOD : available ? COL_ACCENT : COL_DIM);
+    if(available && !passed && MascotAvailable()) {
+        float side=center.x>GetScreenWidth()/2.0f ? -165 : 85;
+        MascotDrawActor(FOX_JOURNEY,(Rectangle){center.x+side,center.y-42,84,84},FOX_DETERMINED);
+    }
+    return available && over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+}
+
 int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height,
                     Vector2 *clickedAt)
 {
@@ -116,7 +141,9 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
                                 width, 24 * scale, COL_DIM, true) + 48;
         return -1;
     }
-    if (next < 0 && total > 0) {
+    Checkpoint finalExam;
+    bool coursePassed=CheckpointGet(set,track,CheckpointCount(set,track)-1,&finalExam) && CheckpointPassed(&finalExam);
+    if (next < 0 && total > 0 && coursePassed) {
         y += MascotCompanionActor(FOX_JOURNEY, x + 60, y, width - 120, 84, 21 * scale,
                                   FOX_LOVE_LEARNING, "You're doing amazing! Journey complete.") + 24;
     }
@@ -135,17 +162,28 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         previousPassed = passed;
         stationY += StationStep(lesson, scale);
         ordinal++;
+        int section=CheckpointAfter(set,i);Checkpoint exam;
+        if(section>=0 && CheckpointGet(set,track,section,&exam)) {
+            Vector2 pointExam=Station(x,stationY,width,ordinal);
+            bool passedExam=CheckpointPassed(&exam);
+            Trail(previous,pointExam,previousPassed && passedExam);
+            previous=pointExam;previousPassed=passedExam;stationY+=260*scale;ordinal++;
+        }
     }
 
     stationY = firstY;
     ordinal = 0;
+    int lessonNumber=0;
     for (int i = 0; i < set->count; i++) {
         const Lesson *lesson = &set->items[i];
         if (lesson->track != track) continue;
         Vector2 center = Station(x, stationY, width, ordinal);
+        lessonNumber++;
         float step = StationStep(lesson, scale), radius = 43 * scale;
-        bool ready = RoadmapLevelReady(lesson);  // levels not written yet show, but can't be opened
+        bool written = RoadmapLevelReady(lesson);
+        bool ready = written;
         int stepsDone = RoadmapStepsDone(lesson);  // looked up once: each call searches the saved progress
+        bool started=stepsDone>0 || ProgressLevelStarted(lesson->id);
         bool passed = ready && stepsDone == lesson->stepCount, current = i == next;
         bool gold = ProgressGold(lesson->id);  // won the level's speed round
         Rectangle hit = { center.x - radius - 8, center.y - radius - 12, radius * 2 + 16, radius * 2 + 24 };
@@ -170,8 +208,8 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         Color currentColor = COL_ACCENT;
         Color doneColor = ColorLerp(COL_BG, COL_ACCENT, 0.3f);
         Color doneLabel = ColorLerp(COL_ACCENT, COL_DIM, 0.45f);  // softer than the next lesson's
-        Color fill = passed ? doneColor : current ? currentColor : COL_PANEL_HI;
-        Color ink = passed ? COL_ACCENT : current ? COL_ON_ACCENT : COL_DIM;
+        Color fill = passed ? doneColor : current ? currentColor : ColorLerp(COL_BG,COL_ACCENT,0.16f);
+        Color ink = current ? COL_ON_ACCENT : COL_ACCENT;
         if (current) {
             float pulse = (sinf((float)GetTime() * 2.5f) + 1) / 2;
             DrawCircleV(center, radius + 14 + pulse * 3, Fade(currentColor, 0.10f + pulse * 0.05f));
@@ -189,13 +227,13 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
             DrawRing(face, radius + 3, radius + 7, -90, -90 + 360 * share, 64, COL_ACCENT);
         }
         DrawCircleV((Vector2){ face.x - radius * 0.2f, face.y - radius * 0.35f }, radius * 0.48f, Fade(WHITE, passed || current ? 0.09f : 0.025f));
-        IconDraw(passed ? ICON_CHECK : !ready ? ICON_LOCK : current ? ICON_PLAY : ICON_CODE,
+        IconDraw(passed ? ICON_CHECK : current ? ICON_PLAY : ICON_CODE,
                  (Vector2){ face.x, face.y - (current ? 9 : 0) }, 32 * scale, Fade(ink, ready ? 1 : 0.5f));
-        if (current) UiTextCentered(gFonts.bold, stepsDone == 0 ? "START" : "CONTINUE",
+        if (current) UiTextCentered(gFonts.bold, started ? "CONTINUE" : "START",
                                     face.x, face.y + 12 * scale, 12 * scale, ink);
         Vector2 badge = { face.x + radius * 0.75f, face.y - radius * 0.7f };
         DrawCircleV(badge, 14 * scale, COL_PANEL);
-        UiTextCentered(gFonts.bold, TextFormat("%d", ordinal + 1), badge.x, badge.y - 9 * scale, 15 * scale,
+        UiTextCentered(gFonts.bold, TextFormat("%d", lessonNumber), badge.x, badge.y - 9 * scale, 15 * scale,
                        passed ? doneLabel : current ? currentColor : COL_DIM);
 
         // The title plate is see-through, so the trail shows beneath it; hovering fades in a
@@ -205,13 +243,13 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
             UiTextCentered(gFonts.text, lesson->title, center.x, titleY, 20 * scale, ready ? COL_TEXT : COL_DIM);
         else UiWrappedText(gFonts.text, lesson->title, (Vector2){ center.x - 132, titleY }, 264, 20 * scale,
                            ready ? COL_TEXT : COL_DIM, true);
-        const char *status = !ready ? "COMING SOON" : gold ? "GOLD MASTERY" : passed ? "COMPLETED"
-                           : stepsDone > 0 ? TextFormat("%d / %d STEPS", stepsDone, lesson->stepCount)
-                           : current ? "YOUR NEXT CHALLENGE" : "EXPLORE ANYTIME";
+        const char *status = !written ? "COMING SOON" : gold ? "GOLD MASTERY" : passed ? "COMPLETED"
+                           : started ? TextFormat("IN PROGRESS | %d / %d", stepsDone, lesson->stepCount)
+                           : current ? "NOT STARTED | SUGGESTED" : "NOT STARTED | OPEN ANYTIME";
         UiTextCentered(gFonts.text, status, center.x, titleY + titleH + 6, 12 * scale,
                        gold ? COL_GOLD : passed ? doneLabel : current ? currentColor : COL_DIM);
         if (current && MascotAvailable()) Guide(center, x, width, scale, done, total);
-        if ((over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) || i == demoClick) {
+        if (ready && ((over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) || i == demoClick)) {
             selected = i;
             demoClick = -1;
             if (clickedAt) *clickedAt = face;
@@ -225,6 +263,12 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         }
         stationY += step;
         ordinal++;
+        int section=CheckpointAfter(set,i);Checkpoint exam;
+        if(section>=0 && CheckpointGet(set,track,section,&exam)) {
+            Vector2 examPoint=Station(x,stationY,width,ordinal);
+            if(ExamStation(set,&exam,examPoint,scale)) {selected=-2-section;if(clickedAt) *clickedAt=examPoint;}
+            stationY+=260*scale;ordinal++;
+        }
     }
     *height = stationY - top + 24;
     return selected;

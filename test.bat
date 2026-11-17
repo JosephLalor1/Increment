@@ -21,6 +21,11 @@ rem A throwaway folder for the tests that write files.
 set TESTDIR=%TEMP%\increment_test_%RANDOM%%RANDOM%
 mkdir "%TESTDIR%"
 
+"%CC%" %CFLAGS% tests\test_exams.c src\learning\checkpoints.c src\learning\exam_history.c src\learning\exam_session.c src\learning\roadmap.c src\learning\progress.c src\learning\lesson.c src\learning\skills.c src\level\exam_grader.c src\level\step_check.c src\level\step_cheats.c src\level\line_diff.c src\code\code_text.c src\code\code_skills.c src\code\runner.c src\core\platform.c -o build\test_exams.exe %LIBS%
+if errorlevel 1 exit /b 1
+build\test_exams.exe "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+
 
 "%CC%" %CFLAGS% tests\test_code_skills.c src\code\code_skills.c -o build\test_code_skills.exe
 if errorlevel 1 exit /b 1
@@ -85,7 +90,7 @@ if errorlevel 1 exit /b 1
 build\test_dashboard.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 
-"%CC%" %CFLAGS% tests\test_journey_view.c src\home\journey_view.c src\ui\mascot.c src\ui\mascot_state.c src\learning\roadmap.c src\learning\lesson.c src\learning\skills.c src\learning\progress.c src\ui\ui.c src\ui\icons.c src\ui\icon_pen.c -o build\test_journey_view.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_journey_view.c src\home\journey_view.c src\learning\checkpoints.c src\learning\exam_history.c src\core\platform.c src\ui\mascot.c src\ui\mascot_state.c src\learning\roadmap.c src\learning\lesson.c src\learning\skills.c src\learning\progress.c src\ui\ui.c src\ui\icons.c src\ui\icon_pen.c -o build\test_journey_view.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_journey_view.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

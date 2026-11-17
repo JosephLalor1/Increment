@@ -12,6 +12,9 @@
 #include "ui/layout.h"
 #include "app/level_entry.h"
 #include "level/level_screen.h"
+#include "level/exam_screen.h"
+#include "learning/exam_history.h"
+#include "home/courses_screen.h"
 #include "learning/progress.h"
 #include "learning/review.h"
 #include "learning/roadmap.h"
@@ -44,6 +47,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
                                DevShot *shot)
 {
     float scroll = extra ? (float)atof(extra) : 0;
+    if(Is(name,"exam") || Is(name,"exam-active") || Is(name,"exam-results") || Is(name,"exam-review")) {
+        ExamScreenOpen(lessons,lessons->count ? lessons->items[lessonIndex].track : TRACK_C,extra ? atoi(extra) : 0);
+        ExamScreenDemo(Is(name,"exam-active") ? 1 : Is(name,"exam-results") ? 2 : Is(name,"exam-review") ? 3 : 0);return SCREEN_EXAM;
+    }
+    if(Is(name,"courses")) {CoursesScreenOpen();return SCREEN_COURSES;}
     if (Is(name, "rankings") || Is(name, "rankings-skills")) {
         RankingScreenOpen(lessons);
         if (Is(name, "rankings-skills")) RankingScreenSelect(RANKING_SKILLS, lessons->count ? lessons->items[lessonIndex].track : TRACK_COUNT);
@@ -133,7 +141,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         return SCREEN_HOME;
     }
 
-    // level <index> [step]: a level at a step (1-based; even a locked one), its first run
+    // level <index> [step]: a level at any step (1-based), its first run
     // finished; INCREMENT_SHOT_HINTS=<n> reveals hints. levelsolved: the same step with its
     // solution run and passed. levelcomplete: the celebration after the last step.
     if (Is(name, "level") || Is(name, "levelsolved") || Is(name, "levelcomplete")) {
@@ -180,6 +188,7 @@ DevShot DevShotParse(int argc, char **argv, const LessonSet *lessons)
         ProgressLoad(AccountProgressPath());
         ReviewLoad(AccountReviewPath());
         SkillsLoad(AccountSkillsPath());
+        ExamHistoryInit(AccountCodeDir());
     }
     ApplyUserAppearance();
 
@@ -195,7 +204,7 @@ bool DevShotCapture(DevShot *shot)
 {
     if (!shot->outputPath) return false;
     // A shot of the code editor or a level waits for the compile and run to finish (up to ~30 s).
-    bool running = CodeBusy() || LevelScreenBusy();
+    bool running = CodeBusy() || LevelScreenBusy() || ExamScreenBusy();
     if (running && shot->framesLeft == 1 && shot->framesWaited++ < 1800) return false;
     if (shot->framesLeft == 1 && shot->delayFrames-- > 0) return false;  // let effects play on
     if (--shot->framesLeft > 0) return false;

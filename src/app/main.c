@@ -20,6 +20,9 @@
 #include "learning/lesson.h"
 #include "app/level_entry.h"
 #include "level/level_screen.h"
+#include "level/exam_screen.h"
+#include "learning/exam_history.h"
+#include "home/courses_screen.h"
 #include "ui/mascot.h"
 #include "learning/progress.h"
 #include "speed/speed_screen.h"
@@ -35,6 +38,7 @@ static LessonSet lessons;
 
 static struct {
     AppScreen screen;
+    AppScreen levelReturn;
     AppScreen speedReturn;    // where a speed round goes back to: the journey or the statistics
     int level;                // the level being played (an index into lessons)
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
@@ -50,6 +54,9 @@ static struct {
 // Plays a level. The draft folder is set here so the level screen doesn't depend on accounts.
 static void OpenLevel(int lessonIndex)
 {
+    if(!CheckpointLessonOpen(&lessons,lessonIndex)) {app.screen=SCREEN_HOME;return;}
+    app.levelReturn=SCREEN_HOME;
+    ProgressRecordLevelStarted(lessons.items[lessonIndex].id);
     app.level = lessonIndex;
     LevelScreenOpen(&lessons, lessonIndex, AccountCodeDir());
     app.screen = SCREEN_LEVEL;
@@ -71,6 +78,7 @@ static void OpenSettings(void)
 static void ShowLogin(void)
 {
     LevelScreenClose();  // saves the draft into the previous user's folder before it's forgotten
+    ExamScreenShutdown();ExamHistoryInit(NULL);
     RankingScreenClear();
     MascotResetInteractions();
     ProgressLoad("");  // drop the previous user's progress from memory
@@ -106,6 +114,7 @@ static void SignedIn(void)
     ProgressLoad(AccountProgressPath());
     ReviewLoad(AccountReviewPath());
     SkillsLoad(AccountSkillsPath());
+    ExamHistoryInit(AccountCodeDir());
     if (VerifyNeeded()) {  // the account isn't usable until its email is verified
         VerifyOpen(false);
         app.screen = SCREEN_VERIFY;
@@ -162,6 +171,7 @@ static void RunSettings(void)
         app.afterRecovery = SCREEN_SETTINGS;
         app.screen = SCREEN_RECOVERY;
     } else if (action == ACCOUNT_DATA_RESTORED) {  // a backup replaced the user's files: read them again
+        ExamHistoryInit(AccountCodeDir());
         ProgressLoad(AccountProgressPath());
         ReviewLoad(AccountReviewPath());
         SkillsLoad(AccountSkillsPath());
@@ -178,9 +188,14 @@ static void RunHome(void)
     HomeAction action = DashboardScreen(&lessons);
     switch (action.kind) {
     case HOME_OPEN_LESSON:  // zoom into the level first; it opens once the zoom covers the screen
+        if(!CheckpointLessonOpen(&lessons,action.lessonIndex)) break; // invalid/empty content only
         app.level = action.lessonIndex;
         LevelEntryStart(action.clickedAt);
         break;
+    case HOME_OPEN_EXAM:
+        ExamScreenOpen(&lessons,action.track,action.lessonIndex);app.screen=SCREEN_EXAM;break;
+    case HOME_COURSES:
+        CoursesScreenOpen();app.screen=SCREEN_COURSES;break;
     case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
     case HOME_CHALLENGE:
         SpeedScreenOpenChallenge(&lessons);
@@ -208,8 +223,23 @@ static void RunHome(void)
 static void RunLevel(void)
 {
     LevelAction action = LevelScreen();
-    if (action.kind == LEVEL_OPEN_LEVEL) OpenLevel(action.lessonIndex);
-    else if (action.kind == LEVEL_BACK) LevelExitStart();
+    if (action.kind == LEVEL_OPEN_LEVEL) {AppScreen origin=app.levelReturn;OpenLevel(action.lessonIndex);app.levelReturn=origin;}
+    else if (action.kind == LEVEL_BACK) {
+        if(app.levelReturn==SCREEN_HOME) LevelExitStart();
+        else {LevelScreenClose();app.screen=app.levelReturn;}
+    }
+}
+
+static void RunExam(void) {
+    ExamScreenAction action=ExamScreen();
+    if(action.kind==EXAM_SCREEN_HOME) {app.screen=SCREEN_HOME;}
+    else if(action.kind==EXAM_SCREEN_PRACTICE) {LevelScreenPractice(action.practice);app.levelReturn=SCREEN_EXAM;app.screen=SCREEN_LEVEL;}
+}
+static void RunCourses(void) {
+    CoursesAction action=CoursesScreen(&lessons);
+    if(action.back) app.screen=SCREEN_HOME;
+    else if(action.lesson>=0) {OpenLevel(action.lesson);app.levelReturn=SCREEN_COURSES;}
+    else if(action.exam>=0) {ExamScreenOpen(&lessons,action.track,action.exam);app.screen=SCREEN_EXAM;}
 }
 
 // The zoom into a level, or back out of one, standing in for the screen. The screens change
@@ -310,6 +340,7 @@ int main(int argc, char **argv)
 
     ShowLogin();                   // prepares the login form...
     app.screen = SCREEN_SPLASH;    // ...which shows once the splash finishes
+    app.levelReturn=SCREEN_HOME;
     app.splashStart = GetTime();
     app.splashTime = -1;
 
@@ -346,6 +377,8 @@ int main(int argc, char **argv)
         case SCREEN_CODE:      if (CodeScreen()) app.screen = SCREEN_HOME; break;
         case SCREEN_HOME:      RunHome();          break;
         case SCREEN_LEVEL:     RunLevel();         break;
+        case SCREEN_EXAM: RunExam(); break;
+        case SCREEN_COURSES: RunCourses(); break;
         case SCREEN_SPEED:     RunSpeed();         break;
         case SCREEN_RANKINGS:  if (RankingScreen()) app.screen = SCREEN_HOME; break;
         }
@@ -362,6 +395,7 @@ int main(int argc, char **argv)
 
     CodeShutdown();
     LevelScreenShutdown();  // saves the draft of a step left open when the window was closed
+    ExamScreenShutdown();
     LevelEntryShutdown();
     RankingScreenClear();
     EmailShutdown();

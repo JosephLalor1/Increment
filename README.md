@@ -4,6 +4,9 @@ Learn C and C++ by writing code. Increment is a desktop app where every level is
 
 ## Features
 
+- **Two journeys.** A C track (a first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists): 30 levels, 236 steps. Each track is a winding path with optional coding exam milestones; **Find my place** suggests the next level or not-yet-passed exam. Every lesson, step and exam is open from the start, in any order.
+- **Coding exams.** Groups of 4-5 levels end in an optional timed, closed-book coding assessment, with saved submissions and revision review. **Courses** remains a separate, sequential list with unrestricted access.
+- **Levels are coding steps.** Early steps tweak a working program, later ones fill a gap, fix a bug, and finally write the program from an empty `main`. The editor sits beside the target output and your program's output, compared line by line. Programs are compiled with gcc/g++; compiler errors are marked on their lines.
 - **Two journeys.** A C track (a first program through pointers and memory management) and a C++ track (references, `new` and `delete`, classes, linked lists): 30 levels, 236 steps. Each track is a winding path of levels; **Find my place** jumps to the next one. Any level can be opened at any time.
 - **Levels are coding steps.** Early steps tweak a working program, later ones fill a gap, fix a bug, and finally write the program from an empty `main`. The editor sits beside the target output and your program's output, compared line by line. Steps that read input have several test cases, and a step passes only when every one of them prints its target. Programs are compiled with gcc/g++; compiler errors are marked on their lines.
 - **Hints are code.** A hint highlights the line to work on, then shows its shape, then the line itself. Each one costs some of the step's XP.
@@ -27,7 +30,27 @@ build\increment.exe
 
 Run `test.bat` to build and run the tests. Keep the `assets` folder next to the executable, or one level above it, when distributing the app.
 
-## Source layout
+## Journey coding exam checkpoints
+
+**Home > Journey** contains prominent exam stations connected to the same winding trail as the levels. **Courses** opens a traditional ordered list instead. All real lessons and exams can be selected immediately in both views, including Statistics and Next level actions. `CheckpointLessonOpen` and `CheckpointAvailable` validate that content exists; they never check completion, previous exams or scores. Individual coding steps are also freely selectable, and Next does not require passing the current step.
+
+Sections are derived from ready levels in actual per-track file order, without a duplicate curriculum table. C currently groups 17 levels as **4 / 4 / 4 / 5**, and C++ groups 13 as **4 / 4 / 5**. Empty/unwritten levels are not assessed; a final short section is supported when a curriculum cannot be divided into groups of four or five. Checkpoint names identify the real first/last level, and IDs hash the ordered level IDs and include the track. Adding/reordering curriculum can therefore create a new checkpoint identity rather than silently granting an old pass to different content.
+
+Exams are optional practice milestones, not progression gates. A fresh account can start Exam 2 or a final lesson in either track without completing anything else. Not Started, In Progress/Attempted, and Completed/Passed are visual statuses only; failed exams show their recorded best score and remain immediately retryable. Opening a lesson records a backward-compatible `!started` status marker without granting a passed step. Existing completion and exam records are retained; later failed retakes preserve earlier passes. C and C++ results remain independent.
+
+The default duration is **30 minutes**, and the passing mark is **60%** for recording pass/fail only; it never affects content access. `EXAM_DURATION_SECONDS` and `EXAM_PASS_PERCENT` in `learning/checkpoints.h` are build-time defaults; each `Checkpoint` carries its own duration/threshold for future definitions. Exams select the final coding step of each level in the immediately preceding section, preserving its starter, input, target output, reference, fixed-value flag and weighted skill metadata. No questions are drawn from later sections. These are curriculum tasks, rather than a new unseen assessment bank.
+
+During an exam, write code, compile/run it, switch tasks, or Finish Exam. Each task retains its own buffer. The absolute monotonic deadline keeps running during task switches and the submission confirmation; expiry freezes all buffers and starts grading exactly once. Each task is equally weighted, with up to two tests: normal execution/output plus the existing changed-input/givens assessment where supported. The existing required-construct and hardcoded-answer checks apply. Fixed tasks or tasks without changeable givens use one test. A compiler/infrastructure failure is labelled separately from an incorrect program. Source is limited to 512 KiB per task; edits exceeding this limit are rejected before they can prevent deadline submission. No notes, hints, references, or guided answers are available while coding.
+
+Results show the total marks/percentage, threshold, time, passed task count, per-task test results, submitted source, compiler output, runtime/output failures, changed-value feedback and reference solution. Concept labels and assessment reports support comparison and revision. **Retry in Learning Mode** reuses the existing learning editor/checks/hints with a detached reference snapshot: it changes neither the exam submission nor ordinary level progress/XP. Return to Dashboard and Retake are available after the attempt is saved. A failed write shows Retry Save so an unsaved submission is not silently discarded.
+
+Every submitted attempt is a separate, atomically written `.exam` snapshot in the account's `users/<name>_code/exams/` folder. Snapshots include source, task references, outcomes and skill metadata, so review survives curriculum edits. Normal application exit during an exam retains an interrupted zero-score submission; a forced process kill/crash is not resumable. Files are included in account backup/restore and removed with account deletion. These local files are not encrypted or tamper-proof. No exam result writes a lesson score or awards skill XP.
+
+Developer screenshots: `--shot build/exam.png exam <lessonIndex> <section>` shows the checkpoint intro (section is zero-based, lesson picks the track); `exam-active`, `exam-results`, `exam-review`, and `courses` preview the corresponding views. Exam demos never save anything. Set `INCREMENT_DATA_DIR` and `INCREMENT_EMAIL_OUTBOX` to isolated test folders for experiments.
+
+Manual checks: with a new account, open final C/C++ lessons and later exams before attempting earlier content; select later coding steps directly. Verify Dashboard, Courses, Statistics and Next work without prerequisite messages or lock icons. Attempt and fail an exam, then open another exam/lesson and retry immediately. Check task buffers, grading, history, revision and Return to Dashboard, then reopen to verify saved statuses. Check both themes at 900x640: exam positions and connections must remain unchanged. Automated tests cover unrestricted access for all real lessons/steps/exams, unchanged grouping, real grading and deadlines, started/completed statuses, retained history and legacy progress, and read-only journey rendering.
+
+## Source folders
 
 The code is in `src/`, one folder per concern:
 

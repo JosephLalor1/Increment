@@ -12,6 +12,8 @@ typedef enum {
     SCREEN_CODE,       // the free code editor
     SCREEN_HOME,       // the dashboard: learning journeys and statistics
     SCREEN_LEVEL,      // playing a level's coding steps
+    SCREEN_EXAM,
+    SCREEN_COURSES,
     SCREEN_RANKINGS,
     SCREEN_SPEED,      // a level's speed round (gold mastery) or a short challenge
 } AppScreen;
