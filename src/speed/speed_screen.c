@@ -268,12 +268,15 @@ static float QuestionHeader(const char *kind, float tension, double now, float x
     return y + 96;
 }
 
+// The question's column: up to 900 wide, centred, with at least 60 on either side.
+static float QuestionColumnWidth(float screenW) { return screenW - 120 < 900 ? screenW - 120 : 900; }
+
 // A generated "what is x?" question (inside the camera). Returns the choice clicked, or -1.
 // mouse is in the camera's coordinates.
 static int GeneratedQuestionView(const SpeedQuestion *q, float tension, double now, Vector2 mouse)
 {
     float W = (float)GetScreenWidth();
-    float w = W - 120 < 900 ? W - 120 : 900, x = (W - w) / 2;
+    float w = QuestionColumnWidth(W), x = (W - w) / 2;
     Color hot = Mix(COL_ACCENT, COL_BAD, tension * 1.2f);
     float y = QuestionHeader(SpeedSkillTitle(q->skill), tension, now, x, w);
 
@@ -317,7 +320,7 @@ static void CountIn(double now)
     UiTextCentered(gFonts.text, "Answer with the number keys", W / 2, H / 2 + 120, 22, COL_DIM);
 }
 
-// The run in progress: count-in or a question, under the effects. Esc gives up.
+// The run in progress: count-in or a question, under the effects. Back (or Esc) gives up.
 static void RunPage(double now)
 {
     float tension = SpeedRoundTension(&speed.round, now);
@@ -339,9 +342,15 @@ static void RunPage(double now)
     float wrongFlash = 1 - Clamp01((float)((now - speed.wrongAt) / FLASH_SECONDS));
     if (rightFlash > 0) DrawRectangle(0, 0, (int)W, (int)H, Fade(COL_GOOD, 0.22f * rightFlash));
     if (wrongFlash > 0) DrawRectangle(0, 0, (int)W, (int)H, Fade(COL_BAD, 0.25f * wrongFlash));
-    UiText(gFonts.text, "Esc: give up", 16, H - 30, 16, Fade(COL_DIM, 0.8f));
 
-    if (IsKeyPressed(KEY_ESCAPE)) {
+    // Giving up (the button or Esc) goes back to the intro. The button sits where every
+    // page's Back is, outside the camera so it stays still while the question shakes; it
+    // drops its label when the question's header would reach it.
+    float headerX = (W - QuestionColumnWidth(W)) / 2;
+    bool labelled = headerX > 16 + 96 + 12;
+    bool giveUp = UiButtonIconEx((Rectangle){ 16, 12, labelled ? 96 : 40, 40 }, ICON_BACK, labelled ? "Back" : NULL, 20,
+                                 COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true);
+    if (giveUp || IsKeyPressed(KEY_ESCAPE)) {
         speed.stage = STAGE_INTRO;
         return;
     }
