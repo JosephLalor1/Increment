@@ -3,6 +3,7 @@
 #include "learning/answers.h"
 #include "code/case_runner.h"
 #include "code/drafts.h"
+#include "core/text_copy.h"
 #include "code/editor.h"
 #include "ui/easing.h"
 #include "ui/layout.h"
@@ -115,8 +116,13 @@ static struct {
     unsigned typedVersion; // the code version the typing sparks last saw
     unsigned ranVersion;   // the code version of the last run: Run beckons once it's stale
     LevelFxLayout fxLayout;
-    bool celebrating;  // the level was just completed
-    double celebrateAt;
+    // The level's review page, over the step: shown when the last step of the level is passed
+    // (then with confetti and its stages ticking in: reviewFresh) and from a finished level's
+    // last step. Each stage's tile previews the code written for it (reviewCode, malloc'd).
+    bool reviewOpen;
+    bool reviewFresh;
+    double reviewOpenedAt;
+    char *reviewCode[MAX_STEPS];
     bool demo;         // set up for a --shot: nothing is saved
     bool demoBack;     // --shot: leave the level as if Back had been clicked
 } ls;
@@ -132,6 +138,34 @@ static void SaveDraft(void)
     char key[64];
     DraftKey(key, sizeof key);
     DraftSave(ls.draftFolder, key, Cpp(), ls.code.text, (size_t)ls.code.len);
+}
+
+static void FreeReviewCode(void)
+{
+    for (int i = 0; i < MAX_STEPS; i++) {
+        free(ls.reviewCode[i]);
+        ls.reviewCode[i] = NULL;
+    }
+}
+
+// Shows the level's review page. fresh: the level has just been finished, so it celebrates.
+// Each stage's tile shows the code saved for it (its solution if there's no draft, as in a
+// --shot).
+static void OpenReview(bool fresh)
+{
+    SaveDraft();  // the stage on show, as it is now
+    FreeReviewCode();
+    for (int i = 0; i < ls.lesson->stepCount; i++) {
+        char key[64];
+        snprintf(key, sizeof key, "%s_step%d", ls.lesson->id, i + 1);
+        char *draft = ls.draftFolder[0] ? DraftLoad(ls.draftFolder, key, Cpp()) : NULL;
+        ls.reviewCode[i] = draft ? draft : CopyText(ls.lesson->steps[i].solution);
+    }
+    ls.reviewOpen = true;
+    ls.reviewFresh = fresh;
+    ls.reviewOpenedAt = GetTime();
+    ls.autoNextAt = -1;
+    UiFocus(NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -243,11 +277,7 @@ static void RecordPass(void)
         ls.rewarded = true;
     }
     MascotReact(FOX_EDITOR, FOX_CORRECT);
-    if (!levelBefore && RoadmapLevelComplete(ls.lesson)) {
-        ls.celebrating = true;
-        ls.celebrateAt = GetTime();
-        UiFocus(NULL);
-    }
+    if (!levelBefore && RoadmapLevelComplete(ls.lesson)) OpenReview(true);
 }
 
 // Whether the step counts as solved on screen: the learner's run matched and passed its
@@ -266,7 +296,7 @@ static void CheckPassed(void)
     RecordPass();
     // On to the next step once the pass has been celebrated: the last step's pass ends the
     // level instead, and a finished level being reviewed waits for its Next button.
-    if (ls.step + 1 < ls.lesson->stepCount && !ls.celebrating && !Reviewing()) {
+    if (ls.step + 1 < ls.lesson->stepCount && !ls.reviewOpen && !Reviewing()) {
         ls.autoNextAt = ls.passedAt + AUTO_NEXT_SECONDS;
         ls.autoNextVersion = ls.code.version;
     }
@@ -438,7 +468,7 @@ void LevelScreenOpen(const LessonSet *set, int lessonIndex, const char *draftFol
     ls.lessonIndex = lessonIndex;
     ls.lesson = &set->items[lessonIndex];
     snprintf(ls.draftFolder, sizeof ls.draftFolder, "%s", draftFolder ? draftFolder : "");
-    ls.celebrating = ls.demo = false;
+    ls.reviewOpen = ls.demo = false;
     ls.practice=false;
     LevelFxReset();
     OpenStep(RoadmapResumeStep(ls.lesson), false);
@@ -474,6 +504,7 @@ void LevelScreenShutdown(void)
     free(ls.variedCode);
     free(ls.openedCode);
     ls.variedExpected = ls.variedCode = ls.openedCode = NULL;
+    FreeReviewCode();
     EditorFree(&ls.code);
     ls.ready = false;
 }
@@ -863,43 +894,105 @@ static int NextLevel(void)
     return -1;
 }
 
-// The level is complete: confetti, a trophy, every step ticked, and on to the next level or
-// back to the journey.
-static LevelAction Celebration(void)
+// One stage's tile on the review page: its number (ticked once it has appeared), its
+// difficulty and the first lines of the code written for it. Returns whether it was clicked.
+static bool ReviewTile(Rectangle tile, int index, float appear)
+{
+    bool over = UiMouseOver(tile);
+    if (over) UiWantHand();
+    float lift = over ? 3 : 0;
+    tile.y -= lift + (1 - appear) * 16;
+    UiRoundRect((Rectangle){ tile.x, tile.y + 4 + lift, tile.width, tile.height }, 12, COL_PANEL_HI);
+    UiRoundRect(tile, 12, over ? COL_SECONDARY_HOVER : COL_PANEL);
+    if (over) DrawRectangleRoundedLinesEx(tile, 0.15f, 8, 2, COL_ACCENT);
+
+    Vector2 badge = { tile.x + 22, tile.y + 22 };
+    DrawCircleV(badge, PIP_RADIUS, appear >= 1 ? COL_ACCENT : COL_PANEL_HI);
+    if (appear >= 1) IconDraw(ICON_CHECK, badge, 14, COL_ON_ACCENT);
+    UiText(gFonts.bold, TextFormat("%d", index + 1), tile.x + 44, tile.y + 12, 19, COL_TEXT);
+    for (int bar = 0; bar < SKILL_MAX_DIFFICULTY; bar++) {
+        float h = 6 + bar * 4;
+        UiRoundRect((Rectangle){ tile.x + tile.width - 14 - (SKILL_MAX_DIFFICULTY - bar) * 8, tile.y + 30 - h, 5, h }, 2,
+                    bar < ls.lesson->steps[index].difficulty ? COL_ACCENT : COL_PANEL_HI);
+    }
+
+    // The code, from main on (headers and blank lines say little), clipped to the tile.
+    const char *code = ls.reviewCode[index] ? ls.reviewCode[index] : "";
+    const char *from = strstr(code, "main(");
+    if (from) while (from > code && from[-1] != '\n') from--;
+    else from = code;
+    float size = 12.5f, lineH = size * 1.35f, y = tile.y + 42;
+    BeginScissorMode((int)tile.x + 10, (int)y, (int)tile.width - 20, (int)(tile.y + tile.height - 8 - y));
+    char line[200];
+    for (const char *p = from; *p && y < tile.y + tile.height - 8;) {
+        const char *endOfLine = strchr(p, '\n');
+        size_t length = endOfLine ? (size_t)(endOfLine - p) : strlen(p);
+        if (length && p[length - 1] == '\r') length--;  // a draft saved with Windows line ends
+        snprintf(line, sizeof line, "%.*s", (int)(length < sizeof line - 1 ? length : sizeof line - 1), p);
+        UiCodeLine(line, tile.x + 14, y, size);
+        y += lineH;
+        p = endOfLine ? endOfLine + 1 : p + length;
+    }
+    EndScissorMode();
+    return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+}
+
+// The level's review page: a trophy, then a tile per stage with the code written for it
+// (click one to go back to that stage), then back to the journey or on to the next level,
+// which opens at its first stage not yet passed. Fresh from finishing the level, confetti
+// falls and the stages tick in one by one.
+static LevelAction LevelReview(void)
 {
     LevelAction action = { LEVEL_STAY, -1 };
     float W = (float)GetScreenWidth(), H = (float)GetScreenHeight();
-    double age = GetTime() - ls.celebrateAt;
-    DrawRectangle(0, 0, (int)W, (int)H, Fade(COL_BG, 0.82f));
-    MascotConfetti((Rectangle){ 0, 0, W, H }, age, false);
+    double age = GetTime() - ls.reviewOpenedAt;
+    if (!ls.reviewFresh) age += 2;  // reopened: everything is in place at once
+    DrawRectangle(0, 0, (int)W, (int)H, Fade(COL_BG, 0.86f));
+    if (ls.reviewFresh) MascotConfetti((Rectangle){ 0, 0, W, H }, age, false);
 
-    float cardW = 520, cardH = 330, x = (W - cardW) / 2, y = (H - cardH) / 2;
+    // As many tile columns as fit; the tiles shrink in height if the rows wouldn't fit.
+    int count = ls.lesson->stepCount;
+    float gap = 14, cardW = fminf(W - 60, 1100), inner = cardW - 48;
+    int columns = (int)((inner + gap) / (230 + gap));
+    if (columns < 1) columns = 1;
+    if (columns > count) columns = count;
+    int rows = (count + columns - 1) / columns;
+    float tileW = (inner - gap * (columns - 1)) / columns;
+    float header = 150, footer = 96;
+    float tileH = fminf(150, (H - 40 - header - footer - gap * (rows - 1)) / rows);
+    if (tileH < 70) tileH = 70;
+    float cardH = header + rows * tileH + (rows - 1) * gap + footer;
+    float x = (W - cardW) / 2, y = fmaxf(20, (H - cardH) / 2);
     float pop = 1 - powf(1 - fminf(1, (float)age / 0.35f), 3);
     y += (1 - pop) * 40;
     UiRoundRect((Rectangle){ x, y + 6, cardW, cardH }, 18, COL_PANEL_HI);
-    UiRoundRect((Rectangle){ x, y, cardW, cardH }, 18, COL_PANEL);
-    IconDraw(ICON_TROPHY, (Vector2){ W / 2, y + 62 }, 64, COL_GOLD);
-    UiTextCentered(gFonts.bold, ls.lesson->title, W / 2, y + 112, 28, COL_TEXT);
+    UiRoundRect((Rectangle){ x, y, cardW, cardH }, 18, COL_BG);
+    IconDraw(ICON_TROPHY, (Vector2){ W / 2, y + 52 }, 58, COL_GOLD);
+    UiTextCentered(gFonts.bold, ls.lesson->title, W / 2, y + 94, 26, COL_TEXT);
 
-    int count = ls.lesson->stepCount;
-    float gap = 8, rowW = count * (PIP_RADIUS * 2 + gap) - gap, px = W / 2 - rowW / 2 + PIP_RADIUS;
-    for (int i = 0; i < count; i++, px += PIP_RADIUS * 2 + gap) {
+    int clicked = -1;
+    for (int i = 0; i < count; i++) {
+        int row = i / columns, column = i % columns;
+        Rectangle tile = { x + 24 + column * (tileW + gap), y + header + row * (tileH + gap), tileW, tileH };
         float appear = fminf(1, fmaxf(0, (float)(age - 0.3 - i * 0.06) / 0.2f));  // they tick in one by one
-        DrawCircleV((Vector2){ px, y + 178 }, PIP_RADIUS * (0.6f + 0.4f * appear), appear > 0 ? COL_ACCENT : COL_PANEL_HI);
-        if (appear >= 1) IconDraw(ICON_CHECK, (Vector2){ px, y + 178 }, 14, COL_ON_ACCENT);
+        if (ReviewTile(tile, i, appear)) clicked = i;
     }
 
     int next = NextLevel();
-    float buttonY = y + cardH - 86, buttonW = next >= 0 ? 220 : 300;
+    float buttonY = y + cardH - 76, buttonW = next >= 0 ? 220 : 300;
     Rectangle journey = { next >= 0 ? W / 2 - buttonW - 10 : W / 2 - buttonW / 2, buttonY, buttonW, 54 };
     if (UiButtonIconEx(journey, ICON_BACK, "Journey", 21, COL_PANEL_HI, COL_SECONDARY_HOVER, COL_TEXT, true))
         action.kind = LEVEL_BACK;
     if (next >= 0 && (UiButtonIcon((Rectangle){ W / 2 + 10, buttonY, buttonW, 54 }, ICON_NEXT, "Next level", true)
                       || IsKeyPressed(KEY_ENTER))) {
-        action.kind = LEVEL_OPEN_LEVEL;
+        action.kind = LEVEL_OPEN_LEVEL;  // main.c opens it at its first stage not yet passed (RoadmapResumeStep)
         action.lessonIndex = next;
     }
     if (IsKeyPressed(KEY_ESCAPE)) action.kind = LEVEL_BACK;
+    if (clicked >= 0 && action.kind == LEVEL_STAY) {  // back to that stage
+        ls.reviewOpen = false;
+        OpenStep(clicked, true);
+    }
     return action;
 }
 
@@ -928,8 +1021,8 @@ LevelAction LevelScreen(void)
     if (ls.code.markCount && ls.code.version != ls.markedVersion) EditorSetMarks(&ls.code, NULL, 0);
     UpdateHint();
 
-    // While celebrating, the step underneath is only a picture: nothing in it reacts.
-    if (ls.celebrating) UiSetClip((Rectangle){ 0, 0, 0, 0 });
+    // While the review page is open, the step underneath is only a picture: nothing in it reacts.
+    if (ls.reviewOpen) UiSetClip((Rectangle){ 0, 0, 0, 0 });
 
     bool back = TopBar(ls.lesson->title);
     StepPips();
@@ -939,9 +1032,10 @@ LevelAction LevelScreen(void)
     float pad = 16, barY = TOPBAR_H + 12, barH = 42;
     bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
 
-    // Toolbar: run (or stop), reset, hint, and while reviewing a finished level, the next step.
+    // Toolbar: run (or stop), reset, hint, and while reviewing a finished level, the next step
+    // (or, on its last step, the level's review page).
     float x = pad;
-    bool run = !busy && !ls.celebrating && (IsKeyPressed(KEY_F5) || (ctrl && IsKeyPressed(KEY_ENTER)));
+    bool run = !busy && !ls.reviewOpen && (IsKeyPressed(KEY_F5) || (ctrl && IsKeyPressed(KEY_ENTER)));
     if (busy) {
         if (UiButtonIconEx((Rectangle){ x, barY, 130, barH }, ICON_CROSS, "Stop", 20, COL_BAD,
                            ColorBrightness(COL_BAD, 0.15f), COL_ON_ACCENT, true)) {
@@ -997,7 +1091,7 @@ LevelAction LevelScreen(void)
     bool hasNext = ls.step + 1 < ls.lesson->stepCount;
     // A pending move on to the next step (its pip shows the countdown): editing the code
     // (more work on this step) or running it again calls it off.
-    if (ls.autoNextAt >= 0 && (ls.code.version != ls.autoNextVersion || busy || ls.celebrating)) ls.autoNextAt = -1;
+    if (ls.autoNextAt >= 0 && (ls.code.version != ls.autoNextVersion || busy || ls.reviewOpen)) ls.autoNextAt = -1;
     bool go = ls.autoNextAt >= 0 && GetTime() >= ls.autoNextAt;
     if (hasNext && Reviewing()) {  // looking back over a finished level: on to the next step when asked
         float pulse = (sinf((float)GetTime() * 5) + 1) / 2;
@@ -1005,6 +1099,10 @@ LevelAction LevelScreen(void)
         DrawRectangleRoundedLinesEx((Rectangle){ next.x - 3, next.y - 3, next.width + 6, next.height + 6 }, 0.3f, 8, 2,
                                     Fade(COL_ACCENT, 0.3f + 0.4f * pulse));
         if (UiButtonIconEx(next, ICON_NEXT, "Next", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy)) go = true;
+    } else if (!hasNext && Reviewing() && !ls.reviewOpen) {  // the last stage: back to the level's review page
+        if (UiButtonIconEx((Rectangle){ x, barY, 150, barH }, ICON_TROPHY, "Review", 20, COL_ACCENT, COL_ACCENT_HI,
+                           COL_ON_ACCENT, !busy))
+            OpenReview(false);
     }
     if (go && hasNext && !busy) {
         OpenStep(ls.step + 1, true);
@@ -1055,11 +1153,11 @@ LevelAction LevelScreen(void)
     LevelFxSetLayout(ls.fxLayout);
     LevelFxDrawOver();
 
-    if (ls.celebrating) {
+    if (ls.reviewOpen) {
         UiClearClip();
-        action = Celebration();
+        action = LevelReview();
         if (action.kind != LEVEL_STAY) {
-            ls.celebrating = false;
+            ls.reviewOpen = false;
             LevelScreenClose();
         }
         return action;
@@ -1113,8 +1211,8 @@ void LevelScreenDemoType(const char *typed)
 
 void LevelScreenDemoCelebration(void)
 {
-    ls.celebrating = true;
-    ls.celebrateAt = GetTime() - 2;  // the pips have all ticked in
+    OpenReview(true);
+    ls.reviewOpenedAt = GetTime() - 2;  // the stages have all ticked in
 }
 
 bool LevelScreenBusy(void)

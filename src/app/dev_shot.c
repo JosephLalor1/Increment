@@ -143,7 +143,7 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
 
     // level <index> [step]: a level at any step (1-based), its first run
     // finished; INCREMENT_SHOT_HINTS=<n> reveals hints. levelsolved: the same step with its
-    // solution run and passed. levelcomplete: the celebration after the last step.
+    // solution run and passed. levelcomplete: the review page after the last step.
     if (Is(name, "level") || Is(name, "levelsolved") || Is(name, "levelcomplete")) {
         if (lessons->count == 0 || lessons->items[lessonIndex].stepCount == 0) return Home();
         LevelScreenOpen(lessons, lessonIndex, AccountCurrent() ? AccountCodeDir() : NULL);

@@ -14,12 +14,12 @@
 // too; otherwise the output panel shows why, in code and icons, and the step isn't passed.
 // A pass records the step (progress.h), earns XP in the skills the learner's code used
 // (step_skills.h, answers.h) with the reward animation; all steps remain freely selectable. Passing
-// the last step celebrates the level. Returns what the learner chose; main.c navigates.
+// the last step opens the level's review page (a tile per stage to go back to, Journey, Next level). Returns what the learner chose; main.c navigates.
 
 typedef enum {
     LEVEL_STAY,        // nothing to do
     LEVEL_BACK,        // back to the journey
-    LEVEL_OPEN_LEVEL,  // play another level: LevelAction.lessonIndex (the next one, after a celebration)
+    LEVEL_OPEN_LEVEL,  // play another level: LevelAction.lessonIndex (the next one, from the review page)
 } LevelChoice;
 
 typedef struct {
@@ -40,7 +40,7 @@ void LevelScreenClose(void);     // saves the draft and stops any running progra
 void LevelScreenShutdown(void);  // frees everything, at exit
 
 // Dev aids for --shot: open any step, reveal hints, and (solved) put the
-// solution in the editor; show the celebration; and wait for a run.
+// solution in the editor; show the review page; and wait for a run.
 void LevelScreenDemo(int stepIndex, int hints, bool solved);
 void LevelScreenDemoRun(void);  // runs the code as the learner would (checks and all); records nothing
 void LevelScreenDemoCelebration(void);
