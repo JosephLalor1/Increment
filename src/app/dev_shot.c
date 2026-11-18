@@ -51,6 +51,11 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         ExamScreenOpen(lessons,lessons->count ? lessons->items[lessonIndex].track : TRACK_C,extra ? atoi(extra) : 0);
         ExamScreenDemo(Is(name,"exam-active") ? 1 : Is(name,"exam-results") ? 2 : Is(name,"exam-review") ? 3 : 0);return SCREEN_EXAM;
     }
+    if (Is(name, "exam-turn")) {  // exam-turn <index> <ms>: the iris between the intro and the exam
+        ExamScreenOpen(lessons, lessons->count ? lessons->items[lessonIndex].track : TRACK_C, 0);
+        ExamScreenDemoTurn(scroll / 1000.0f);
+        return SCREEN_EXAM;
+    }
     if(Is(name,"courses")) {CoursesScreenOpen();return SCREEN_COURSES;}
     if (Is(name, "rankings") || Is(name, "rankings-skills")) {
         RankingScreenOpen(lessons);

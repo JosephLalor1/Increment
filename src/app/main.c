@@ -39,6 +39,12 @@ static LessonSet lessons;
 static struct {
     AppScreen screen;
     AppScreen levelReturn;
+    // The zoom in or out is for a level (app.level) or an exam (examTrack, examSection), and
+    // an exam goes back to where it was opened from (examReturn: the journey or Courses).
+    bool zoomingExam;
+    Track examTrack;
+    int examSection;
+    AppScreen examReturn;
     AppScreen speedReturn;    // where a speed round goes back to: the journey or the statistics
     int level;                // the level being played (an index into lessons)
     AppScreen afterRecovery;  // where to go once a new recovery code has been saved
@@ -183,6 +189,17 @@ static void RunSettings(void)
     }
 }
 
+// Starts the zoom into an exam (a section of a track's checkpoints), towards a point; it
+// opens once the zoom covers the screen, and going back zooms out to returnTo.
+static void ZoomIntoExam(Track track, int section, Vector2 point, AppScreen returnTo)
+{
+    app.zoomingExam = true;
+    app.examTrack = track;
+    app.examSection = section;
+    app.examReturn = returnTo;
+    LevelEntryStart(point);
+}
+
 static void RunHome(void)
 {
     HomeAction action = DashboardScreen(&lessons);
@@ -190,10 +207,12 @@ static void RunHome(void)
     case HOME_OPEN_LESSON:  // zoom into the level first; it opens once the zoom covers the screen
         if(!CheckpointLessonOpen(&lessons,action.lessonIndex)) break; // invalid/empty content only
         app.level = action.lessonIndex;
+        app.zoomingExam = false;
         LevelEntryStart(action.clickedAt);
         break;
-    case HOME_OPEN_EXAM:
-        ExamScreenOpen(&lessons,action.track,action.lessonIndex);app.screen=SCREEN_EXAM;break;
+    case HOME_OPEN_EXAM:  // the same zoom, into the exam's station
+        ZoomIntoExam(action.track, action.lessonIndex, action.clickedAt, SCREEN_HOME);
+        break;
     case HOME_COURSES:
         CoursesScreenOpen();app.screen=SCREEN_COURSES;break;
     case HOME_SPEED_ROUND: OpenSpeedRound(&lessons.items[action.lessonIndex], SCREEN_HOME); break;
@@ -225,31 +244,47 @@ static void RunLevel(void)
     LevelAction action = LevelScreen();
     if (action.kind == LEVEL_OPEN_LEVEL) {AppScreen origin=app.levelReturn;OpenLevel(action.lessonIndex);app.levelReturn=origin;}
     else if (action.kind == LEVEL_BACK) {
-        if(app.levelReturn==SCREEN_HOME) LevelExitStart();
+        if(app.levelReturn==SCREEN_HOME) { app.zoomingExam = false; LevelExitStart(); }
         else {LevelScreenClose();app.screen=app.levelReturn;}
     }
 }
 
 static void RunExam(void) {
     ExamScreenAction action=ExamScreen();
-    if(action.kind==EXAM_SCREEN_HOME) {app.screen=SCREEN_HOME;}
+    if(action.kind==EXAM_SCREEN_HOME) {app.zoomingExam=true;LevelExitStart();}  // zoom back out to where it was opened
     else if(action.kind==EXAM_SCREEN_PRACTICE) {LevelScreenPractice(action.practice);app.levelReturn=SCREEN_EXAM;app.screen=SCREEN_LEVEL;}
 }
 static void RunCourses(void) {
     CoursesAction action=CoursesScreen(&lessons);
     if(action.back) app.screen=SCREEN_HOME;
     else if(action.lesson>=0) {OpenLevel(action.lesson);app.levelReturn=SCREEN_COURSES;}
-    else if(action.exam>=0) {ExamScreenOpen(&lessons,action.track,action.exam);app.screen=SCREEN_EXAM;}
+    else if(action.exam>=0) ZoomIntoExam(action.track,action.exam,GetMousePosition(),SCREEN_COURSES);
 }
 
-// The zoom into a level, or back out of one, standing in for the screen. The screens change
-// while it has everything covered.
+// The zoom into a level or exam, or back out of one, standing in for the screen. The screens
+// change while it has everything covered.
 static void RunLevelEntry(void)
 {
     LevelEntryCue cue = LevelEntryDraw();
-    if (cue == ENTRY_CUE_OPEN_LEVEL) {
+    if (cue == ENTRY_CUE_OPEN && app.zoomingExam) {
+        ExamScreenOpen(&lessons, app.examTrack, app.examSection);
+        app.screen = SCREEN_EXAM;
+    } else if (cue == ENTRY_CUE_OPEN) {
         OpenLevel(app.level);
-    } else if (cue == ENTRY_CUE_SHOW_JOURNEY) {
+    } else if (cue == ENTRY_CUE_SHOW_BEHIND && app.zoomingExam) {
+        // Back to the journey (into the exam's station) or to Courses, drawn once for the
+        // picture that gets zoomed out of; whatever it reports this frame is ignored.
+        app.screen = app.examReturn;
+        ClearBackground(COL_BG);
+        if (app.examReturn == SCREEN_COURSES) {
+            CoursesScreen(&lessons);
+            LevelExitLand((Vector2){ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f });
+        } else {
+            DashboardShow(HOME_VIEW_JOURNEY, app.examTrack);
+            DashboardScreen(&lessons);
+            LevelExitLand(DashboardExamPoint(app.examSection));
+        }
+    } else if (cue == ENTRY_CUE_SHOW_BEHIND) {
         // The journey of the level's track, drawn once for the picture that gets zoomed out
         // of; whatever it reports this frame is ignored.
         DashboardShow(HOME_VIEW_JOURNEY, lessons.items[app.level].track);
@@ -341,6 +376,7 @@ int main(int argc, char **argv)
     ShowLogin();                   // prepares the login form...
     app.screen = SCREEN_SPLASH;    // ...which shows once the splash finishes
     app.levelReturn=SCREEN_HOME;
+    app.examReturn = SCREEN_HOME;  // an exam opened any other way goes back to the journey
     app.splashStart = GetTime();
     app.splashTime = -1;
 

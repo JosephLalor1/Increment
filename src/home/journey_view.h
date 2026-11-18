@@ -20,6 +20,8 @@ float JourneyViewFocus(const LessonSet *set, Track track); // scroll offset of t
 // The middle of a level's station on screen, as last drawn (even if scrolled out of view).
 // False if the last draw didn't include that level.
 bool JourneyViewStationPoint(int lessonIndex, Vector2 *point);
+// The same for an exam station (by section) of the track last drawn.
+bool JourneyViewExamPoint(int section, Vector2 *point);
 
 // Dev aid for --shot: the next draw reports this level as clicked.
 void JourneyViewDemoClick(int lessonIndex);

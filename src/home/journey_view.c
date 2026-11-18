@@ -5,6 +5,8 @@
 #include "ui/mascot.h"
 #include "learning/progress.h"
 #include "learning/roadmap.h"
+#include "ui/boss_emblem.h"
+#include "ui/easing.h"
 #include "ui/ui.h"
 
 #include <math.h>
@@ -83,14 +85,22 @@ static void Guide(Vector2 station, float x, float width, float scale, int done, 
 #define MAX_HOVER_STATIONS 512
 static float hoverAmount[MAX_HOVER_STATIONS];
 
+#define HOVER_RATE 14.0f  // how quickly a station's hover glides in and out (easing.h)
+
 static float EaseHover(int lessonIndex, bool over)
 {
     if (lessonIndex < 0 || lessonIndex >= MAX_HOVER_STATIONS) return over ? 1.0f : 0.0f;
-    float *amount = &hoverAmount[lessonIndex];
-    float step = 1.0f - expf(-GetFrameTime() * 14.0f);  // same feel at any frame rate
-    *amount += ((over ? 1.0f : 0.0f) - *amount) * step;
-    if (fabsf(*amount - (over ? 1.0f : 0.0f)) < 0.001f) *amount = over ? 1.0f : 0.0f;
-    return *amount;
+    return EaseToward(&hoverAmount[lessonIndex], over ? 1.0f : 0.0f, HOVER_RATE, GetFrameTime());
+}
+
+// The same for each exam station, by track and section.
+#define MAX_EXAM_SECTIONS 16
+static float examHoverAmount[TRACK_COUNT][MAX_EXAM_SECTIONS];
+
+static float EaseExamHover(const Checkpoint *exam, bool over)
+{
+    if (exam->section < 0 || exam->section >= MAX_EXAM_SECTIONS) return over ? 1.0f : 0.0f;
+    return EaseToward(&examHoverAmount[exam->track][exam->section], over ? 1.0f : 0.0f, HOVER_RATE, GetFrameTime());
 }
 
 // Where each station's middle was in the last draw, by lesson index.
@@ -104,27 +114,61 @@ bool JourneyViewStationPoint(int lessonIndex, Vector2 *point)
     return true;
 }
 
+// Where each exam station's face was in the last draw, by section.
+static Vector2 examPoint[MAX_EXAM_SECTIONS];
+static bool examDrawn[MAX_EXAM_SECTIONS];
+
+bool JourneyViewExamPoint(int section, Vector2 *point)
+{
+    if (section < 0 || section >= MAX_EXAM_SECTIONS || !examDrawn[section]) return false;
+    *point = examPoint[section];
+    return true;
+}
+
 static int demoClick = -1;  // --shot: a level to report as clicked on the next draw
 
 void JourneyViewDemoClick(int lessonIndex) { demoClick = lessonIndex; }
 
-static bool ExamStation(const LessonSet *set,const Checkpoint *exam,Vector2 center,float scale) {
-    bool passed=CheckpointPassed(exam),available=CheckpointAvailable(set,exam);
-    float radius=53*scale;int best=ExamHistoryBest(exam->id);
-    Rectangle hit={center.x-radius-12,center.y-radius-12,2*radius+24,2*radius+106};
-    bool over=UiMouseOver(hit);if(over) UiWantHand();
-    DrawRing(center,radius+5,radius+9,0,360,64,passed ? COL_GOLD : COL_ACCENT);
-    DrawCircleV((Vector2){center.x,center.y+7},radius,ColorBrightness(COL_PANEL,-0.15f));
-    DrawCircleV(center,radius,passed ? COL_GOOD_BG : COL_ACCENT);
-    IconDraw(passed ? ICON_TROPHY : ICON_CODE,center,40*scale,passed ? COL_GOOD : COL_ON_ACCENT);
-    UiTextCentered(gFonts.bold,TextFormat("%s EXAM %d",TrackName(exam->track),exam->section+1),center.x,center.y+radius+18,22*scale,COL_TEXT);
-    const char *status=passed ? TextFormat("BEST %d%% | REVIEW / RETAKE",best) : best>=0 ? TextFormat("ATTEMPTED | BEST %d%% | RETRY",best) : "NOT STARTED | START EXAM";
-    UiTextCentered(gFonts.text,status,center.x,center.y+radius+50,14*scale,passed ? COL_GOOD : available ? COL_ACCENT : COL_DIM);
-    if(available && !passed && MascotAvailable()) {
-        float side=center.x>GetScreenWidth()/2.0f ? -165 : 85;
-        MascotDrawActor(FOX_JOURNEY,(Rectangle){center.x+side,center.y-42,84,84},FOX_DETERMINED);
+// An exam station: the section's "boss". It lifts, swells and brightens under the mouse as
+// level stations do, inside a boss emblem (aura, turning spikes, orbiting sparks) that
+// bristles as it's hovered; gold once passed. Returns whether it was clicked, and its face
+// (the lifted disc's middle) in *face.
+static bool ExamStation(const LessonSet *set, const Checkpoint *exam, Vector2 center, float scale, Vector2 *face)
+{
+    bool passed = CheckpointPassed(exam), available = CheckpointAvailable(set, exam);
+    float radius = 53 * scale;
+    int best = ExamHistoryBest(exam->id);
+    Rectangle hit = { center.x - radius - 12, center.y - radius - 12, 2 * radius + 24, 2 * radius + 106 };
+    bool over = available && UiMouseOver(hit);
+    if (over) UiWantHand();
+    float hover = EaseExamHover(exam, over), time = (float)GetTime();
+    float lift = (passed ? 0 : 2 + sinf(time * 1.8f) * 2) * (1 - hover) + 7 * hover;  // an unbeaten boss stirs
+    radius *= 1 + 0.05f * hover;
+    *face = (Vector2){ center.x, center.y - lift };
+    Color emblem = passed ? COL_GOLD : COL_ACCENT;
+
+    BossEmblemDraw(*face, radius, emblem, hover, time);
+    DrawCircleV((Vector2){ center.x, center.y + 7 }, radius, ColorBrightness(COL_PANEL, -0.15f));
+    DrawRing(*face, radius + 3, radius + 7, 0, 360, 64, emblem);
+    DrawCircleV(*face, radius, ColorBrightness(passed ? COL_GOOD_BG : COL_ACCENT, 0.1f * hover));
+    DrawCircleV((Vector2){ face->x - radius * 0.2f, face->y - radius * 0.35f }, radius * 0.48f, Fade(WHITE, 0.08f));
+    IconDraw(passed ? ICON_TROPHY : ICON_CODE, *face, 40 * scale * (1 + 0.08f * hover), passed ? COL_GOOD : COL_ON_ACCENT);
+
+    // The title plate fades in under the mouse, as a level station's does.
+    float titleY = center.y + radius + 18;
+    if (hover > 0.01f) UiRoundRect((Rectangle){ center.x - 150, titleY - 8, 300, 76 * scale }, 12,
+                                   Fade(COL_PANEL_HI, 0.45f * hover));
+    UiTextCentered(gFonts.bold, TextFormat("%s EXAM %d", TrackName(exam->track), exam->section + 1), center.x, titleY,
+                   22 * scale, COL_TEXT);
+    const char *status = passed ? TextFormat("BEST %d%% | REVIEW / RETAKE", best)
+                       : best >= 0 ? TextFormat("ATTEMPTED | BEST %d%% | RETRY", best) : "NOT STARTED | START EXAM";
+    UiTextCentered(gFonts.text, status, center.x, center.y + radius + 50, 14 * scale,
+                   passed ? COL_GOOD : available ? COL_ACCENT : COL_DIM);
+    if (available && !passed && MascotAvailable()) {
+        float side = center.x > GetScreenWidth() / 2.0f ? -165 : 85;
+        MascotDrawActor(FOX_JOURNEY, (Rectangle){ center.x + side, center.y - 42, 84, 84 }, FOX_DETERMINED);
     }
-    return available && over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
+    return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
 int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float width, float *height,
@@ -134,6 +178,7 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
     int done, total, selected = -1;
     int next = RoadmapNext(set, track, &done, &total);
     memset(stationDrawn, 0, sizeof stationDrawn);
+    memset(examDrawn, 0, sizeof examDrawn);
     int stations = 0;  // every level of the track, written yet or not
     for (int i = 0; i < set->count; i++) stations += set->items[i].track == track;
     if (!stations) {
@@ -265,8 +310,16 @@ int JourneyViewDraw(const LessonSet *set, Track track, float x, float y, float w
         ordinal++;
         int section=CheckpointAfter(set,i);Checkpoint exam;
         if(section>=0 && CheckpointGet(set,track,section,&exam)) {
-            Vector2 examPoint=Station(x,stationY,width,ordinal);
-            if(ExamStation(set,&exam,examPoint,scale)) {selected=-2-section;if(clickedAt) *clickedAt=examPoint;}
+            Vector2 examCenter=Station(x,stationY,width,ordinal);
+            Vector2 examFace;
+            if (ExamStation(set, &exam, examCenter, scale, &examFace)) {
+                selected = -2 - section;
+                if (clickedAt) *clickedAt = examFace;
+            }
+            if (section < MAX_EXAM_SECTIONS) {
+                examPoint[section] = examFace;
+                examDrawn[section] = true;
+            }
             stationY+=260*scale;ordinal++;
         }
     }

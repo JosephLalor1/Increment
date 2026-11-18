@@ -6,6 +6,7 @@
 #include "sandbox/code_library_view.h"
 #include "code/case_runner.h"
 #include "code/drafts.h"
+#include "ui/easing.h"
 #include "ui/mascot.h"
 #include "code/editor.h"
 #include "ui/layout.h"
@@ -53,6 +54,11 @@ static struct {
     int caseCount;         // 1 to CODE_MAX_CASES
     int shownCase;         // the case whose input, expected output and output are on show
     int ranCases;          // how many cases the last run covered; 0 when there's nothing to show
+    // Animation of the tabs: where the highlight under the tab on show is (it slides to a
+    // newly chosen tab; < 0 snaps it there), and when each case's result arrived (its tick or
+    // cross pops in then; < 0 while it hasn't).
+    float tabHighlightX;
+    double caseResultAt[CODE_MAX_CASES];
 
     CaseRunner runner;
     bool wasBusy;
@@ -97,6 +103,7 @@ static void ClearCases(void)
     cs.caseCount = 1;
     cs.shownCase = 0;
     cs.ranCases = 0;
+    cs.tabHighlightX = -1;
 }
 
 // Whether a case says what it should print (more than blank space).
@@ -164,6 +171,7 @@ static void RemoveCase(void)
     cs.caseCount--;
     if (cs.shownCase >= cs.caseCount) cs.shownCase = cs.caseCount - 1;
     cs.ranCases = 0;
+    cs.tabHighlightX = -1;  // the tabs have moved under it
     ShowOutput();
     UiFocus(&cs.code);
 }
@@ -253,6 +261,7 @@ static void StartRun(void)
     const char *inputs[CODE_MAX_CASES];
     for (int i = 0; i < cs.caseCount; i++) inputs[i] = cs.inputs[i].text;
     cs.ranCases = cs.caseCount;
+    for (int i = 0; i < CODE_MAX_CASES; i++) cs.caseResultAt[i] = -1;
     CaseRunnerStart(&cs.runner, cs.code.text, cs.cpp, inputs, cs.caseCount);
 }
 
@@ -340,26 +349,38 @@ static bool SecondaryButton(Rectangle r, Icon icon, const char *label, bool enab
     return UiButtonIconEx(r, icon, label, 19, COL_PANEL, COL_SECONDARY_HOVER, COL_TEXT, enabled);
 }
 
-// The test case tabs: one per case, numbered, the one on show filled; after a run each gets a
-// tick (it ran, and printed what it should if that was given) or a cross. Then a button to
+// The test case tabs: one per case, numbered, the one on show filled by an accent highlight
+// that slides from tab to tab; after a run each gets a tick (it ran, and printed what it
+// should if that was given) or a cross, popping in as its result arrives. Then a button to
 // add a case and, with more than one, a button to remove the one on show.
 static void CaseTabs(float x, float y, float right, bool busy)
 {
     float tabW = 62, tabH = 30, gap = 6;
+    float shownX = x + cs.shownCase * (tabW + gap);
+    if (cs.tabHighlightX < 0) cs.tabHighlightX = shownX;
+    EaseToward(&cs.tabHighlightX, shownX, 16, GetFrameTime());
+    for (int i = 0; i < cs.caseCount; i++) {
+        Rectangle tab = { x + i * (tabW + gap), y, tabW, tabH };
+        bool over = i != cs.shownCase && UiMouseOver(tab);
+        UiRoundRect(tab, 7, over ? COL_SECONDARY_HOVER : COL_PANEL);
+    }
+    UiRoundRect((Rectangle){ cs.tabHighlightX, y, tabW, tabH }, 7, COL_ACCENT);
     for (int i = 0; i < cs.caseCount; i++, x += tabW + gap) {
         Rectangle tab = { x, y, tabW, tabH };
+        float under = Clamp01(1 - fabsf(cs.tabHighlightX - tab.x) / tabW);  // the highlight passing under it
         bool shown = i == cs.shownCase, over = !shown && UiMouseOver(tab);
         if (over) UiWantHand();
-        UiRoundRect(tab, 7, shown ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL);
-        Color ink = shown ? COL_ON_ACCENT : COL_TEXT;
+        Color ink = ColorLerp(COL_TEXT, COL_ON_ACCENT, under);
         UiText(gFonts.bold, TextFormat("%d", i + 1), tab.x + 12, tab.y + 5, 18, ink);
         Vector2 mark = { tab.x + tabW - 17, tab.y + tabH / 2 };
         bool ran = i < cs.ranCases && cs.runner.outcomes[i].result != RESULT_NONE;
         if (ran) {
+            if (cs.caseResultAt[i] < 0) cs.caseResultAt[i] = GetTime();
+            float pop = PopOvershoot((float)(GetTime() - cs.caseResultAt[i]) / 0.22f);
             bool passed = CasePassed(i);
             Color sign = passed ? COL_GOOD : COL_BAD;
-            DrawCircleV(mark, 9, shown ? COL_ON_ACCENT : sign);
-            IconDraw(passed ? ICON_CHECK : ICON_CROSS, mark, 11, shown ? sign : COL_ON_ACCENT);
+            DrawCircleV(mark, 9 * pop, ColorLerp(sign, COL_ON_ACCENT, under));
+            IconDraw(passed ? ICON_CHECK : ICON_CROSS, mark, 11 * pop, ColorLerp(COL_ON_ACCENT, sign, under));
         } else {
             DrawCircleV(mark, 3.5f, Fade(ink, 0.35f));
         }

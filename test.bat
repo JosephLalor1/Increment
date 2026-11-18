@@ -90,7 +90,7 @@ if errorlevel 1 exit /b 1
 build\test_dashboard.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1
 
-"%CC%" %CFLAGS% tests\test_journey_view.c src\home\journey_view.c src\learning\checkpoints.c src\learning\exam_history.c src\core\platform.c src\ui\mascot.c src\ui\mascot_state.c src\learning\roadmap.c src\learning\lesson.c src\learning\skills.c src\learning\progress.c src\ui\ui.c src\ui\icons.c src\ui\icon_pen.c -o build\test_journey_view.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_journey_view.c src\home\journey_view.c src\learning\checkpoints.c src\learning\exam_history.c src\core\platform.c src\ui\mascot.c src\ui\mascot_state.c src\learning\roadmap.c src\learning\lesson.c src\learning\skills.c src\learning\progress.c src\ui\ui.c src\ui\icons.c src\ui\icon_pen.c src\ui\boss_emblem.c -o build\test_journey_view.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_journey_view.exe "%TESTDIR%"
 if errorlevel 1 set FAILED=1

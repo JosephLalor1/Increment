@@ -10,5 +10,8 @@ ExamScreenAction ExamScreen(void);
 void ExamScreenShutdown(void);
 // Developer previews never save or grant passes. page: 0 intro, 1 active, 2 results.
 void ExamScreenDemo(int page);
+// --shot: the boss iris turning from the intro to the exam, held this many seconds in (it
+// shuts for 0.28 s, then opens for 0.42 s).
+void ExamScreenDemoTurn(float seconds);
 bool ExamScreenBusy(void);
 #endif

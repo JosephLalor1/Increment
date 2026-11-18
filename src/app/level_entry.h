@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-// The way into a level and out of it again.
+// The way into a level (or an exam) and out of it again.
 //
 // In: clicking a level zooms into it. The screen as it stood at the click is kept as a
 // picture and flown into, towards the clicked point, while a disc in the accent colour
@@ -16,15 +16,15 @@
 // the journey is drawn once and kept as a picture, and the disc shrinks into the level's
 // station as that picture zooms back out to its real size.
 //
-// It knows nothing about levels or the journey: main.c starts it, draws it in place of the
-// screen while it stands in for one, and does what its cues say (open the level, show the
-// journey) at the moments the screen is covered.
+// It knows nothing about levels, exams or the journey: main.c starts it, draws it in place of
+// the screen while it stands in for one, and does what its cues say (open what was clicked,
+// show the screen to go back to) at the moments the screen is covered.
 
 typedef enum {
     ENTRY_CUE_NONE,
-    ENTRY_CUE_OPEN_LEVEL,    // the zoom in has covered the screen: open the level now
-    ENTRY_CUE_SHOW_JOURNEY,  // the iris has closed on the level: draw the journey this frame,
-                             // then call LevelExitLand
+    ENTRY_CUE_OPEN,          // the zoom in has covered the screen: open the level (or exam) now
+    ENTRY_CUE_SHOW_BEHIND,   // the iris has closed on it: draw the screen to go back to (the
+                             // journey) this frame, then call LevelExitLand
 } LevelEntryCue;
 
 // Starts the zoom into a level, towards a point on screen. Call it once the current screen
@@ -34,7 +34,7 @@ void LevelEntryStart(Vector2 clickedAt);
 // Starts the way out. Call it once the level has been drawn this frame, as above.
 void LevelExitStart(void);
 
-// After ENTRY_CUE_SHOW_JOURNEY, with the journey drawn this frame: keeps it as the picture
+// After ENTRY_CUE_SHOW_BEHIND, with the journey drawn this frame: keeps it as the picture
 // to zoom out of, towards the level's station on it, and covers it up again.
 void LevelExitLand(Vector2 station);
 

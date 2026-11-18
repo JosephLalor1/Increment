@@ -54,6 +54,8 @@ HomeAction DashboardScreen(const LessonSet *set);
 // Where a level is on the screen as last drawn: the middle of its station on the journey,
 // or the middle of the screen if the journey wasn't showing it. For the zoom out of a level.
 Vector2 DashboardLevelPoint(int lessonIndex);
+// The same for an exam station of the journey on show (by section).
+Vector2 DashboardExamPoint(int section);
 
 // Dev aid for --shot: scroll the current view.
 void DashboardDemo(float scroll);

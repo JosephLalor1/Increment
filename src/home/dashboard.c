@@ -413,6 +413,13 @@ Vector2 DashboardLevelPoint(int lessonIndex)
     return point;
 }
 
+Vector2 DashboardExamPoint(int section)
+{
+    Vector2 point = { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+    if (page.view == HOME_VIEW_JOURNEY) JourneyViewExamPoint(section, &point);
+    return point;
+}
+
 void DashboardDemo(float scroll)
 {
     page.scroll = scroll;

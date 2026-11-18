@@ -123,6 +123,14 @@ static struct {
     bool reviewFresh;
     double reviewOpenedAt;
     char *reviewCode[MAX_STEPS];
+    float reviewHover[MAX_STEPS];  // each review tile's hover, eased (0 to 1)
+
+    // Animation of the case chips: where the highlight under the chip on show is (it slides
+    // to a newly chosen chip; < 0 snaps it there), and when each case's result arrived (its
+    // tick or cross pops in then; < 0 while it hasn't).
+    float chipHighlightX;
+    double caseResultAt[MAX_STEP_CASES];
+    float stepButtonAppear;  // the toolbar's Next or Review button gliding in (0 to 1)
     bool demo;         // set up for a --shot: nothing is saved
     bool demoBack;     // --shot: leave the level as if Back had been clicked
 } ls;
@@ -161,6 +169,7 @@ static void OpenReview(bool fresh)
         char *draft = ls.draftFolder[0] ? DraftLoad(ls.draftFolder, key, Cpp()) : NULL;
         ls.reviewCode[i] = draft ? draft : CopyText(ls.lesson->steps[i].solution);
     }
+    memset(ls.reviewHover, 0, sizeof ls.reviewHover);
     ls.reviewOpen = true;
     ls.reviewFresh = fresh;
     ls.reviewOpenedAt = GetTime();
@@ -218,6 +227,7 @@ static void StartRun(bool byLearner)
     const char *inputs[MAX_STEP_CASES];
     for (int i = 0; i < step->caseCount; i++) inputs[i] = step->cases[i].input;
     CaseRunnerStart(&ls.runner, ls.code.text, Cpp(), inputs, step->caseCount);
+    for (int i = 0; i < MAX_STEP_CASES; i++) ls.caseResultAt[i] = -1;
 }
 
 // Whether the last run printed test case index's target.
@@ -446,6 +456,8 @@ static void OpenStep(int index, bool leavingStep)
     ls.code.fontSize = 19 * UiTextScale();
     ls.ran = ls.passed = ls.rewarded = false;
     ls.shownCase = 0;
+    ls.chipHighlightX = -1;  // straight to the first chip
+    ls.stepButtonAppear = 0;
     ls.passedAt = ls.failedAt = -10;
     ls.autoNextAt = -1;
     ls.hintsShown = 0;
@@ -600,12 +612,7 @@ static Rectangle Panel(Rectangle r, Icon icon, const char *title, Color edge, vo
 
 // How big a tick or cross is drawn `age` seconds after its line appeared: it pops past full
 // size and settles.
-static float PopScale(float age)
-{
-    float t = age / 0.22f;
-    if (t >= 1) return 1;
-    return t < 0.6f ? t / 0.6f * 1.35f : 1.35f - (t - 0.6f) / 0.4f * 0.35f;
-}
+static float PopScale(float age) { return PopOvershoot(age / 0.22f); }
 
 // Lines of output in area, scrolled by *scroll (the wheel scrolls it). When compareWith is
 // set, each line is ticked where it matches the same line there, or crossed and tinted red,
@@ -719,20 +726,35 @@ static float CaseChips(Rectangle row)
     if (step->caseCount < 2) return 0;
     const CaseRunner *c = &ls.runner;
     float chipW = 74, chipH = 34, gap = 8, x = row.x;
+    // The accent highlight glides from chip to chip.
+    float shownX = row.x + ls.shownCase * (chipW + gap);
+    if (ls.chipHighlightX < 0) ls.chipHighlightX = shownX;
+    EaseToward(&ls.chipHighlightX, shownX, 16, GetFrameTime());
+    for (int i = 0; i < step->caseCount; i++) {
+        Rectangle chip = { x + i * (chipW + gap), row.y, chipW, chipH };
+        bool over = i != ls.shownCase && UiMouseOver(chip);
+        UiRoundRect(chip, 8, over ? COL_SECONDARY_HOVER : COL_PANEL);
+    }
+    UiRoundRect((Rectangle){ ls.chipHighlightX, row.y, chipW, chipH }, 8, COL_ACCENT);
     for (int i = 0; i < step->caseCount; i++, x += chipW + gap) {
         Rectangle chip = { x, row.y, chipW, chipH };
+        // A chip's ink turns as the highlight passes under it.
+        float under = Clamp01(1 - fabsf(ls.chipHighlightX - chip.x) / chipW);
         bool shown = i == ls.shownCase, over = !shown && UiMouseOver(chip);
         if (over) UiWantHand();
-        UiRoundRect(chip, 8, shown ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL);
-        Color ink = shown ? COL_ON_ACCENT : COL_TEXT;
+        Color ink = ColorLerp(COL_TEXT, COL_ON_ACCENT, under);
         IconDraw(ICON_USER, (Vector2){ chip.x + 16, chip.y + chipH / 2 }, 15, ink);
         UiText(gFonts.bold, TextFormat("%d", i + 1), chip.x + 29, chip.y + 7, 18, ink);
-        // How the case went: a tick or a cross once it has run, a dim dot while it waits.
+        // How the case went: a tick or a cross popping in as its result arrives, a dim dot
+        // while it waits.
         Vector2 mark = { chip.x + chipW - 17, chip.y + chipH / 2 };
         if (c->outcomes[i].result != RESULT_NONE) {
+            if (ls.caseResultAt[i] < 0) ls.caseResultAt[i] = GetTime();
+            float pop = PopScale((float)(GetTime() - ls.caseResultAt[i]));
             bool right = CaseMatches(i);
-            DrawCircleV(mark, 10, shown ? COL_ON_ACCENT : right ? COL_GOOD : COL_BAD);
-            IconDraw(right ? ICON_CHECK : ICON_CROSS, mark, 12, shown ? (right ? COL_GOOD : COL_BAD) : COL_ON_ACCENT);
+            Color sign = right ? COL_GOOD : COL_BAD;
+            DrawCircleV(mark, 10 * pop, ColorLerp(sign, COL_ON_ACCENT, under));
+            IconDraw(right ? ICON_CHECK : ICON_CROSS, mark, 12 * pop, ColorLerp(COL_ON_ACCENT, sign, under));
         } else {
             DrawCircleV(mark, 4, Fade(ink, 0.35f));
         }
@@ -851,11 +873,17 @@ static void StepPips(void)
                         COL_ON_ACCENT);
             ls.fxLayout.pip = c;
         }
+        float swell = 1;
         if (i == ls.step + 1 && ls.autoNextAt >= 0) {
             float share = Clamp01(1 - (float)((ls.autoNextAt - GetTime()) / AUTO_NEXT_SECONDS));
             DrawRing(c, PIP_RADIUS + 3, PIP_RADIUS + 5.5f, -90, -90 + 360 * share, 48, COL_ACCENT);
+            float head = (-90 + 360 * share) * DEG2RAD;
+            Vector2 spark = { c.x + cosf(head) * (PIP_RADIUS + 4.25f), c.y + sinf(head) * (PIP_RADIUS + 4.25f) };
+            DrawCircleV(spark, 6, Fade(COL_ACCENT, 0.25f));
+            DrawCircleV(spark, 3, COL_ON_ACCENT);
+            swell = 1 + 0.12f * share * share;
         }
-        DrawCircleV(c, PIP_RADIUS, done ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL_HI);
+        DrawCircleV(c, PIP_RADIUS * swell, done ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL_HI);
         if (done) IconDraw(ICON_CHECK, c, 14, COL_ON_ACCENT);
         else UiTextCentered(gFonts.bold, TextFormat("%d", i + 1), c.x, c.y - 9, 15,
                                                  current ? COL_ACCENT : COL_TEXT);
@@ -900,11 +928,12 @@ static bool ReviewTile(Rectangle tile, int index, float appear)
 {
     bool over = UiMouseOver(tile);
     if (over) UiWantHand();
-    float lift = over ? 3 : 0;
+    float hover = EaseToward(&ls.reviewHover[index], over ? 1.0f : 0.0f, 14, GetFrameTime());
+    float lift = 4 * hover;
     tile.y -= lift + (1 - appear) * 16;
     UiRoundRect((Rectangle){ tile.x, tile.y + 4 + lift, tile.width, tile.height }, 12, COL_PANEL_HI);
-    UiRoundRect(tile, 12, over ? COL_SECONDARY_HOVER : COL_PANEL);
-    if (over) DrawRectangleRoundedLinesEx(tile, 0.15f, 8, 2, COL_ACCENT);
+    UiRoundRect(tile, 12, ColorLerp(COL_PANEL, COL_SECONDARY_HOVER, hover));
+    if (hover > 0.01f) DrawRectangleRoundedLinesEx(tile, 0.15f, 8, 2, Fade(COL_ACCENT, hover));
 
     Vector2 badge = { tile.x + 22, tile.y + 22 };
     DrawCircleV(badge, PIP_RADIUS, appear >= 1 ? COL_ACCENT : COL_PANEL_HI);
@@ -967,7 +996,15 @@ static LevelAction LevelReview(void)
     y += (1 - pop) * 40;
     UiRoundRect((Rectangle){ x, y + 6, cardW, cardH }, 18, COL_PANEL_HI);
     UiRoundRect((Rectangle){ x, y, cardW, cardH }, 18, COL_BG);
-    IconDraw(ICON_TROPHY, (Vector2){ W / 2, y + 52 }, 58, COL_GOLD);
+    Vector2 trophy = { W / 2, y + 52 };
+    float shine = (float)GetTime() * 0.4f;
+    for (int ray = 0; ray < 12; ray++) {  // rays turning slowly behind the trophy
+        float a = shine + ray * PI / 6, b = a + PI / 18;
+        DrawTriangle(trophy, (Vector2){ trophy.x + cosf(b) * 52, trophy.y + sinf(b) * 52 },
+                     (Vector2){ trophy.x + cosf(a) * 52, trophy.y + sinf(a) * 52 }, Fade(COL_GOLD, 0.12f));
+    }
+    float bounce = ls.reviewFresh ? PopOvershoot((float)(age - 0.15) / 0.45f) : 1;  // it lands with a bounce
+    IconDraw(ICON_TROPHY, trophy, 58 * bounce, COL_GOLD);
     UiTextCentered(gFonts.bold, ls.lesson->title, W / 2, y + 94, 26, COL_TEXT);
 
     int clicked = -1;
@@ -1093,15 +1130,17 @@ LevelAction LevelScreen(void)
     // (more work on this step) or running it again calls it off.
     if (ls.autoNextAt >= 0 && (ls.code.version != ls.autoNextVersion || busy || ls.reviewOpen)) ls.autoNextAt = -1;
     bool go = ls.autoNextAt >= 0 && GetTime() >= ls.autoNextAt;
-    if (hasNext && Reviewing()) {  // looking back over a finished level: on to the next step when asked
+    bool showNext = hasNext && Reviewing(), showReview = !hasNext && Reviewing() && !ls.reviewOpen;
+    float appear = EaseToward(&ls.stepButtonAppear, showNext || showReview ? 1.0f : 0.0f, 12, GetFrameTime());
+    Rectangle stepButton = { x - (1 - appear) * 24, barY, 150, barH };  // it slides in from the Hint button
+    if (showNext) {  // looking back over a finished level: on to the next step when asked
         float pulse = (sinf((float)GetTime() * 5) + 1) / 2;
-        Rectangle next = { x, barY, 150, barH };
-        DrawRectangleRoundedLinesEx((Rectangle){ next.x - 3, next.y - 3, next.width + 6, next.height + 6 }, 0.3f, 8, 2,
-                                    Fade(COL_ACCENT, 0.3f + 0.4f * pulse));
-        if (UiButtonIconEx(next, ICON_NEXT, "Next", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy)) go = true;
-    } else if (!hasNext && Reviewing() && !ls.reviewOpen) {  // the last stage: back to the level's review page
-        if (UiButtonIconEx((Rectangle){ x, barY, 150, barH }, ICON_TROPHY, "Review", 20, COL_ACCENT, COL_ACCENT_HI,
-                           COL_ON_ACCENT, !busy))
+        DrawRectangleRoundedLinesEx((Rectangle){ stepButton.x - 3, stepButton.y - 3, stepButton.width + 6,
+                                                 stepButton.height + 6 }, 0.3f, 8, 2,
+                                    Fade(COL_ACCENT, (0.3f + 0.4f * pulse) * appear));
+        if (UiButtonIconEx(stepButton, ICON_NEXT, "Next", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy)) go = true;
+    } else if (showReview) {  // the last stage: back to the level's review page
+        if (UiButtonIconEx(stepButton, ICON_TROPHY, "Review", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy))
             OpenReview(false);
     }
     if (go && hasNext && !busy) {

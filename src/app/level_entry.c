@@ -1,9 +1,8 @@
-// The zoom into a level, the iris that opens on it, and both backwards on the way out.
+// The zoom into a level or exam, the iris that opens on it, and both backwards on the way out.
 // See level_entry.h.
 #include "app/level_entry.h"
+#include "ui/screen_picture.h"
 #include "ui/ui.h"
-
-#include "rlgl.h"
 
 #include <math.h>
 
@@ -37,12 +36,7 @@ static float Lerp(float a, float b, float t) { return a + (b - a) * t; }
 // Keeps what has been drawn this frame as the picture.
 static void TakePicture(void)
 {
-    if (entry.picture.id) UnloadTexture(entry.picture);
-    rlDrawRenderBatchActive();  // what was drawn this frame isn't in the framebuffer until flushed
-    Image screen = LoadImageFromScreen();
-    entry.picture = LoadTextureFromImage(screen);  // without one, the animation is the disc alone
-    UnloadImage(screen);
-    if (entry.picture.id) SetTextureFilter(entry.picture, TEXTURE_FILTER_BILINEAR);
+    entry.picture = ScreenPictureTake(entry.picture);  // without one, the animation is the disc alone
 }
 
 void LevelEntryStart(Vector2 clickedAt)
@@ -147,7 +141,7 @@ LevelEntryCue LevelEntryDraw(void)
         // Covered: a plain fill, and the level can open behind it.
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), COL_ACCENT);
         entry.phase = ENTRY_OPENING;
-        return ENTRY_CUE_OPEN_LEVEL;
+        return ENTRY_CUE_OPEN;
     }
     if (entry.phase == ENTRY_CLOSING) {
         float t = Now() / CLOSE_SECONDS;
@@ -160,7 +154,7 @@ LevelEntryCue LevelEntryDraw(void)
         // covers it; until then the zoom out aims at the middle of the screen.
         entry.point = (Vector2){ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
         entry.phase = ENTRY_ZOOMING_OUT;
-        return ENTRY_CUE_SHOW_JOURNEY;
+        return ENTRY_CUE_SHOW_BEHIND;
     }
     if (entry.phase == ENTRY_ZOOMING_OUT) {  // the zoom in, backwards
         float t = 1 - (Now() - CLOSE_SECONDS) / ZOOM_SECONDS;
