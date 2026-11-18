@@ -614,11 +614,21 @@ static Rectangle Panel(Rectangle r, Icon icon, const char *title, Color edge, vo
 // size and settles.
 static float PopScale(float age) { return PopOvershoot(age / 0.22f); }
 
+// Whether the checks refused the code itself (step_check.h, step_cheats.h): it prints the
+// target, but by writing the answer in, skipping what the step is about or editing a given.
+// Then none of that run's output counts as right, however much of it matches.
+static bool CodeRefused(void)
+{
+    return ls.check == CHECK_GIVEN_CHANGED || ls.check == CHECK_CONSTRUCT_MISSING || ls.check == CHECK_ANSWER_WRITTEN
+        || ls.check == CHECK_FUNCTION_UNTOUCHED || ls.check == CHECK_INDEXED;
+}
+
 // Lines of output in area, scrolled by *scroll (the wheel scrolls it). When compareWith is
 // set, each line is ticked where it matches the same line there, or crossed and tinted red,
 // and lines missing from the end show as empty red slots; the lines then appear one after
-// another from ls.shownAt, typed out, each sparking as its tick or cross pops in.
-static void OutputLinesView(Rectangle area, const char *text, const char *compareWith, float *scroll)
+// another from ls.shownAt, typed out, each sparking as its tick or cross pops in. allWrong
+// crosses every line, matching or not (the code was refused: CodeRefused).
+static void OutputLinesView(Rectangle area, const char *text, const char *compareWith, bool allWrong, float *scroll)
 {
     float shownFor = compareWith ? (float)(GetTime() - ls.shownAt) : 1000;
     float size = 18 * UiTextScale(), lineH = size * 1.45f, gutter = compareWith ? 30 : 6;
@@ -637,7 +647,7 @@ static void OutputLinesView(Rectangle area, const char *text, const char *compar
         if (age < 0) break;
         bool onScreen = y + lineH >= area.y && y <= area.y + area.height;
         if (compareWith) {
-            bool same = SameLine(text, compareWith, i);
+            bool same = !allWrong && SameLine(text, compareWith, i);
             if (i > ls.linesRevealed) {  // it has just appeared
                 ls.linesRevealed = i;
                 if (onScreen) LevelFxLine((Vector2){ area.x + 14, y + lineH / 2 }, same);
@@ -751,7 +761,7 @@ static float CaseChips(Rectangle row)
         if (c->outcomes[i].result != RESULT_NONE) {
             if (ls.caseResultAt[i] < 0) ls.caseResultAt[i] = GetTime();
             float pop = PopScale((float)(GetTime() - ls.caseResultAt[i]));
-            bool right = CaseMatches(i);
+            bool right = CaseMatches(i) && !CodeRefused() && !(i == 0 && ls.check == CHECK_VALUES_FAILED);
             Color sign = right ? COL_GOOD : COL_BAD;
             DrawCircleV(mark, 10 * pop, ColorLerp(sign, COL_ON_ACCENT, under));
             IconDraw(right ? ICON_CHECK : ICON_CROSS, mark, 12 * pop, ColorLerp(COL_ON_ACCENT, sign, under));
@@ -784,19 +794,20 @@ static void OutputColumn(Rectangle column)
     float y = column.y;
     bool varied = ls.check == CHECK_VALUES_FAILED && ls.shownCase == 0;
     bool checking = ls.check == CHECK_EXPECTING || ls.check == CHECK_RUNNING;
-    bool refused = ls.check == CHECK_VALUES_FAILED || ls.check == CHECK_GIVEN_CHANGED
-                || ls.check == CHECK_CONSTRUCT_MISSING || ls.check == CHECK_ANSWER_WRITTEN
-                || ls.check == CHECK_FUNCTION_UNTOUCHED || ls.check == CHECK_INDEXED;
+    bool refused = ls.check == CHECK_VALUES_FAILED || CodeRefused();
     const StepCase *shownCase = &step->cases[ls.shownCase];
     const char *expected = varied ? ls.variedExpected : shownCase->expected;
     const char *input = varied ? ls.variation.input : shownCase->input;
 
     Rectangle target = { column.x, y, column.width, targetH };
-    OutputLinesView(Panel(target, ICON_TARGET, "Target", BLANK, LevelFxTargetBackdrop), expected, NULL, &ls.targetScroll);
+    OutputLinesView(Panel(target, ICON_TARGET, "Target", BLANK, LevelFxTargetBackdrop), expected, NULL, false,
+                    &ls.targetScroll);
     y += targetH + gap;
 
-    // Between the panels: how much of the output matches the target so far.
-    const char *shown = varied ? ls.checker.programOutput : outcome->result == RESULT_OK ? outcome->output : NULL;
+    // Between the panels: how much of the output matches the target so far (none of it, when
+    // the code was refused).
+    const char *shown = CodeRefused() ? NULL : varied ? ls.checker.programOutput
+                      : outcome->result == RESULT_OK ? outcome->output : NULL;
     int wanted = OutputLines(expected), matching = 0;
     for (int i = 1; shown && ls.ran && !runBusy && i <= wanted && i <= ls.linesRevealed; i++)
         matching += SameLine(shown, expected, i);
@@ -807,7 +818,7 @@ static void OutputColumn(Rectangle column)
         float inputH = 44 + 18 * UiTextScale() * 1.45f * (float)(OutputLines(input) > 3 ? 3 : OutputLines(input)) + 10;
         float scroll = 0;
         OutputLinesView(Panel((Rectangle){ column.x, y, column.width, inputH }, ICON_USER, "Input", BLANK, NULL), input,
-                        NULL, &scroll);
+                        NULL, false, &scroll);
         y += inputH + gap;
     }
 
@@ -834,9 +845,9 @@ static void OutputColumn(Rectangle column)
         UiText(gFonts.mono, TextFormat("%.*s", dots + 1, "...."), area.x + 6, area.y, 22, COL_DIM);
     } else if (varied) {
         const char *out = ls.checker.result == RESULT_OK && ls.checker.programOutput ? ls.checker.programOutput : "";
-        OutputLinesView(area, out, expected, &ls.outputScroll);
+        OutputLinesView(area, out, expected, false, &ls.outputScroll);
     } else if (ls.ran && outcome->result == RESULT_OK) {
-        OutputLinesView(area, outcome->output, shownCase->expected, &ls.outputScroll);
+        OutputLinesView(area, outcome->output, shownCase->expected, CodeRefused(), &ls.outputScroll);
     } else if (ls.ran) {
         ProblemView(area);
     }
