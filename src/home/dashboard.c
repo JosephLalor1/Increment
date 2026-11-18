@@ -546,12 +546,14 @@ static int JourneyView(const LessonSet *set, float top, Vector2 *clickedAt)
     }
     Track track = page.journeyTrack;
     DashboardStats stats = DashboardCalculate(set, track);
-    int percent = stats.lessons ? stats.completed * 100 / stats.lessons : 0;
+    // The percentage and the bar count stages passed, so every stage moves them on; the
+    // text still counts whole levels.
+    float share = stats.steps ? (float)stats.stepsDone / stats.steps : 0;
+    int percent = stats.steps ? stats.stepsDone * 100 / stats.steps : 0;
     UiText(gFonts.text, TextFormat("%s  |  %d / %d levels complete  |  %d%%", TrackName(track), stats.completed,
                                    stats.lessons, percent),
            x, top + 56, 18, COL_TEXT);
-    ProgressBar((Rectangle){ x, top + 86, w, 7 }, stats.lessons ? (float)stats.completed / stats.lessons : 0,
-                COL_PANEL_HI, COL_ACCENT);
+    ProgressBar((Rectangle){ x, top + 86, w, 7 }, share, COL_PANEL_HI, COL_ACCENT);
     if (UiButtonEx((Rectangle){ x + w - 174, top + 49, 174, 30 }, "Find my place", 16, COL_PANEL, COL_SECONDARY_HOVER,
                    COL_ACCENT, true)) {
         page.journeyTarget[track] = JourneyViewFocus(set, track);
