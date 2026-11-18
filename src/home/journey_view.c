@@ -164,10 +164,6 @@ static bool ExamStation(const LessonSet *set, const Checkpoint *exam, Vector2 ce
                        : best >= 0 ? TextFormat("ATTEMPTED | BEST %d%% | RETRY", best) : "NOT STARTED | START EXAM";
     UiTextCentered(gFonts.text, status, center.x, center.y + radius + 50, 14 * scale,
                    passed ? COL_GOOD : available ? COL_ACCENT : COL_DIM);
-    if (available && !passed && MascotAvailable()) {
-        float side = center.x > GetScreenWidth() / 2.0f ? -165 : 85;
-        MascotDrawActor(FOX_JOURNEY, (Rectangle){ center.x + side, center.y - 42, 84, 84 }, FOX_DETERMINED);
-    }
     return over && IsMouseButtonReleased(MOUSE_BUTTON_LEFT);
 }
 
