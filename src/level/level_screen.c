@@ -4,6 +4,7 @@
 #include "code/case_runner.h"
 #include "code/drafts.h"
 #include "code/editor.h"
+#include "ui/easing.h"
 #include "ui/layout.h"
 #include "level/level_fx.h"
 #include "level/memory_probe.h"
@@ -30,6 +31,7 @@
 #define PASS_GLOW_SECONDS 1.2   // and glows this long after a pass
 #define LINE_REVEAL_SECONDS 0.07  // output lines appear one after another, this far apart
 #define LINE_TYPE_SECONDS 0.012   // and each is typed out, this long a character
+#define AUTO_NEXT_SECONDS 2.2     // after a pass, the next step opens by itself this much later
 
 // After the output matches the target, the step still has to be solved honestly
 // (step_check.h): the constructs it is about must be there, and a second run with different
@@ -76,6 +78,10 @@ static struct {
     int resetDepth;    // the editor's undo depth just after the latest Reset; 0 for none
     double unearnedAt; // when a pass earned nothing: Reset beckons for a while
     double passedAt, failedAt;
+    // After a pass the next step opens by itself: at autoNextAt (< 0 when none is due), unless
+    // the code is edited first (it was autoNextVersion when the pass came).
+    double autoNextAt;
+    unsigned autoNextVersion;
 
     CheckState check;
     Runner checker;           // runs the second run, apart from the learner's own runs
@@ -197,15 +203,22 @@ static void ShowCase(int index)
     ls.linesRevealed = 0;
 }
 
+// Whether Reset was pressed on this opening of the step and not undone since (undoing it
+// takes the undo depth below where it left it): the step is being worked afresh.
+static bool ResetStands(void) { return ls.resetDepth > 0 && ls.code.undoCount >= ls.resetDepth; }
+
+// Whether the learner is looking back over a finished level: every step is passed, and this
+// one isn't being worked afresh after a Reset. Only then is there a Next button; otherwise a
+// pass moves on to the next step by itself.
+static bool Reviewing(void) { return RoadmapLevelComplete(ls.lesson) && !ResetStands(); }
+
 // Whether this pass earns XP. A first pass always does. A step passed before earns again
 // only for new work since the code it started from: the starter if Reset was pressed (and
-// not undone since: undoing it takes the undo depth below where it left it), otherwise the
-// code it opened with.
+// not undone since), otherwise the code it opened with.
 static bool EarnsXp(bool passedBefore)
 {
     if (!passedBefore) return true;
-    bool resetStands = ls.resetDepth > 0 && ls.code.undoCount >= ls.resetDepth;
-    const char *before = resetStands ? CurrentStep()->starter : ls.openedCode ? ls.openedCode : "";
+    const char *before = ResetStands() ? CurrentStep()->starter : ls.openedCode ? ls.openedCode : "";
     return StepReplayEarns(CurrentStep(), before, ls.code.text);
 }
 
@@ -251,6 +264,12 @@ static void CheckPassed(void)
     ls.passedAt = GetTime();
     LevelFxEmit(FX_PASSED);
     RecordPass();
+    // On to the next step once the pass has been celebrated: the last step's pass ends the
+    // level instead, and a finished level being reviewed waits for its Next button.
+    if (ls.step + 1 < ls.lesson->stepCount && !ls.celebrating && !Reviewing()) {
+        ls.autoNextAt = ls.passedAt + AUTO_NEXT_SECONDS;
+        ls.autoNextVersion = ls.code.version;
+    }
 }
 
 static void CheckFailed(CheckState why)
@@ -398,6 +417,7 @@ static void OpenStep(int index, bool leavingStep)
     ls.ran = ls.passed = ls.rewarded = false;
     ls.shownCase = 0;
     ls.passedAt = ls.failedAt = -10;
+    ls.autoNextAt = -1;
     ls.hintsShown = 0;
     ls.targetScroll = ls.outputScroll = 0;
     EditorSetHint(&ls.code, 0, false);
@@ -780,7 +800,8 @@ static void OutputColumn(Rectangle column)
 // The step pips and the toolbar
 
 // A circle per step in the top bar: passed ones ticked, the current one ringed with its
-// number. Every step can be selected, regardless of earlier completions.
+// number. Every step can be selected, regardless of earlier completions. While the next step
+// is about to open by itself, a ring fills round its circle as the countdown runs.
 static void StepPips(void)
 {
     int count = ls.lesson->stepCount;
@@ -798,6 +819,10 @@ static void StepPips(void)
             DrawCircleV((Vector2){ c.x + cosf(orbit) * (PIP_RADIUS + 4.25f), c.y + sinf(orbit) * (PIP_RADIUS + 4.25f) }, 3,
                         COL_ON_ACCENT);
             ls.fxLayout.pip = c;
+        }
+        if (i == ls.step + 1 && ls.autoNextAt >= 0) {
+            float share = Clamp01(1 - (float)((ls.autoNextAt - GetTime()) / AUTO_NEXT_SECONDS));
+            DrawRing(c, PIP_RADIUS + 3, PIP_RADIUS + 5.5f, -90, -90 + 360 * share, 48, COL_ACCENT);
         }
         DrawCircleV(c, PIP_RADIUS, done ? COL_ACCENT : over ? COL_SECONDARY_HOVER : COL_PANEL_HI);
         if (done) IconDraw(ICON_CHECK, c, 14, COL_ON_ACCENT);
@@ -914,7 +939,7 @@ LevelAction LevelScreen(void)
     float pad = 16, barY = TOPBAR_H + 12, barH = 42;
     bool ctrl = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
 
-    // Toolbar: run (or stop), reset, hint, and once passed, the next step.
+    // Toolbar: run (or stop), reset, hint, and while reviewing a finished level, the next step.
     float x = pad;
     bool run = !busy && !ls.celebrating && (IsKeyPressed(KEY_F5) || (ctrl && IsKeyPressed(KEY_ENTER)));
     if (busy) {
@@ -970,15 +995,20 @@ LevelAction LevelScreen(void)
     }
     x += 142;
     bool hasNext = ls.step + 1 < ls.lesson->stepCount;
-    if (hasNext) {
+    // A pending move on to the next step (its pip shows the countdown): editing the code
+    // (more work on this step) or running it again calls it off.
+    if (ls.autoNextAt >= 0 && (ls.code.version != ls.autoNextVersion || busy || ls.celebrating)) ls.autoNextAt = -1;
+    bool go = ls.autoNextAt >= 0 && GetTime() >= ls.autoNextAt;
+    if (hasNext && Reviewing()) {  // looking back over a finished level: on to the next step when asked
         float pulse = (sinf((float)GetTime() * 5) + 1) / 2;
         Rectangle next = { x, barY, 150, barH };
         DrawRectangleRoundedLinesEx((Rectangle){ next.x - 3, next.y - 3, next.width + 6, next.height + 6 }, 0.3f, 8, 2,
                                     Fade(COL_ACCENT, 0.3f + 0.4f * pulse));
-        if (UiButtonIconEx(next, ICON_NEXT, "Next", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy)) {
-            OpenStep(ls.step + 1, true);
-            busy = true;  // the new step's first run has just started
-        }
+        if (UiButtonIconEx(next, ICON_NEXT, "Next", 20, COL_ACCENT, COL_ACCENT_HI, COL_ON_ACCENT, !busy)) go = true;
+    }
+    if (go && hasNext && !busy) {
+        OpenStep(ls.step + 1, true);
+        busy = true;  // the new step's first run has just started
     }
     float right = W - pad;
     DifficultyMeter(right, barY);
