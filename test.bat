@@ -48,7 +48,7 @@ if errorlevel 1 exit /b 1
 build\test_runner.exe
 if errorlevel 1 set FAILED=1
 
-"%CC%" %CFLAGS% tests\test_steps.c src\level\line_diff.c src\level\step_hints.c src\level\step_skills.c src\level\step_check.c src\level\step_cheats.c src\code\code_text.c src\code\code_skills.c src\learning\lesson.c src\learning\skills.c src\code\drafts.c -o build\test_steps.exe %LIBS%
+"%CC%" %CFLAGS% tests\test_steps.c src\level\step_novelty.c src\level\line_diff.c src\level\step_hints.c src\level\step_skills.c src\level\step_check.c src\level\step_cheats.c src\code\code_text.c src\code\code_skills.c src\learning\lesson.c src\learning\skills.c src\code\drafts.c -o build\test_steps.exe %LIBS%
 if errorlevel 1 exit /b 1
 build\test_steps.exe
 if errorlevel 1 set FAILED=1

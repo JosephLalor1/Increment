@@ -8,6 +8,7 @@
 #include "level/step_cheats.h"
 #include "level/step_check.h"
 #include "level/step_hints.h"
+#include "level/step_novelty.h"
 #include "level/step_skills.h"
 #include "raylib.h"
 
@@ -579,9 +580,58 @@ static void TestDrafts(void)
     remove("build/test_draft.c");
 }
 
+// The pieces of code a learner learns: language words, operators, pointer syntax, headers,
+// and conversions and escapes inside strings, but not the learner's own names or a
+// multiplying star.
+static void TestCodePieces(void)
+{
+    const char *code = "#include <stdio.h>\n"
+                       "int main() {\n"
+                       "    int *p = &total;\n"
+                       "    total = 2 * 3;\n"
+                       "    *p += 1;\n"
+                       "    if (total <= 9 && !done) list[1]++;\n"
+                       "    printf(\"%d %.2f\\n\", *p, 1.5);  // a * comment\n"
+                       "    return 0;\n"
+                       "}\n";
+    CodePiece pieces[64];
+    int count = CodePiecesFind(code, pieces, 64);
+    const char *expected[] = { "#include", "<stdio.h>", "int", "main", "int*", "&", "*", "+=", "if", "<=", "&&", "!",
+                               "[]", "++", "printf", "%d", "%.2f", "\\n", "*", "return" };
+    assert(count == (int)(sizeof expected / sizeof *expected));
+    for (int i = 0; i < count; i++) assert(strcmp(pieces[i].key, expected[i]) == 0);
+    // Where a piece is: "int*" covers the type and its star.
+    assert(strncmp(code + pieces[4].start, "int *", 5) == 0 && pieces[4].length == 5);
+}
+
+// What a step shows for the first time: nothing the earlier steps (or levels) used.
+static void TestNovelty(void)
+{
+    Lesson lessons[2] = { 0 };
+    lessons[0].stepCount = 1;
+    lessons[0].steps[0].starter = "int main() { printf(\"%d\", 1); return 0; }";
+    lessons[0].steps[0].solution = lessons[0].steps[0].starter;
+    lessons[1].stepCount = 2;
+    lessons[1].steps[0].starter = "int main() { int x; return 0; }";
+    lessons[1].steps[0].solution = "int main() { int x; scanf(\"%d\", &x); return 0; }";
+    lessons[1].steps[1].starter = "int main() { int x; scanf(\"%d\", &x); for (;;) {} return 0; }";
+    lessons[1].steps[1].solution = lessons[1].steps[1].starter;
+    LessonSet set = { lessons, 2 };
+    StepNovelty novelty;
+    StepNoveltyFind(&set, 0, 0, &novelty);  // the very first step: everything is new
+    assert(novelty.count == 5 && !strcmp(novelty.pieces[0].key, "int") && novelty.pieces[0].inStarter);
+    StepNoveltyFind(&set, 1, 0, &novelty);  // scanf and & only in the solution
+    assert(novelty.count == 2 && !strcmp(novelty.pieces[0].key, "scanf") && !novelty.pieces[0].inStarter);
+    assert(!strcmp(novelty.pieces[1].key, "&"));
+    StepNoveltyFind(&set, 1, 1, &novelty);  // the step before taught scanf and &
+    assert(novelty.count == 1 && !strcmp(novelty.pieces[0].key, "for") && novelty.pieces[0].inStarter);
+}
+
 int main(void)
 {
     SetTraceLogLevel(LOG_ERROR);
+    TestCodePieces();
+    TestNovelty();
     TestLineDiff();
     TestShapes();
     TestHints();

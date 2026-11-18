@@ -19,6 +19,7 @@
 #include "level/step_cheats.h"
 #include "level/step_check.h"
 #include "level/step_hints.h"
+#include "level/step_novelty.h"
 #include "level/step_skills.h"
 #include "ui/ui.h"
 
@@ -33,6 +34,8 @@
 #define LINE_REVEAL_SECONDS 0.07  // output lines appear one after another, this far apart
 #define LINE_TYPE_SECONDS 0.012   // and each is typed out, this long a character
 #define AUTO_NEXT_SECONDS 2.2     // after a pass, the next step opens by itself this much later
+#define NEW_GLOW_SECONDS 5.0      // what a step shows for the first time glows in the code this long
+#define NEW_BURST_SECONDS 1.2     // after a burst of rings round each place it appears
 
 // After the output matches the target, the step still has to be solved honestly
 // (step_check.h): the constructs it is about must be there, and a second run with different
@@ -131,6 +134,19 @@ static struct {
     float chipHighlightX;
     double caseResultAt[MAX_STEP_CASES];
     float stepButtonAppear;  // the toolbar's Next or Review button gliding in (0 to 1)
+
+    // What the step shows for the first time (step_novelty.h): a shelf of its pieces pops into
+    // the toolbar as the step opens (at noveltyAt) and each place they appear in the code
+    // lights up. Hovering a piece's chip (noveltyFocus, from noveltyFocusAt) lights its places
+    // up again and shows a model line using it (noveltyModel, as a shape: names blanked)
+    // under the chip (noveltyModelAt).
+    StepNovelty novelty;
+    double noveltyAt;
+    int noveltyFocus;
+    double noveltyFocusAt;
+    char noveltyModel[STEP_HINT_TEXT];
+    Vector2 noveltyModelAt;
+    int noveltyDemoHover;  // --shot: a chip to treat as hovered (-1 none)
     bool demo;         // set up for a --shot: nothing is saved
     bool demoBack;     // --shot: leave the level as if Back had been clicked
 } ls;
@@ -438,6 +454,9 @@ static void OpenStep(int index, bool leavingStep)
     const Step *step = CurrentStep();
     StepVariationFree(&ls.variation);
     StepVariationMake(step, &ls.variation);
+    StepNoveltyFind(ls.set, ls.lessonIndex, index, &ls.novelty);
+    ls.noveltyAt = GetTime();
+    ls.noveltyFocus = ls.noveltyDemoHover = -1;
     free(ls.variedExpected);
     ls.variedExpected = NULL;
     char key[64];
@@ -491,6 +510,7 @@ void LevelScreenPractice(const Lesson *lesson) {
     static LessonSet practice;
     practice.items=(Lesson *)lesson;practice.count=1;
     LevelScreenOpen(&practice,0,NULL);ls.practice=true;
+    ls.novelty.count=0;  // a lone exam task: nothing to measure "new" against
 }
 
 void LevelScreenClose(void)
@@ -861,6 +881,141 @@ static void OutputColumn(Rectangle column)
 }
 
 // ---------------------------------------------------------------------------
+// What the step shows for the first time
+
+// The index in ls.novelty of a piece's key, or -1 if it isn't new.
+static int NovelIndex(const char *key)
+{
+    for (int i = 0; i < ls.novelty.count; i++)
+        if (strcmp(ls.novelty.pieces[i].key, key) == 0) return i;
+    return -1;
+}
+
+// How strongly a glow that started at `since` seconds ago shows now: fully, then fading out
+// over its last second.
+static float GlowStrength(float since)
+{
+    if (since < 0 || since > NEW_GLOW_SECONDS) return 0;
+    return since > NEW_GLOW_SECONDS - 1 ? (float)NEW_GLOW_SECONDS - since : 1;
+}
+
+// Over the editor: every place a new piece appears in the code glows gold, after a burst of
+// rings when the step opens (or when its chip is hovered).
+static void NoveltySpotlight(Rectangle editor)
+{
+    if (!ls.novelty.count) return;
+    float now = (float)GetTime(), sinceOpen = now - (float)ls.noveltyAt, sinceFocus = now - (float)ls.noveltyFocusAt;
+    if (GlowStrength(sinceOpen) <= 0 && (ls.noveltyFocus < 0 || GlowStrength(sinceFocus) <= 0)) return;
+    static CodePiece pieces[512];
+    int count = CodePiecesFind(ls.code.text, pieces, 512);
+    float lineH = ls.code.fontSize * 1.3f, pulse = (sinf(now * 5) + 1) / 2;
+    BeginScissorMode((int)editor.x, (int)editor.y, (int)editor.width, (int)editor.height);
+    for (int i = 0; i < count; i++) {
+        int novel = NovelIndex(pieces[i].key);
+        if (novel < 0) continue;
+        float since = novel == ls.noveltyFocus ? sinceFocus : sinceOpen;
+        float strength = GlowStrength(since);
+        if (strength <= 0) continue;
+        Vector2 from = EditorTextPoint(&ls.code, editor, pieces[i].start);
+        Vector2 to = EditorTextPoint(&ls.code, editor, pieces[i].start + pieces[i].length);
+        float width = to.y == from.y ? to.x - from.x : pieces[i].length * ls.code.fontSize * 0.55f;
+        Rectangle box = { from.x - 3, from.y - lineH / 2, width + 6, lineH };
+        UiRoundRect(box, 5, Fade(COL_GOLD, (0.14f + 0.1f * pulse) * strength));
+        DrawRectangleRoundedLinesEx(box, 0.4f, 6, 2, Fade(COL_GOLD, 0.85f * strength));
+        if (since < NEW_BURST_SECONDS) {  // rings bursting out, then a star landing on the corner
+            float u = since / (float)NEW_BURST_SECONDS;
+            Vector2 middle = { box.x + box.width / 2, box.y + box.height / 2 };
+            DrawRing(middle, 8 + 70 * u, 10 + 70 * u, 0, 360, 48, Fade(COL_GOLD, 0.7f * (1 - u)));
+            DrawRing(middle, 4 + 40 * u, 5.5f + 40 * u, 0, 360, 48, Fade(COL_GOLD, 0.5f * (1 - u)));
+        }
+        IconDraw(ICON_STAR, (Vector2){ box.x + box.width, box.y }, 13 * PopOvershoot(since / 0.4f) * strength, COL_GOLD);
+    }
+    EndScissorMode();
+}
+
+// The model line for a piece: the first line of the step's solution that uses it, as its
+// shape (names and values blanked, so it shows how the piece is written, not the answer).
+static void NoveltyModel(const char *key)
+{
+    ls.noveltyModel[0] = '\0';
+    const char *solution = CurrentStep()->solution;
+    char line[STEP_HINT_TEXT];
+    for (const char *p = solution; *p && !ls.noveltyModel[0];) {
+        const char *end = strchr(p, '\n');
+        size_t length = end ? (size_t)(end - p) : strlen(p);
+        while (length && (*p == ' ' || *p == '\t')) p++, length--;
+        snprintf(line, sizeof line, "%.*s", (int)(length < sizeof line - 1 ? length : sizeof line - 1), p);
+        CodePiece pieces[64];
+        int count = CodePiecesFind(line, pieces, 64);
+        for (int i = 0; i < count; i++)
+            if (strcmp(pieces[i].key, key) == 0) {
+                StepHintShape(line, ls.noveltyModel, sizeof ls.noveltyModel);
+                break;
+            }
+        p = end ? end + 1 : p + length;
+    }
+}
+
+// The shelf of new pieces in the toolbar, from x to right: a gold star, then a chip per piece
+// popping in one after another, its code in syntax colours. A piece the learner will write
+// (it's only in the solution) carries a plus. Hovering a chip lights its places up again and
+// readies its model line (drawn last, over the editor: NoveltyModelPopup).
+static void NoveltyShelf(float x, float y, float right, float height)
+{
+    ls.noveltyModelAt.x = -1;
+    if (!ls.novelty.count || x + 60 > right) return;
+    float since = (float)(GetTime() - ls.noveltyAt), size = 18;
+    IconDraw(ICON_STAR, (Vector2){ x + 14, y + height / 2 }, 22 * PopOvershoot(since / 0.35f), COL_GOLD);
+    float chipX = x + 32;
+    int hovered = -1;
+    for (int i = 0; i < ls.novelty.count; i++) {
+        const NovelPiece *piece = &ls.novelty.pieces[i];
+        float plus = piece->inStarter ? 0 : 16;
+        float width = UiTextWidth(gFonts.mono, piece->key, size) + 22 + plus;
+        if (chipX + width > right) break;
+        float pop = PopOvershoot((since - 0.15f - i * 0.09f) / 0.25f);
+        if (pop <= 0) break;
+        Rectangle chip = { chipX, y, width, height };
+        bool over = UiMouseOver(chip) || i == ls.noveltyDemoHover;
+        if (over) {
+            UiWantHand();
+            hovered = i;
+        }
+        Rectangle drawn = { chip.x + chip.width * (1 - pop) / 2, chip.y + chip.height * (1 - pop) / 2, chip.width * pop,
+                            chip.height * pop };
+        UiRoundRect(drawn, 8, over ? COL_SECONDARY_HOVER : COL_PANEL);
+        DrawRectangleRoundedLinesEx(drawn, 0.3f, 8, 1.5f, Fade(COL_GOLD, over ? 1 : 0.6f));
+        if (pop > 0.9f) {
+            if (plus) IconDraw(ICON_PLUS, (Vector2){ chip.x + 14, chip.y + height / 2 }, 12, COL_GOLD);
+            UiCodeLine(piece->key, chip.x + 11 + plus, chip.y + height / 2 - size * 0.6f, size);
+        }
+        if (over) ls.noveltyModelAt = (Vector2){ chip.x, chip.y + height + 6 };
+        chipX += width + 6;
+    }
+    if (hovered >= 0 && hovered != ls.noveltyFocus) {
+        ls.noveltyFocus = hovered;
+        ls.noveltyFocusAt = GetTime();
+        NoveltyModel(ls.novelty.pieces[hovered].key);
+    } else if (hovered < 0 && ls.noveltyFocus >= 0 && GetTime() - ls.noveltyFocusAt > NEW_BURST_SECONDS) {
+        ls.noveltyFocus = -1;  // let go: hovering it again bursts again
+    }
+}
+
+// The hovered chip's model line, in a code panel under it.
+static void NoveltyModelPopup(void)
+{
+    if (ls.noveltyModelAt.x < 0 || !ls.noveltyModel[0]) return;
+    float size = 18 * UiTextScale();
+    float width = UiTextWidth(gFonts.mono, ls.noveltyModel, size) + 28;
+    Rectangle box = { ls.noveltyModelAt.x, ls.noveltyModelAt.y, width, size * 1.6f + 16 };
+    if (box.x + box.width > GetScreenWidth() - 12) box.x = GetScreenWidth() - 12 - box.width;
+    UiRoundRect((Rectangle){ box.x, box.y + 4, box.width, box.height }, 10, Fade(BLACK, 0.18f));
+    UiRoundRect(box, 10, COL_CODE_BG);
+    DrawRectangleRoundedLinesEx(box, 0.25f, 8, 2, COL_GOLD);
+    UiCodeLine(ls.noveltyModel, box.x + 14, box.y + box.height / 2 - size * 0.6f, size);
+}
+
+// ---------------------------------------------------------------------------
 // The step pips and the toolbar
 
 // A circle per step in the top bar: passed ones ticked, the current one ringed with its
@@ -1163,6 +1318,8 @@ LevelAction LevelScreen(void)
     const char *place = TextFormat("%s  %d/%d", TrackName(ls.lesson->track), ls.step + 1, ls.lesson->stepCount);
     float placeX = right - 46 - UiTextWidth(gFonts.mono, place, 19);
     UiText(gFonts.mono, place, placeX, barY + 10, 19, COL_DIM);
+    float shelfX = x + (showNext || showReview ? 162 : 0);
+    NoveltyShelf(shelfX, barY + 4, placeX - (MascotAvailable() ? 90 : 14), barH - 8);
     // The fox watches from the toolbar: thinking during a run, set on trying again after a
     // miss, and jumping for joy at a pass.
     if (MascotAvailable() && placeX - 76 > x + 160) {
@@ -1192,6 +1349,7 @@ LevelAction LevelScreen(void)
         if (RunnerBusy(&ls.probe)) LevelFxSpinner((Vector2){ panel.x + panel.width - 26, panel.y + 22 });
     }
     EditorWidget(&ls.code, editor);
+    NoveltySpotlight(editor);
     ls.fxLayout.editor = editor;
     if (ls.code.version != ls.typedVersion) {  // typed something: sparks at the caret
         ls.typedVersion = ls.code.version;
@@ -1202,6 +1360,7 @@ LevelAction LevelScreen(void)
     OutputColumn((Rectangle){ pad * 2 + codeW, top, W - pad * 3 - codeW, bottom - top });
     LevelFxSetLayout(ls.fxLayout);
     LevelFxDrawOver();
+    NoveltyModelPopup();
 
     if (ls.reviewOpen) {
         UiClearClip();
@@ -1257,6 +1416,11 @@ void LevelScreenDemoType(const char *typed)
     for (; *typed; typed++) EditorTypeChar(&ls.code, *typed, 0);
     EditorSuggest(&ls.code);
     UiFocus(&ls.code);
+}
+
+void LevelScreenDemoNovelty(int piece)
+{
+    ls.noveltyDemoHover = piece;
 }
 
 void LevelScreenDemoCelebration(void)

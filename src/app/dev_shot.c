@@ -155,6 +155,8 @@ static AppScreen PrepareScreen(const char *name, const LessonSet *lessons, int l
         const char *hints = getenv("INCREMENT_SHOT_HINTS");
         LevelScreenDemo(extra ? atoi(extra) - 1 : 0, hints ? atoi(hints) : 0, Is(name, "levelsolved"));
         if (Is(name, "levelcomplete")) LevelScreenDemoCelebration();
+        const char *newPiece = getenv("INCREMENT_SHOT_NEW");  // hold a new piece's chip as hovered
+        if (newPiece) LevelScreenDemoNovelty(atoi(newPiece));
         // INCREMENT_SHOT_RUN=1: run the step's draft as the learner would, to show its checks.
         const char *runFirst = getenv("INCREMENT_SHOT_RUN");
         if (Is(name, "level") && runFirst && runFirst[0] == '1') LevelScreenDemoRun();
