@@ -20,6 +20,7 @@
 #include "level/step_check.h"
 #include "level/step_hints.h"
 #include "level/step_novelty.h"
+#include "level/piece_demo_view.h"
 #include "level/step_skills.h"
 #include "ui/ui.h"
 
@@ -35,6 +36,7 @@
 #define LINE_TYPE_SECONDS 0.012   // and each is typed out, this long a character
 #define AUTO_NEXT_SECONDS 2.2     // after a pass, the next step opens by itself this much later
 #define NEW_GLOW_SECONDS 5.0      // what a step shows for the first time glows in the code this long
+#define EXAMPLE_DELAY 0.9         // a step not yet passed plays its first new piece's example this much later
 #define NEW_BURST_SECONDS 1.2     // after a burst of rings round each place it appears
 
 // After the output matches the target, the step still has to be solved honestly
@@ -147,6 +149,18 @@ static struct {
     char noveltyModel[STEP_HINT_TEXT];
     Vector2 noveltyModelAt;
     int noveltyDemoHover;  // --shot: a chip to treat as hovered (-1 none)
+
+    // A new piece's example playing (piece_demo_view.h): which chip's (-1 none), when it
+    // started (a replay starts it again), and where its panel was drawn last frame, so
+    // clicks over it don't reach what is underneath. A step not yet passed plays its first
+    // piece's example by itself at exampleAutoAt (-1 once done or not wanted).
+    int examplePiece;
+    double exampleAt;
+    Rectangle exampleBox;
+    double exampleAutoAt;
+    bool exampleByItself;  // it opened by itself, so it folds away once it has played
+    Rectangle shelfChips[NOVELTY_MAX];  // the chips as drawn, to tell a click on one from a click outside
+    int shelfChipCount;
     bool demo;         // set up for a --shot: nothing is saved
     bool demoBack;     // --shot: leave the level as if Back had been clicked
 } ls;
@@ -187,6 +201,7 @@ static void OpenReview(bool fresh)
     }
     memset(ls.reviewHover, 0, sizeof ls.reviewHover);
     ls.reviewOpen = true;
+    ls.examplePiece = -1;
     ls.reviewFresh = fresh;
     ls.reviewOpenedAt = GetTime();
     ls.autoNextAt = -1;
@@ -457,6 +472,8 @@ static void OpenStep(int index, bool leavingStep)
     StepNoveltyFind(ls.set, ls.lessonIndex, index, &ls.novelty);
     ls.noveltyAt = GetTime();
     ls.noveltyFocus = ls.noveltyDemoHover = -1;
+    ls.examplePiece = -1;
+    ls.exampleAutoAt = ProgressStepDone(ls.lesson->id, index) || ls.demo ? -1 : GetTime() + EXAMPLE_DELAY;
     free(ls.variedExpected);
     ls.variedExpected = NULL;
     char key[64];
@@ -963,6 +980,7 @@ static void NoveltyModel(const char *key)
 static void NoveltyShelf(float x, float y, float right, float height)
 {
     ls.noveltyModelAt.x = -1;
+    ls.shelfChipCount = 0;
     if (!ls.novelty.count || x + 60 > right) return;
     float since = (float)(GetTime() - ls.noveltyAt), size = 18;
     IconDraw(ICON_STAR, (Vector2){ x + 14, y + height / 2 }, 22 * PopOvershoot(since / 0.35f), COL_GOLD);
@@ -971,23 +989,36 @@ static void NoveltyShelf(float x, float y, float right, float height)
     for (int i = 0; i < ls.novelty.count; i++) {
         const NovelPiece *piece = &ls.novelty.pieces[i];
         float plus = piece->inStarter ? 0 : 16;
-        float width = UiTextWidth(gFonts.mono, piece->key, size) + 22 + plus;
+        bool hasExample = PieceDemoFind(piece->key) != NULL;
+        float play = hasExample ? 16 : 0;
+        float width = UiTextWidth(gFonts.mono, piece->key, size) + 22 + plus + play;
         if (chipX + width > right) break;
         float pop = PopOvershoot((since - 0.15f - i * 0.09f) / 0.25f);
         if (pop <= 0) break;
         Rectangle chip = { chipX, y, width, height };
+        ls.shelfChips[ls.shelfChipCount++] = chip;
         bool over = UiMouseOver(chip) || i == ls.noveltyDemoHover;
+        bool playing = i == ls.examplePiece;
         if (over) {
             UiWantHand();
             hovered = i;
+            // A click plays its example (from the start), or closes the one playing.
+            if (hasExample && UiMouseOver(chip) && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+                ls.examplePiece = playing ? -1 : i;
+                ls.exampleAt = GetTime();
+                ls.exampleAutoAt = -1;
+                ls.exampleByItself = false;
+            }
         }
         Rectangle drawn = { chip.x + chip.width * (1 - pop) / 2, chip.y + chip.height * (1 - pop) / 2, chip.width * pop,
                             chip.height * pop };
-        UiRoundRect(drawn, 8, over ? COL_SECONDARY_HOVER : COL_PANEL);
-        DrawRectangleRoundedLinesEx(drawn, 0.3f, 8, 1.5f, Fade(COL_GOLD, over ? 1 : 0.6f));
+        UiRoundRect(drawn, 8, playing ? COL_CODE_BG : over ? COL_SECONDARY_HOVER : COL_PANEL);
+        DrawRectangleRoundedLinesEx(drawn, 0.3f, 8, playing ? 2.5f : 1.5f, Fade(COL_GOLD, over || playing ? 1 : 0.6f));
         if (pop > 0.9f) {
             if (plus) IconDraw(ICON_PLUS, (Vector2){ chip.x + 14, chip.y + height / 2 }, 12, COL_GOLD);
-            UiCodeLine(piece->key, chip.x + 11 + plus, chip.y + height / 2 - size * 0.6f, size);
+            UiCodeLine(piece->key, chip.x + 11 + plus, chip.y + height / 2 - size * 0.5f, size);
+            if (play) IconDraw(ICON_PLAY, (Vector2){ chip.x + width - 14, chip.y + height / 2 }, 11,
+                               Fade(COL_GOLD, playing || over ? 1 : 0.7f));
         }
         if (over) ls.noveltyModelAt = (Vector2){ chip.x, chip.y + height + 6 };
         chipX += width + 6;
@@ -1004,7 +1035,7 @@ static void NoveltyShelf(float x, float y, float right, float height)
 // The hovered chip's model line, in a code panel under it.
 static void NoveltyModelPopup(void)
 {
-    if (ls.noveltyModelAt.x < 0 || !ls.noveltyModel[0]) return;
+    if (ls.noveltyModelAt.x < 0 || !ls.noveltyModel[0] || ls.examplePiece >= 0) return;
     float size = 18 * UiTextScale();
     float width = UiTextWidth(gFonts.mono, ls.noveltyModel, size) + 28;
     Rectangle box = { ls.noveltyModelAt.x, ls.noveltyModelAt.y, width, size * 1.6f + 16 };
@@ -1013,6 +1044,52 @@ static void NoveltyModelPopup(void)
     UiRoundRect(box, 10, COL_CODE_BG);
     DrawRectangleRoundedLinesEx(box, 0.25f, 8, 2, COL_GOLD);
     UiCodeLine(ls.noveltyModel, box.x + 14, box.y + box.height / 2 - size * 0.6f, size);
+}
+
+// A new piece's example (piece_demo_view.h), in a panel under its chip, over the editor.
+// It closes with its button, Esc, its chip, or a click anywhere else.
+static void NoveltyExample(float top)
+{
+    ls.exampleBox = (Rectangle){ 0, 0, 0, 0 };
+    // A step not yet passed plays its first new piece's example once the shelf has popped in.
+    if (ls.exampleAutoAt >= 0 && GetTime() >= ls.exampleAutoAt) {
+        ls.exampleAutoAt = -1;
+        for (int i = 0; i < ls.shelfChipCount && ls.examplePiece < 0; i++)
+            if (PieceDemoFind(ls.novelty.pieces[i].key)) {
+                ls.examplePiece = i;
+                ls.exampleAt = GetTime();
+                ls.exampleByItself = true;
+            }
+    }
+    if (ls.examplePiece < 0 || ls.examplePiece >= ls.shelfChipCount) return;
+    const char *piece = ls.novelty.pieces[ls.examplePiece].key;
+    const PieceDemo *example = PieceDemoFind(piece);
+    if (!example) return;
+    Vector2 size = PieceDemoViewSize(example);
+    float W = (float)GetScreenWidth();
+    Rectangle chip = ls.shelfChips[ls.examplePiece];
+    float x = fmaxf(16, fminf(chip.x - 24, W - 16 - size.x));
+    Rectangle box = { x, top, size.x, size.y };
+    float since = (float)(GetTime() - ls.exampleAt);
+    float open = EaseOutCubic(Clamp01(since / 0.25f));  // it drops open from the chip
+    UiClaimEscape();  // Esc closes it rather than leaving the level
+    BeginScissorMode((int)box.x - 10, (int)box.y - 10, (int)box.width + 20, (int)((box.height + 20) * open));
+    PieceDemoViewAction action = PieceDemoViewDraw(example, piece, box, since);
+    EndScissorMode();
+    // A thread of gold from the chip to the panel.
+    DrawLineEx((Vector2){ chip.x + chip.width / 2, chip.y + chip.height }, (Vector2){ chip.x + chip.width / 2, box.y },
+               2, Fade(COL_GOLD, 0.8f));
+    ls.exampleBox = box;
+
+    bool clickedOutside = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !CheckCollisionPointRec(GetMousePosition(), box);
+    for (int i = 0; i < ls.shelfChipCount && clickedOutside; i++)
+        if (CheckCollisionPointRec(GetMousePosition(), ls.shelfChips[i])) clickedOutside = false;  // the chip decides
+    if (action == PIECE_DEMO_VIEW_REPLAY) {
+        ls.exampleAt = GetTime();
+        ls.exampleByItself = false;  // asked for again: it stays
+    }
+    if (ls.exampleByItself && since > PieceDemoViewLength(example) + 2.5f) ls.examplePiece = -1;  // played through
+    if (action == PIECE_DEMO_VIEW_CLOSE || IsKeyPressed(KEY_ESCAPE) || clickedOutside) ls.examplePiece = -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -1226,6 +1303,9 @@ LevelAction LevelScreen(void)
 
     // While the review page is open, the step underneath is only a picture: nothing in it reacts.
     if (ls.reviewOpen) UiSetClip((Rectangle){ 0, 0, 0, 0 });
+    // Likewise under a new piece's example (where it was drawn last frame).
+    bool overExample = ls.examplePiece >= 0 && CheckCollisionPointRec(GetMousePosition(), ls.exampleBox);
+    if (overExample) UiSetClip((Rectangle){ 0, 0, 0, 0 });
 
     bool back = TopBar(ls.lesson->title);
     StepPips();
@@ -1361,6 +1441,8 @@ LevelAction LevelScreen(void)
     LevelFxSetLayout(ls.fxLayout);
     LevelFxDrawOver();
     NoveltyModelPopup();
+    if (overExample && !ls.reviewOpen) UiClearClip();
+    if (!ls.reviewOpen) NoveltyExample(barY + barH + 8);
 
     if (ls.reviewOpen) {
         UiClearClip();
@@ -1421,6 +1503,16 @@ void LevelScreenDemoType(const char *typed)
 void LevelScreenDemoNovelty(int piece)
 {
     ls.noveltyDemoHover = piece;
+}
+
+void LevelScreenDemoExample(int piece, float seconds)
+{
+    if (!ls.open || piece < 0 || piece >= ls.novelty.count) return;
+    ls.noveltyAt = GetTime() - 2;  // the shelf has popped in
+    ls.examplePiece = piece;
+    ls.exampleAt = GetTime() - seconds;
+    ls.exampleAutoAt = -1;
+    ls.exampleByItself = false;
 }
 
 void LevelScreenDemoCelebration(void)

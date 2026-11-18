@@ -69,7 +69,8 @@ bool TopBar(const char *title)
         if (IsKeyPressed(KEY_ESCAPE) && !UiEscapeClaimed()) UiFocus(NULL);
         return back;
     }
-    return back || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE);
+    // Esc belongs to a widget that claimed it (a popup closing), not to the page.
+    return back || (IsKeyPressed(KEY_ESCAPE) && !UiEscapeClaimed()) || IsKeyPressed(KEY_BACKSPACE);
 }
 
 void ProgressBar(Rectangle r, float t, Color track, Color fill)

@@ -48,6 +48,8 @@ void LevelScreenDemoCelebration(void);
 void LevelScreenDemoType(const char *typed);
 // Dev aid for --shot: hold the new-piece chip at this index as if hovered (its model line shows).
 void LevelScreenDemoNovelty(int piece);
+// Dev aid for --shot: play the example of the new-piece chip at this index, `seconds` in.
+void LevelScreenDemoExample(int piece, float seconds);
 void LevelScreenDemoBack(void);  // the next frame leaves the level, as if Back had been clicked
 bool LevelScreenBusy(void);
 

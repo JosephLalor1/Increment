@@ -53,6 +53,12 @@ if errorlevel 1 exit /b 1
 build\test_steps.exe
 if errorlevel 1 set FAILED=1
 
+rem Compiles and runs every new piece's animated example to check its frames tell the truth.
+"%CC%" %CFLAGS% tests\test_piece_demos.c src\level\piece_demos.c src\level\step_novelty.c src\code\code_text.c src\learning\lesson.c src\learning\skills.c -o build\test_piece_demos.exe %LIBS%
+if errorlevel 1 exit /b 1
+build\test_piece_demos.exe "%RAYLIB_DIR%\w64devkit\bin" "%TESTDIR%"
+if errorlevel 1 set FAILED=1
+
 rem Compiles and runs instrumented C and C++ programs to check what they report.
 "%CC%" %CFLAGS% tests\test_probe.c src\level\memory_probe.c src\code\code_text.c -o build\test_probe.exe
 if errorlevel 1 exit /b 1

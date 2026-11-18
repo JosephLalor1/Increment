@@ -31,7 +31,8 @@ static float TrackSummary(DashboardStats stats, const char *title, float x, floa
     UiRoundRect((Rectangle){ x, y + 5, w, h }, 14, COL_PANEL_HI);
     UiRoundRect(card, 14, over ? COL_PANEL_HI : COL_PANEL);
     UiParagraph(title, x + 20, y + 16, w - 40, 26 * scale, COL_TEXT);
-    float p = stats.lessons ? (float)stats.completed / stats.lessons : 0;
+    // Like the journey's header: the percentage and bar count stages passed, the text levels.
+    float p = stats.steps ? (float)stats.stepsDone / stats.steps : 0;
     UiParagraph(TextFormat("%d / %d levels complete  |  %.0f%%", stats.completed, stats.lessons, p * 100),
              x + 20, y + titleH + 26, w - 40, 18 * scale, COL_DIM);
     ProgressBar((Rectangle){ x + 20, y + h - 62 * scale, w - 40, 12 }, p, COL_BG, COL_GOOD);
@@ -63,7 +64,7 @@ static float JourneyCard(const LessonSet *set, DashboardStats stats, float x, fl
     if (foxSize) MascotDrawActor(FOX_DASHBOARD, (Rectangle){ x + w - foxSize - 16, y + (h - foxSize) / 2, foxSize, foxSize },
                                 stats.completed > 0 ? FOX_LOVE_LEARNING : FOX_HAPPY);
     Vector2 center = { x + 24 + ringSize / 2, y + h / 2 };
-    float ratio = stats.lessons ? (float)stats.completed / stats.lessons : 0;
+    float ratio = stats.steps ? (float)stats.stepsDone / stats.steps : 0;  // stages passed, like the track cards
     DrawRing(center, ringSize / 2 - 12, ringSize / 2, 0, 360, 96, COL_BG);
     if (ratio > 0) DrawRing(center, ringSize / 2 - 12, ringSize / 2, -90, -90 + ratio * 360, 96, COL_GOOD);
     UiTextCentered(gFonts.bold, TextFormat("%.0f%%", ratio * 100), center.x, center.y - 22 * scale, 32 * scale, COL_GOOD);
